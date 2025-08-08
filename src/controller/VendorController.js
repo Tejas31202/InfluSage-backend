@@ -10,7 +10,6 @@ redisClient.connect().catch(console.error);
 const JWT_SECRET = process.env.JWT_SECRET;
 
 
-
 // Utility: Check if email exists using stored procedure
 async function isEmailExists(email) {
   const result = await client.query(`CALL ins.sp_is_registered($1::VARCHAR,NULL,NULL,NULL)`, [email]);
@@ -24,19 +23,19 @@ function generateOTP() {
 }
 
 // Step 1: Request Registration (send OTP, store data in Redis)
-exports.requestRegistration = async (req, res) => {
+exports.  requestRegistration = async (req, res) => {
   const { firstName, lastName, email, roleId, password } = req.body;
   try {
     if (await isEmailExists(email)) {
-      return res.status(400).json({ message: 'User with this email already exists.' });
+      return res.status(400).json({ message: 'Verndor with this email already exists.' });
     }
 
     const passwordhash = await bcrypt.hash(password, 10);
     const otpCode = generateOTP();
 
-    // Store user data and hashed password in Redis for 50 seconds
+    // Store vendor data and hashed password in Redis for 50 seconds
     await redisClient.setEx(
-      `pendingUser:${email}`,
+      `pendingVendor:${email}`,
       60, // Store for 60 seconds
       JSON.stringify({ firstName, lastName, email, roleId, passwordhash })
     );
@@ -51,8 +50,8 @@ exports.requestRegistration = async (req, res) => {
   }
 };
 
-// Step 2: Verify OTP and Register User
-exports.verifyOtpAndRegister = async (req, res) => {
+// Step 2: Verify OTP and Register vendor
+exports. verifyOtpAndRegister = async (req, res) => {
   const { email, otp } = req.body;
   try {
     const storedOtp = await redisClient.get(`otp:${email}`);
@@ -63,13 +62,13 @@ exports.verifyOtpAndRegister = async (req, res) => {
       return res.status(400).json({ message: "Invalid OTP." });
     }
 
-    const userDataStr = await redisClient.get(`pendingUser:${email}`);
-    if (!userDataStr) {
+    const vendorDataStr = await redisClient.get(`pandingVendor:${email}`);
+    if (!vendorDataStr) {
       return res.status(400).json({ message: "No pending registration found." });
     }
-    const { firstName, lastName, roleId, passwordhash }  = JSON.parse(userDataStr);
+    const { firstName, lastName, roleId, passwordhash } = JSON.parse(vendorDataStr);
 
-    // Insert user into DB
+    // Insert vendor into DB
     const result = await client.query(
       `CALL ins.sp_insert_user($1::VARCHAR, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::BOOLEAN, $6::SMALLINT, NULL, NULL, NULL)`,
       [firstName, lastName, email, passwordhash, true, roleId]
@@ -79,34 +78,34 @@ exports.verifyOtpAndRegister = async (req, res) => {
 
     // Clean up Redis
     await redisClient.del(`otp:${email}`);
-    await redisClient.del(`pendingUser:${email}`);
+    await redisClient.del(`pandingVendor:${email}`);
 
     return res.status(p_code).json({ message: p_message });
   } catch (error) {
     console.error('OTP Verification & Registration Error:', error);
-    res.status(500).json({ message: "Error verifying OTP or registering user." });
+    res.status(500).json({ message: "Error verifying OTP or registering vendor." });
   }
 };
 
 
-// This function is used to login a user
-exports.loginUser = async (req, res) => {
+// This function is used to login a vendor
+exports.loginVendor = async (req, res) => {
   const { email, password } = req.body;
 
   try {
 
-    // Check if user exists
-    const isUserExists = await isEmailExists(email);
-    if (!isUserExists) {
-      return res.status(401).json({ message: "User not found" });
+    // Check if vendor exists
+    const isVendorExists = await isEmailExists(email);
+    if (!isVendorExists) {
+      return res.status(401).json({ message: "vendor not found" });
     }
 
-    const userPasswordResult = await client.query(
+    const vendorPasswordResult = await client.query(
       'SELECT * FROM ins.fn_get_loginpassword($1::VARCHAR)',
       [email]
     );
 
-    const { passwordhash, roleid, userid, firstname, lastname } = userPasswordResult.rows[0];
+    const { passwordhash, roleid, vendorid, firstname, lastname } = vendorPasswordResult.rows[0];
 
     // Compare entered password with hashed password
     const isMatch = await bcrypt.compare(password, passwordhash);
@@ -118,7 +117,7 @@ exports.loginUser = async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { id: userid, email: email, role: roleid },
+      { id: vendorid, email: email, role: roleid },
       JWT_SECRET,
       { expiresIn: '1h' }
     );
@@ -127,7 +126,7 @@ exports.loginUser = async (req, res) => {
     return res.status(200).json({
       message: "Welcome back " + firstname + " " + lastname,
       token, // ← send to frontend
-      id: userid,
+      id: vendorid,
       name: firstname + " " + lastname,
       email: email,
       role: roleid,
@@ -140,7 +139,7 @@ exports.loginUser = async (req, res) => {
 };
 
 
-// This function is used to resend OTP to the user's email
+// This function is used to resend OTP to the vendor's email
 exports.resendOtp = async (req, res) => {
   const { email } = req.body;
 
@@ -158,9 +157,9 @@ exports.resendOtp = async (req, res) => {
     // Store OTP in Redis with 60 sec expiry
     await redisClient.setEx(`otp:${email}`, 60, otpCode);
 
-    const userData = await redisClient.get(`pendingUser:${email}`);
-    if (userData) {
-      await redisClient.expire(`pendingUser:${email}`, 60); // Reset TTL to 60 seconds
+    const vendorData = await redisClient.get(`pendingVendor:${email}`);
+    if (vendorData) {
+      await redisClient.expire(`pendingVendor:${email}`, 60); // Reset TTL to 60 seconds
     }
 
     return res.status(200).json({ message: "OTP resent successfully." });
@@ -171,29 +170,29 @@ exports.resendOtp = async (req, res) => {
 };
 
 
-// this fuctiion is used to reset the password of a user
+// this fuctiion is used to reset the password of a vendor
 exports.forgetPassword = async (req, res) => {
   const { email } = req.body;
 
   try {
-    // Check if user exists
-    const isUserExists = await isEmailExists(email);
-    if (!isUserExists) {
-      return res.status(404).json({ message: "User not found" });
+    // Check if vendor exists
+    const isVendorExists = await isEmailExists(email);
+    if (!isVendorExists) {
+      return res.status(404).json({ message: "vendor not found" });
     }
 
-    const user = await client.query(
+    const vendor = await client.query(
       'SELECT * FROM ins.fn_get_loginpassword($1::VARCHAR)',
       [email]
-    ); 
+    );
 
-    const userId = user.rows[0].userid;
+    const vendorId = vendor.rows[0].vendorid;
 
 
     const resetToken = crypto.randomBytes(32).toString('hex');
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
-    await redisClient.setEx(`reset:${resetToken}`, 300, userId);
+    await redisClient.setEx(`reset:${resetToken}`, 300, vendorId);
 
 
     // Send Email with reset url
@@ -217,8 +216,8 @@ exports.resetPassword = async (req, res) => {
   const { token, password } = req.body;
   try {
     // Get email from Redis using token
-    const userId = await redisClient.get(`reset:${token}`);
-    if (!userId) {
+    const vendorId = await redisClient.get(`reset:${token}`);
+    if (!vendorId) {
       return res.status(400).json({ message: "Invalid or expired reset token." });
     }
 
@@ -228,7 +227,7 @@ exports.resetPassword = async (req, res) => {
     // Update password in DB (adjust query as per your DB)
     const updateResult = await client.query(
       `CALL ins.sp_reset_userpassword($1::BIGINT, $2::VARCHAR, NULL, NULL)`,
-      [userId, passwordhash]
+      [vendorId, passwordhash]
     );
 
     const { p_status, p_message } = updateResult.rows[0];

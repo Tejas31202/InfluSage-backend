@@ -1,0 +1,55 @@
+userId: 68
+📌 profilejson: {
+  "photopath": "profile.jpg",
+  "phonenumber": "8956231545",
+  "genderid": 1,
+  "dob": "1995-05-20",
+  "address1": "Prahladnagar 13",
+  "countryid": 1,
+  "stateid": 1,
+  "bio": "New user10 bio"
+}
+🔗 socialaccountjson: [
+  {
+    "providerid": 1,
+    "handleslink": "https://instagram.com/username"
+  },
+  {
+    "providerid": 5,
+    "handleslink": "https://youtube.com/@username"
+  }
+]
+📂 categoriesjson: [
+  {
+    "parentcategoryid": 7,
+    "parentcategoryname": "Lifestyle/Fashion/Beauty",
+    "categories": [
+      {
+        "categoryid": 99,
+        "categoryname": "Clothing"
+      },
+      {
+        "categoryid": 105,
+        "categoryname": "Barber/Hairstylist"
+      }
+    ]
+  }
+]
+🖼 portfoliojson: [
+  {
+    "title": "Sample Portfolio",
+    "description": "My first portfolio work",
+    "url": "https://myportfolio.com/sample"
+  }
+]
+💳 paymentjson: {}
+===================================================
+➡ Parent 1: parentcategoryid = 7
+   └─ Child 1: categoryid = 99
+   └─ Child 2: categoryid = 105
+📤 SP Output: [
+  {
+    p_status: false,
+    p_message: 'Error: null value in column "categoryid" of relation "usercategories" violates not-null constraint'     
+  }
+]
