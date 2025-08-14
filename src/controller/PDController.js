@@ -30,14 +30,14 @@ exports.completeUserProfile = async (req, res) => {
   } = req.body;
 
   try {
-    // 🔍 Debug logs for incoming data
-    console.log("===== 📩 Incoming Complete User Profile Data =====");
-    console.log("👤 userId:", userId);
-    console.log("📌 profilejson:", JSON.stringify(profilejson, null, 2));
-    console.log("🔗 socialaccountjson:", JSON.stringify(socialaccountjson, null, 2));
-    console.log("📂 categoriesjson:", JSON.stringify(categoriesjson, null, 2));
-    console.log("🖼 portfoliojson:", JSON.stringify(portfoliojson, null, 2));
-    console.log("💳 paymentjson:", JSON.stringify(paymentjson, null, 2));
+    //  Debug logs for incoming data
+    console.log("=====  Incoming Complete User Profile Data =====");
+    console.log(" userId:", userId);
+    console.log(" profilejson:", JSON.stringify(profilejson, null, 2));
+    console.log(" socialaccountjson:", JSON.stringify(socialaccountjson, null, 2));
+    console.log(" categoriesjson:", JSON.stringify(categoriesjson, null, 2));
+    console.log("portfoliojson:", JSON.stringify(portfoliojson, null, 2));
+    console.log(" paymentjson:", JSON.stringify(paymentjson, null, 2));
     console.log("===================================================");
 
     // Extra breakdown for categories
@@ -49,7 +49,7 @@ exports.completeUserProfile = async (req, res) => {
             console.log(`   └─ Child ${j + 1}: categoryid =`, child.categoryid);
           });
         } else {
-          console.log(`   ⚠ No child categories found for parent ${i + 1}`);
+          console.log(`    No child categories found for parent ${i + 1}`);
         }
       });
     }
@@ -90,7 +90,7 @@ exports.completeUserProfile = async (req, res) => {
     await client.query('COMMIT');
 
     // Debug stored procedure output
-    console.log("📤 SP Output:", result.rows);
+    console.log(" SP Output:", result.rows);
 
     const { p_status, p_message } = result.rows[0];
     if (p_status) {
@@ -100,7 +100,7 @@ exports.completeUserProfile = async (req, res) => {
     }
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error("❌ Complete user profile error:", error);
+    console.error(" Complete user profile error:", error);
     return res.status(500).json({ message: error.message });
   }
 };
@@ -113,7 +113,7 @@ exports.getUserProfile = async (req, res) => {
   const redisPrefix = `profile:${userId}`;
 
   try {
-    // ✅ Step 1: Try to fetch data from Redis
+    //  Step 1: Try to fetch data from Redis
     const [
       profilejson,
       socialaccountjson,
@@ -141,7 +141,7 @@ exports.getUserProfile = async (req, res) => {
 const profileCompletion = calculateProfileCompletion(profileParts);
 
 console.log("Profile Completion %:", profileCompletion);
-    // ✅ Step 2: If all data found in Redis, return it
+    //  Step 2: If all data found in Redis, return it
     if (profilejson && socialaccountjson && categoriesjson && portfoliojson && paymentjson) {
       return res.status(200).json({
         p_profile: JSON.parse(profilejson),
@@ -155,7 +155,7 @@ console.log("Profile Completion %:", profileCompletion);
     }
 
 
-    // ✅ Step 3: If not in Redis, fetch from DB
+    // Step 3: If not in Redis, fetch from DB
     const result = await client.query(
       `SELECT * FROM ins.fn_get_userprofilejson($1::BIGINT)`,
       [userId]
@@ -173,7 +173,7 @@ console.log("Profile Completion %:", profileCompletion);
       p_paymentaccounts
     } = result.rows[0];
 
-    // ✅ Step 4: Store individual parts in Redis for next time (TTL: 2 mins)
+    // Step 4: Store individual parts in Redis for next time (TTL: 2 mins)
     await Promise.all([
       redisClient.setEx(`${redisPrefix}:profilejson`, 120, JSON.stringify(p_profile)),
       redisClient.setEx(`${redisPrefix}:socialaccountjson`, 120, JSON.stringify(p_socials)),
@@ -182,7 +182,7 @@ console.log("Profile Completion %:", profileCompletion);
       redisClient.setEx(`${redisPrefix}:paymentjson`, 120, JSON.stringify(p_paymentaccounts))
     ]);
 
-    // ✅ Step 5: Return data from DB
+    //  Step 5: Return data from DB
     res.json({
       p_profile,
       p_socials,
