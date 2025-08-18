@@ -29,14 +29,14 @@ export const completeUserProfile = async (req, res) => {
 
   try {
     //  Debug logs for incoming data
-    console.log("=====  Incoming Complete User Profile Data =====");
-    console.log(" userId:", userId);
-    console.log(" profilejson:", JSON.stringify(profilejson, null, 2));
-    console.log(" socialaccountjson:", JSON.stringify(socialaccountjson, null, 2));
-    console.log(" categoriesjson:", JSON.stringify(categoriesjson, null, 2));
-    console.log("portfoliojson:", JSON.stringify(portfoliojson, null, 2));
-    console.log(" paymentjson:", JSON.stringify(paymentjson, null, 2));
-    console.log("===================================================");
+    // console.log("=====  Incoming Complete User Profile Data =====");
+    // console.log(" userId:", userId);
+    // console.log(" profilejson:", JSON.stringify(profilejson, null, 2));
+    // console.log(" socialaccountjson:", JSON.stringify(socialaccountjson, null, 2));
+    // console.log(" categoriesjson:", JSON.stringify(categoriesjson, null, 2));
+    // console.log("portfoliojson:", JSON.stringify(portfoliojson, null, 2));
+    // console.log(" paymentjson:", JSON.stringify(paymentjson, null, 2));
+    // console.log("===================================================");
 
     // Extra breakdown for categories
     if (categoriesjson && categoriesjson.length) {
@@ -88,12 +88,13 @@ export const completeUserProfile = async (req, res) => {
     await client.query('COMMIT');
 
     // Debug stored procedure output
-    console.log(" SP Output:", result.rows);
+    // console.log(" SP Output:", result.rows);
 
     const { p_status, p_message } = result.rows[0];
     if (p_status) {
       return res.status(200).json({ message: p_message });
     } else {
+      console.error("Complete user profile error:", p_message);
       return res.status(400).json({ message: p_message });
     }
   } catch (error) {
@@ -214,5 +215,32 @@ export const getUserNameByEmail = async (req, res) => {
   } catch (error) {
     console.error('Error fetching user name:', error);
     return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const getCategories = async (req, res) => {
+  const redisKey = 'categories';
+
+  try {
+    const cachedData = await redisClient.get(redisKey);
+
+    if (cachedData) {
+      return res.status(200).json({
+        categories: JSON.parse(cachedData),
+        source: 'redis'
+      });
+    }
+
+    const result = await client.query('select * from ins.fn_get_categories();');
+
+    await redisClient.setEx(redisKey, 300, JSON.stringify(result.rows)); // TTL 5 mins
+
+    return res.status(200).json({
+      categories: result.rows,
+      source: 'db'
+    });
+  } catch (error) {
+    console.error("Error fetching categories:", error);
+    return res.status(500).json({ message: 'Failed to fetch categories' });
   }
 };

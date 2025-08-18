@@ -25,7 +25,7 @@ app.use('/user', InfluencerProfileDetailController);
 app.use('/vendor', VendorRoutes);
 app.use('/vendor', VendorProfileDetailController);
 
-const PORT =  3001;
+const PORT =  process.env.BACKEND_PORT || 3001;
 
 app.listen(PORT, () => {
     console.log("server started on", PORT);
