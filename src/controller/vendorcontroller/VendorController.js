@@ -1,19 +1,19 @@
-const {client} = require('../config/db');
-const bcrypt = require("bcrypt");
-const crypto = require('crypto');
-const jwt = require("jsonwebtoken");
-const sendingMail = require("../utils/MailUtils");
-const redis = require('redis');
+import { client } from '../../config/db.js';
+import bcrypt from "bcrypt";
+import crypto from 'crypto';
+import jwt from "jsonwebtoken";
+import sendingMail from "../../utils/MailUtils.js";
+import redis from 'redis';
+
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
 redisClient.connect().catch(console.error);
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
-
 // Utility: Check if email exists using stored procedure
 async function isEmailExists(email) {
   const result = await client.query(`CALL ins.sp_is_registered($1::VARCHAR,NULL,NULL,NULL)`, [email]);
-  isUserExists = result.rows[0].p_isregistered;
+  const isUserExists = result.rows[0].p_isregistered;
   return isUserExists;
 }
 
@@ -23,17 +23,17 @@ function generateOTP() {
 }
 
 // Step 1: Request Registration (send OTP, store data in Redis)
-exports.  requestRegistration = async (req, res) => {
+export const requestRegistration = async (req, res) => {
   const { firstName, lastName, email, roleId, password } = req.body;
   try {
     if (await isEmailExists(email)) {
-      return res.status(400).json({ message: 'Verndor with this email already exists.' });
+      return res.status(400).json({ message: 'Vendor with this email already exists.' });
     }
 
     const passwordhash = await bcrypt.hash(password, 10);
     const otpCode = generateOTP();
 
-    // Store vendor data and hashed password in Redis for 50 seconds
+    // Store vendor data and hashed password in Redis for 60 seconds
     await redisClient.setEx(
       `pendingVendor:${email}`,
       60, // Store for 60 seconds
@@ -51,7 +51,7 @@ exports.  requestRegistration = async (req, res) => {
 };
 
 // Step 2: Verify OTP and Register vendor
-exports. verifyOtpAndRegister = async (req, res) => {
+export const verifyOtpAndRegister = async (req, res) => {
   const { email, otp } = req.body;
   try {
     const storedOtp = await redisClient.get(`otp:${email}`);
@@ -62,7 +62,7 @@ exports. verifyOtpAndRegister = async (req, res) => {
       return res.status(400).json({ message: "Invalid OTP." });
     }
 
-    const vendorDataStr = await redisClient.get(`pandingVendor:${email}`);
+    const vendorDataStr = await redisClient.get(`pendingVendor:${email}`);
     if (!vendorDataStr) {
       return res.status(400).json({ message: "No pending registration found." });
     }
@@ -78,7 +78,7 @@ exports. verifyOtpAndRegister = async (req, res) => {
 
     // Clean up Redis
     await redisClient.del(`otp:${email}`);
-    await redisClient.del(`pandingVendor:${email}`);
+    await redisClient.del(`pendingVendor:${email}`);
 
     return res.status(p_code).json({ message: p_message });
   } catch (error) {
@@ -87,13 +87,11 @@ exports. verifyOtpAndRegister = async (req, res) => {
   }
 };
 
-
 // This function is used to login a vendor
-exports.loginVendor = async (req, res) => {
+export const loginVendor = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-
     // Check if vendor exists
     const isVendorExists = await isEmailExists(email);
     if (!isVendorExists) {
@@ -113,7 +111,6 @@ exports.loginVendor = async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({ message: "Incorrect password" });
     }
-
 
     // Generate JWT token
     const token = jwt.sign(
@@ -138,13 +135,11 @@ exports.loginVendor = async (req, res) => {
   }
 };
 
-
 // This function is used to resend OTP to the vendor's email
-exports.resendOtp = async (req, res) => {
+export const resendOtp = async (req, res) => {
   const { email } = req.body;
 
   try {
-
     const otpCode = generateOTP();
 
     // Send Email with OTP
@@ -169,9 +164,8 @@ exports.resendOtp = async (req, res) => {
   }
 };
 
-
-// this fuctiion is used to reset the password of a vendor
-exports.forgetPassword = async (req, res) => {
+// this function is used to reset the password of a vendor
+export const forgetPassword = async (req, res) => {
   const { email } = req.body;
 
   try {
@@ -188,12 +182,10 @@ exports.forgetPassword = async (req, res) => {
 
     const vendorId = vendor.rows[0].vendorid;
 
-
     const resetToken = crypto.randomBytes(32).toString('hex');
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
     await redisClient.setEx(`reset:${resetToken}`, 300, vendorId);
-
 
     // Send Email with reset url
     await sendingMail(
@@ -207,12 +199,9 @@ exports.forgetPassword = async (req, res) => {
     console.error('Forget Password Error:', error);
     return res.status(500).json({ message: "Error initiating password reset." });
   }
-}
+};
 
-
-exports.resetPassword = async (req, res) => {
-
-
+export const resetPassword = async (req, res) => {
   const { token, password } = req.body;
   try {
     // Get email from Redis using token
@@ -240,13 +229,8 @@ exports.resetPassword = async (req, res) => {
       return res.status(400).json({ message: p_message });
     }
 
-
   } catch (error) {
     console.error('Reset Password Error:', error);
     return res.status(500).json({ message: "Error resetting password." });
   }
-}
-
-
-
-
+};

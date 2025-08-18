@@ -1,7 +1,8 @@
-const {Client} = require('pg');
-const {client} = require("../config/db")
-const authenticateUser = require("../middleware/AuthMiddleware");
-const redis = require('redis');
+import { Client } from 'pg';
+import { client } from "../../config/db.js";
+import authenticateUser from "../../middleware/AuthMiddleware.js";
+import redis from 'redis';
+
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
 redisClient.connect().catch(console.error);
 
@@ -31,10 +32,7 @@ function calculateProfileCompletion(partsArray) {
   return Math.round((filledFields / totalFields) * 100);
 }
 
-
-
-
-exports.getVendorCategories = async (req, res) => {
+export const getVendorCategories = async (req, res) => {
   const redisKey = 'vendor_categories';
 
   try {
@@ -61,7 +59,7 @@ exports.getVendorCategories = async (req, res) => {
   }
 };
 
-exports.getCompanySizes = async (req, res) => {
+export const getCompanySizes = async (req, res) => {
   const redisKey = 'company_sizes';
 
   try {
@@ -88,8 +86,7 @@ exports.getCompanySizes = async (req, res) => {
   }
 };
 
-
-exports.getInfluencerTiers = async (req, res) => {
+export const getInfluencerTiers = async (req, res) => {
   const redisKey = 'influencer_tiers';
 
   try {
@@ -116,9 +113,7 @@ exports.getInfluencerTiers = async (req, res) => {
   }
 };
 
-
-
-exports.getUserNameByEmail = async (req, res) => {
+export const getUserNameByEmail = async (req, res) => {
   const { email } = req.params; // or use req.body.email if POST
 
   try {
@@ -143,10 +138,7 @@ exports.getUserNameByEmail = async (req, res) => {
   }
 };
 
-
-
-
-exports.getVendorProfile = async (req, res) => {
+export const getVendorProfile = async (req, res) => {
   const vendorId = req.params.userId;
   const redisPrefix = `vendor:${vendorId}`;
 
@@ -213,16 +205,16 @@ exports.getVendorProfile = async (req, res) => {
       p_objectives,
       p_paymentaccount
     } = result.rows[0];
-console.log({ p_profile, p_categories, p_providers, p_objectives, p_paymentaccount });
-
+    console.log({ p_profile, p_categories, p_providers, p_objectives, p_paymentaccount });
 
     await Promise.all([
       redisClient.setEx(`${redisPrefix}:profilejson`, 120, JSON.stringify(p_profile || {})),
-  redisClient.setEx(`${redisPrefix}:categoriesjson`, 120, JSON.stringify(p_categories || [])),
-  redisClient.setEx(`${redisPrefix}:providersjson`, 120, JSON.stringify(p_providers || [])),
-  redisClient.setEx(`${redisPrefix}:objectivesjson`, 120, JSON.stringify(p_objectives || [])),
-  redisClient.setEx(`${redisPrefix}:paymentjson`, 120, JSON.stringify(p_paymentaccount || {}))
+      redisClient.setEx(`${redisPrefix}:categoriesjson`, 120, JSON.stringify(p_categories || [])),
+      redisClient.setEx(`${redisPrefix}:providersjson`, 120, JSON.stringify(p_providers || [])),
+      redisClient.setEx(`${redisPrefix}:objectivesjson`, 120, JSON.stringify(p_objectives || [])),
+      redisClient.setEx(`${redisPrefix}:paymentjson`, 120, JSON.stringify(p_paymentaccount || {}))
     ]);
+    
     const dbParsedParts = {
       profile: p_profile || {},
       categories: p_categories || {},
@@ -258,10 +250,8 @@ console.log({ p_profile, p_categories, p_providers, p_objectives, p_paymentaccou
   }
 };
 
-
-
-exports.completeVendorProfile = async (req, res) => {
-   const userId = req.user?.id || req.body.userid;
+export const completeVendorProfile = async (req, res) => {
+  const userId = req.user?.id || req.body.userid;
   const {
     profilejson,
     categoriesjson,
@@ -282,35 +272,34 @@ exports.completeVendorProfile = async (req, res) => {
 
     await redisClient.setEx(`${redisPrefix}:profilejson`, 120, JSON.stringify(profilejson));
     await redisClient.setEx(`${redisPrefix}:categoriesjson`, 120, JSON.stringify(categoriesjson));
-    await redisClient.setEx(`${redisPrefix}:providersjson`, 120, JSON .stringify(providersjson));
+    await redisClient.setEx(`${redisPrefix}:providersjson`, 120, JSON.stringify(providersjson));
     await redisClient.setEx(`${redisPrefix}:objectivesjson`, 120, JSON.stringify(objectivesjson));
     await redisClient.setEx(`${redisPrefix}:paymentjson`, 120, JSON.stringify(paymentjson));
 
     await client.query('BEGIN');
     const result = await client.query(
-  `CALL ins.sp_complete_vendorprofile(
-    $1::BIGINT, $2::JSON, $3::JSON, $4::JSON, $5::JSON, $6::JSON, $7::BOOLEAN, $8::TEXT)`,
-  [
-    userId,
-    JSON.stringify(profilejson),
-    JSON.stringify(categoriesjson),
-    JSON.stringify(providersjson),
-    JSON.stringify(objectivesjson),
-    JSON.stringify(paymentjson),
-    null, // Assuming these are optional
-    null // Assuming these are optional
-  ]
-);
+      `CALL ins.sp_complete_vendorprofile(
+        $1::BIGINT, $2::JSON, $3::JSON, $4::JSON, $5::JSON, $6::JSON, $7::BOOLEAN, $8::TEXT)`,
+      [
+        userId,
+        JSON.stringify(profilejson),
+        JSON.stringify(categoriesjson),
+        JSON.stringify(providersjson),
+        JSON.stringify(objectivesjson),
+        JSON.stringify(paymentjson),
+        null, // Assuming these are optional
+        null // Assuming these are optional
+      ]
+    );
 
-await client.query('COMMIT');
+    await client.query('COMMIT');
 
-const { p_status, p_message } = result.rows[0];
-if (p_status) {
-  return res.status(200).json({ message: p_message });
-
-} else {
-return res.status(400).json({ message: p_message });
-}
+    const { p_status, p_message } = result.rows[0];
+    if (p_status) {
+      return res.status(200).json({ message: p_message });
+    } else {
+      return res.status(400).json({ message: p_message });
+    }
 
   } catch (error) {
     await client.query('ROLLBACK');
@@ -320,7 +309,7 @@ return res.status(400).json({ message: p_message });
   }
 };
 
-exports.getObjectives = async (req, res) => {
+export const getObjectives = async (req, res) => {
   const redisKey = 'vendor_objectives';
 
   try {
@@ -347,4 +336,3 @@ exports.getObjectives = async (req, res) => {
     return res.status(500).json({ message: 'Failed to fetch objectives' });
   }
 };
-

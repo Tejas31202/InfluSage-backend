@@ -1,11 +1,10 @@
-const { Client } = require("pg");
-const {client} = require("../config/db")
-// const authenticateUser = require("../middleware/AuthMiddleware");
-const redis = require('redis');
+import { Client } from "pg";
+import { client } from "../../config/db.js";
+// import authenticateUser from "../middleware/AuthMiddleware.js";
+import redis from 'redis';
+
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
 redisClient.connect().catch(console.error);
-
-
 
 const calculateProfileCompletion = (profileParts) => {
   const totalSections = profileParts.length;
@@ -17,10 +16,9 @@ const calculateProfileCompletion = (profileParts) => {
   return Math.round((filledSections / totalSections) * 100);
 };
 
-
 // Complete User Profile
-exports.completeUserProfile = async (req, res) => {
-   const userId = req.user?.id || req.body.userid;
+export const completeUserProfile = async (req, res) => {
+  const userId = req.user?.id || req.body.userid;
   const {
     profilejson,
     socialaccountjson,
@@ -105,11 +103,9 @@ exports.completeUserProfile = async (req, res) => {
   }
 };
 
-
 // Get User Profile
-exports.getUserProfile = async (req, res) => {
-  // ... your existing getUserProfile logic ...
-   const userId = req.params.userId;
+export const getUserProfile = async (req, res) => {
+  const userId = req.params.userId;
   const redisPrefix = `profile:${userId}`;
 
   try {
@@ -128,19 +124,17 @@ exports.getUserProfile = async (req, res) => {
       redisClient.get(`${redisPrefix}:paymentjson`)
     ]);
 
-
     const profileParts = [
-         profilejson ? JSON.parse(profilejson) : {},
-  socialaccountjson ? JSON.parse(socialaccountjson) : {},
-  categoriesjson ? JSON.parse(categoriesjson) : {},
-  portfoliojson ? JSON.parse(portfoliojson) : {},
-  paymentjson ? JSON.parse(paymentjson) : {},
-];
+      profilejson ? JSON.parse(profilejson) : {},
+      socialaccountjson ? JSON.parse(socialaccountjson) : {},
+      categoriesjson ? JSON.parse(categoriesjson) : {},
+      portfoliojson ? JSON.parse(portfoliojson) : {},
+      paymentjson ? JSON.parse(paymentjson) : {},
+    ];
 
+    const profileCompletion = calculateProfileCompletion(profileParts);
 
-const profileCompletion = calculateProfileCompletion(profileParts);
-
-console.log("Profile Completion %:", profileCompletion);
+    console.log("Profile Completion %:", profileCompletion);
     //  Step 2: If all data found in Redis, return it
     if (profilejson && socialaccountjson && categoriesjson && portfoliojson && paymentjson) {
       return res.status(200).json({
@@ -153,7 +147,6 @@ console.log("Profile Completion %:", profileCompletion);
         source: 'redis'
       });
     }
-
 
     // Step 3: If not in Redis, fetch from DB
     const result = await client.query(
@@ -199,8 +192,7 @@ console.log("Profile Completion %:", profileCompletion);
 };
 
 // Get User Name by Email
-exports.getUserNameByEmail = async (req, res) => {
-  // ... your existing getUserNameByEmail logic ...
+export const getUserNameByEmail = async (req, res) => {
   const { email } = req.params; // or use req.body.email if POST
 
   try {
@@ -224,7 +216,3 @@ exports.getUserNameByEmail = async (req, res) => {
     return res.status(500).json({ message: 'Internal server error' });
   }
 };
-
-
-// exports.getUserProfile = getUserProfile;
-
