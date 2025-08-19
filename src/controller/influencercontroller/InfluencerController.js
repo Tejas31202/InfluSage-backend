@@ -24,48 +24,81 @@ function generateOTP() {
 
 // Step 1: Request Registration (send OTP, store data in Redis)
 export const requestRegistration = async (req, res) => {
-  const { firstName, lastName, email, roleId, password } = req.body;
   try {
-    if (await isEmailExists(email)) {
+    // console.log("Setting pendingUser in Redis:", normalizedEmail);
+const keys = await redisClient.keys("*");
+console.log("Redis keys after registration:", keys);
+
+    const { firstName, lastName, email, roleId, password } = req.body;
+    const normalizedEmail = email.toLowerCase();
+
+    if (await isEmailExists(normalizedEmail)) {
       return res.status(400).json({ message: 'User with this email already exists.' });
     }
 
     const passwordhash = await bcrypt.hash(password, 10);
+
+    // Generate OTP once only
     const otpCode = generateOTP();
 
-    // Store user data and hashed password in Redis for 50 seconds
-    await redisClient.setEx(
-      `pendingUser:${email}`,
-      60, // Store for 60 seconds
-      JSON.stringify({ firstName, lastName, email, roleId, passwordhash })
-    );
-    await redisClient.setEx(`otp:${email}`, 60, otpCode);
+    // ✅ Ab wahi OTP har jagah use hoga
+    console.log("Generated OTP (for registration):", otpCode);
 
-    await sendingMail(email, "InflueSage OTP Verification", otpCode);
+    // Store user data in Redis (5 minutes expiry)
+    await redisClient.setEx(
+      `pendingUser:${normalizedEmail}`,
+      300, 
+      JSON.stringify({ firstName, lastName, email: normalizedEmail, roleId, passwordhash })
+    );
+
+    // Store OTP in Redis (2 minutes expiry)
+    await redisClient.setEx(`otp:${normalizedEmail}`, 300, otpCode);
+
+    // Send OTP email
+    await sendingMail(
+      normalizedEmail,
+      "InflueSage OTP Verification",
+      otpCode
+    );
 
     res.status(200).json({ message: 'OTP sent to email. Complete verification to register.' });
   } catch (error) {
-    console.error('Request Registration Error:', error);
-    res.status(500).json({ message: 'Error initiating registration.' });
+    console.error("Request Registration Error:", error);
+    res.status(500).json({ message: "Error during registration request." });
   }
 };
 
+
 // Step 2: Verify OTP and Register User
 export const verifyOtpAndRegister = async (req, res) => {
-  const { email, otp } = req.body;
+  const email = req.body.email.toLowerCase(); // normalize email
+  const { otp } = req.body;
+
   try {
+    // 🔍 Debug logs
+    console.log(" Verifying OTP for:", email);
+    console.log(" OTP received from user:", otp);
+
     const storedOtp = await redisClient.get(`otp:${email}`);
+    console.log(" OTP stored in Redis:", storedOtp);
+
     if (!storedOtp) {
       return res.status(400).json({ message: "OTP expired or not found." });
     }
     if (storedOtp !== otp) {
+      console.log(" OTP mismatch!");
       return res.status(400).json({ message: "Invalid OTP." });
     }
+    console.log(" OTP matched successfully!");
 
+    // Check pending user
     const userDataStr = await redisClient.get(`pendingUser:${email}`);
+    console.log(" pendingUser data from Redis:", userDataStr);
+
     if (!userDataStr) {
       return res.status(400).json({ message: "No pending registration found." });
     }
+
     const { firstName, lastName, roleId, passwordhash } = JSON.parse(userDataStr);
 
     // Insert user into DB
@@ -75,17 +108,20 @@ export const verifyOtpAndRegister = async (req, res) => {
     );
 
     const { p_code, p_message } = result.rows[0];
+    console.log(" DB Response:", { p_code, p_message });
 
     // Clean up Redis
     await redisClient.del(`otp:${email}`);
     await redisClient.del(`pendingUser:${email}`);
+    console.log(" Redis keys deleted for:", email);
 
     return res.status(p_code).json({ message: p_message });
   } catch (error) {
-    console.error('OTP Verification & Registration Error:', error);
+    console.error(" OTP Verification & Registration Error:", error);
     res.status(500).json({ message: "Error verifying OTP or registering user." });
   }
 };
+
 
 // This function is used to login a user
 export const loginUser = async (req, res) => {
@@ -137,10 +173,14 @@ export const loginUser = async (req, res) => {
 
 // This function is used to resend OTP to the user's email
 export const resendOtp = async (req, res) => {
-  const { email } = req.body;
+  const email = req.body.email.toLowerCase();
 
   try {
+    // Generate OTP once only
     const otpCode = generateOTP();
+
+    //  Yehi OTP sab jagah use hoga
+    console.log("Generated OTP:", otpCode);
 
     // Send Email with OTP
     await sendingMail(
@@ -149,20 +189,23 @@ export const resendOtp = async (req, res) => {
       otpCode
     );
 
-    // Store OTP in Redis with 60 sec expiry
-    await redisClient.setEx(`otp:${email}`, 60, otpCode);
+    // Store OTP in Redis with 120 sec expiry
+    await redisClient.setEx(`otp:${email}`, 120, otpCode);
 
+    // Reset pendingUser TTL if user exists
     const userData = await redisClient.get(`pendingUser:${email}`);
     if (userData) {
-      await redisClient.expire(`pendingUser:${email}`, 60); // Reset TTL to 60 seconds
+      await redisClient.expire(`pendingUser:${email}`, 300); 
+      console.log("Pending user TTL reset for:", email);
     }
 
     return res.status(200).json({ message: "OTP resent successfully." });
   } catch (error) {
-    console.error('Resend OTP Error:', error);
+    console.error("Resend OTP Error:", error);
     return res.status(500).json({ message: "Error resending OTP." });
   }
 };
+
 
 // this function is used to reset the password of a user
 export const forgetPassword = async (req, res) => {

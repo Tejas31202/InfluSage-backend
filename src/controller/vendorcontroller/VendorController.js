@@ -33,13 +33,13 @@ export const requestRegistration = async (req, res) => {
     const passwordhash = await bcrypt.hash(password, 10);
     const otpCode = generateOTP();
 
-    // Store vendor data and hashed password in Redis for 60 seconds
+    // Store vendor data and hashed password in Redis for 120 seconds
     await redisClient.setEx(
       `pendingVendor:${email}`,
-      60, // Store for 60 seconds
+      120, // Store for 120 seconds
       JSON.stringify({ firstName, lastName, email, roleId, passwordhash })
     );
-    await redisClient.setEx(`otp:${email}`, 60, otpCode);
+    await redisClient.setEx(`otp:${email}`, 120, otpCode);
 
     await sendingMail(email, "InflueSage OTP Verification", otpCode);
 
@@ -149,12 +149,12 @@ export const resendOtp = async (req, res) => {
       otpCode
     );
 
-    // Store OTP in Redis with 60 sec expiry
-    await redisClient.setEx(`otp:${email}`, 60, otpCode);
+    // Store OTP in Redis with 120 sec expiry
+    await redisClient.setEx(`otp:${email}`, 120, otpCode);
 
     const vendorData = await redisClient.get(`pendingVendor:${email}`);
     if (vendorData) {
-      await redisClient.expire(`pendingVendor:${email}`, 60); // Reset TTL to 60 seconds
+      await redisClient.expire(`pendingVendor:${email}`, 120); // Reset TTL to 60 seconds
     }
 
     return res.status(200).json({ message: "OTP resent successfully." });

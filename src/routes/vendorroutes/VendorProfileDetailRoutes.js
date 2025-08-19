@@ -12,7 +12,7 @@ import authenticateUser from "../../middleware/AuthMiddleware.js";
 
 const routes = express.Router();
 
-routes.get("/vendor-categories", getVendorCategories);
+routes.get("/categories", getVendorCategories);
 routes.get("/company-sizes", getCompanySizes);
 routes.get("/influencer-tiers", getInfluencerTiers);
 routes.post("/complete-vendor-profile", completeVendorProfile);

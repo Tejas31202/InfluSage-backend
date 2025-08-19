@@ -1,13 +1,13 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { client } from './src/config/db.js';
-import authenticateUser from './src/middleware/AuthMiddleware.js';
+// import { client } from './src/config/db.js';
+// import authenticateUser from './src/middleware/AuthMiddleware.js';
 import InfluencerRoutes from "./src/routes/influencerroutes/InfluencerRoutes.js";
-import InfluencerProfileDetailController from "./src/routes/influencerroutes/InfluencerProfileDetailRoutes.js";
+import InfluencerProfileDetailRoutes from "./src/routes/influencerroutes/InfluencerProfileDetailRoutes.js";
 import VendorRoutes from "./src/routes/vendorroutes/VendorRoute.js";
-import VendorProfileDetailController from "./src/routes/vendorroutes/VendorProfileDetailRoutes.js";
-import { config } from "@dotenvx/dotenvx";
+import VendorProfileDetailRoutes from "./src/routes/vendorroutes/VendorProfileDetailRoutes.js";
+// import { config } from "@dotenvx/dotenvx";
 
 const app = express();
 
@@ -21,9 +21,9 @@ dotenv.config(); // if app in src
 // app.use('/roles', RoleRoutes);
 
 app.use('/user', InfluencerRoutes);
-app.use('/user', InfluencerProfileDetailController);
+app.use('/user', InfluencerProfileDetailRoutes);
 app.use('/vendor', VendorRoutes);
-app.use('/vendor', VendorProfileDetailController);
+app.use('/vendor', VendorProfileDetailRoutes);
 
 const PORT =  process.env.BACKEND_PORT || 3001;
 
