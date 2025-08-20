@@ -1,45 +1,32 @@
-const express = require("express") 
-const app = express()
-const cors = require("cors")
-const dotenv = require("dotenv")
-const Client  = require('./src/config/db');
-// const AuthMiddleware = require('../InfluSage-backend-master/src/middleware/AuthMiddleware');
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+// import { client } from './src/config/db.js';
+// import authenticateUser from './src/middleware/AuthMiddleware.js';
+import InfluencerRoutes from "./src/routes/influencerroutes/InfluencerRoutes.js";
+import InfluencerProfileDetailRoutes from "./src/routes/influencerroutes/InfluencerProfileDetailRoutes.js";
+import VendorRoutes from "./src/routes/vendorroutes/VendorRoute.js";
+import VendorProfileDetailRoutes from "./src/routes/vendorroutes/VendorProfileDetailRoutes.js";
+// import { config } from "@dotenvx/dotenvx";
+
+const app = express();
+
+// Middleware
 app.use(express.json());
-app.use(cors())
+app.use(cors());
+dotenv.config(); // if app in src
 
-
-dotenv.config()
-
-
-
-
+// Routes
 // const RoleRoutes = require("../InfluSaga/src/routes/RoleRoutes")
 // app.use('/roles', RoleRoutes);
 
+app.use('/user', InfluencerRoutes);
+app.use('/user', InfluencerProfileDetailRoutes);
+app.use('/vendor', VendorRoutes);
+app.use('/vendor', VendorProfileDetailRoutes);
 
-const UserRoutes = require("../InfluSage-backend-master/src/routes/UserRoutes");
-const { config } = require("@dotenvx/dotenvx");
-app.use('/user', UserRoutes)
+const PORT =  process.env.BACKEND_PORT || 3001;
 
-const PDRoutes = require("../InfluSage-backend-master/src/routes/PDRoutes")
-app.use('/user', PDRoutes);
-
-// const AuthRoutes = require("../InfluSaga/src/routes")
-
-// const AuthRoutes =require("../InfluSage-backend-master/src/routes/AuthRoutes")
-// app.use("/Auth", AuthRoutes)
-
-
-
-
-
-
-// app.get("/", (req,res) =>{
-//     res.send("hello")
-// })
-
-
-const PORT = 3001
-app.listen(PORT,()=>{
-    console.log("server started on",PORT)
-})
+app.listen(PORT, () => {
+    console.log("server started on", PORT);
+});
