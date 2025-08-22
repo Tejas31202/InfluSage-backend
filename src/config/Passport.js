@@ -1,67 +1,29 @@
-import passport from 'passport';
-import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import { Strategy as FacebookStrategy } from 'passport-facebook';
-import AppleStrategy from 'passport-apple';
-import pool from './db.js';
-const generateToken = require ('../utils/jwt.js');
+import passport from "passport";
+import GoogleStrategy from "passport-google-oauth2";
+import client from "../config/db.js";
 
-const saveOrUpdateUser = async (email, name, provider) => {
-  const query = 'SELECT * FROM sp_login_social_user($1, $2, $3)';
-  const values = [email, name, provider];
-  const result = await pool.query(query, values);
-  const user = result.rows[0];
-  const token = generateToken({ id: user.id, email: user.email, name: user.full_name });
-  return { ...user, token };
-};
-
-// Google
-passport.use(new GoogleStrategy({
+passport.use("google", new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: '/auth/google/callback'
-}, async (accessToken, refreshToken, profile, done) => {
+  callbackURL: "http://localhost:3001/auth/google/callback",
+  // userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo",
+}, async (accessToken, refreshToken, profile, cb) => {
   try {
-    const email = profile.emails?.[0]?.value;
-    const name = profile.displayName;
-    const user = await saveOrUpdateUser(email, name, 'google');
-    done(null, user);
+    const result = await client.query("SELECT * FROM ins.users WHERE email = $1", [profile.email]);
+    if (result.rows.length === 0) {
+      // Insert new user
+      const newUser = await client.query(
+        "INSERT INTO users (email, google_id, name) VALUES ($1, $2, $3) RETURNING *",
+        [profile.email, profile.id, profile.displayName]
+      );
+      return cb(null, newUser.rows[0]);
+    } else {
+      return cb(null, result.rows[0]);
+    }
   } catch (err) {
-    done(err, null);
+    return cb(err);
   }
 }));
 
-// Facebook
-passport.use(new FacebookStrategy({
-  clientID: process.env.FB_CLIENT_ID,
-  clientSecret: process.env.FB_CLIENT_SECRET,
-  callbackURL: '/auth/facebook/callback',
-  profileFields: ['id', 'displayName', 'emails']
-}, async (accessToken, refreshToken, profile, done) => {
-  try {
-    const email = profile.emails?.[0]?.value;
-    const name = profile.displayName;
-    const user = await saveOrUpdateUser(email, name, 'facebook');
-    done(null, user);
-  } catch (err) {
-    done(err, null);
-  }
-}));
-
-// Apple (simplified)
-passport.use(new AppleStrategy({
-  clientID: process.env.APPLE_CLIENT_ID,
-  teamID: process.env.APPLE_TEAM_ID,
-  keyID: process.env.APPLE_KEY_ID,
-  privateKeyString: process.env.APPLE_PRIVATE_KEY,
-  callbackURL: '/auth/apple/callback',
-  passReqToCallback: true
-}, async (req, accessToken, refreshToken, idToken, profile, done) => {
-  try {
-    const email = idToken.email;
-    const name = profile?.name || email?.split('@')[0];
-    const user = await saveOrUpdateUser(email, name, 'apple');
-    done(null, user);
-  } catch (err) {
-    done(err, null);
-  }
-}));
+passport.serializeUser((user, cb) => cb(null, user));
+passport.deserializeUser((user, cb) => cb(null, user));

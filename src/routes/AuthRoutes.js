@@ -1,26 +1,13 @@
-// import express from 'express';
-// import passport from 'passport';
-const express = require('express');
-const passport = require('passport');
-const { config } = require('@dotenvx/dotenvx');
-const router = express.Router();
+// import express from "express";
+// import { authGoogle, authGoogleCallback } from "../controller/AuthController.js";
 
-// Google
-router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-router.get('/google/callback', passport.authenticate('google', { session: false }), (req, res) => {
-  res.json({ message: 'Google Login Success', user: req.user });
-});
+// const routes = express.Router();
 
-// Facebook
-router.get('/facebook', passport.authenticate('facebook', { scope: ['email'] }));
-router.get('/facebook/callback', passport.authenticate('facebook', { session: false }), (req, res) => {
-  res.json({ message: 'Facebook Login Success', user: req.user });
-});
+// // Start Google login
+// routes.get("/auth/google", authGoogle);
 
-// Apple
-router.get('/apple', passport.authenticate('apple'));
-router.post('/apple/callback', passport.authenticate('apple', { session: false }), (req, res) => {
-  res.json({ message: 'Apple Login Success', user: req.user });
-});
+// // Google OAuth callback
+// routes.get("/auth/google/callback", authGoogleCallback);
 
-export default router;
+// export default routes;
+
