@@ -12,7 +12,7 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 // Utility: Check if email exists using stored procedure
 async function isEmailExists(email) {
-  const result = await client.query(`CALL ins.sp_is_registered($1::VARCHAR,NULL,NULL,NULL)`, [email]);
+  const result = await client.query(`CALL ins.sp_is_registered($1::VARCHAR,NULL,NULL)`, [email]);
   const isUserExists = result.rows[0].p_isregistered;
   return isUserExists;
 }
