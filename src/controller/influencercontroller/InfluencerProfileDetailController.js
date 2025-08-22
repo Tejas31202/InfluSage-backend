@@ -98,7 +98,6 @@ export const completeUserProfile = async (req, res) => {
     } else {
       return res.status(400).json({ message: p_message });
     }
- 
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("💥 Error in completeUserProfile:", error);
@@ -119,11 +118,11 @@ export const getUserProfile = async (req, res) => {
       const parsed = JSON.parse(cachedData);
  
       const profileParts = {
-        profile: parsed.profilejson || {},
-        social: parsed.socialaccountjson || {},
-        categories: parsed.categoriesjson || {},
-        portfolio: parsed.portfoliojson || {},
-        payment: parsed.paymentjson || {}
+        p_profile: parsed.profilejson || {},
+        p_social: parsed.socialaccountjson || {},
+        p_categories: parsed.categoriesjson || {},
+        p_portfolio: parsed.portfoliojson || {},
+        p_payment: parsed.paymentjson || {}
       };
  
       const profileCompletion = calculateProfileCompletion(profileParts);
@@ -155,11 +154,8 @@ export const getUserProfile = async (req, res) => {
     } = result.rows[0];
  
     return res.status(200).json({
-      p_profile,
-      p_socials,
-      p_categories,
-      p_portfolios,
-      p_paymentaccounts,
+      message:"get profile from db",
+      profileParts:{p_profile,p_socials,p_categories,p_portfolios,p_paymentaccounts},
       source: 'db'
     });
  
