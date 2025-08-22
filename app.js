@@ -7,6 +7,7 @@ import InfluencerRoutes from "./src/routes/influencerroutes/InfluencerRoutes.js"
 import InfluencerProfileDetailRoutes from "./src/routes/influencerroutes/InfluencerProfileDetailRoutes.js";
 import VendorRoutes from "./src/routes/vendorroutes/VendorRoute.js";
 import VendorProfileDetailRoutes from "./src/routes/vendorroutes/VendorProfileDetailRoutes.js";
+import InfluencerCampaignRoutes from "./src/routes/influencerroutes/InfluencerCampaignRoutes.js"
 // import { config } from "@dotenvx/dotenvx";
 
 const app = express();
@@ -22,6 +23,7 @@ dotenv.config(); // if app in src
 
 app.use('/user', InfluencerRoutes);
 app.use('/user', InfluencerProfileDetailRoutes);
+app.use("/user", InfluencerCampaignRoutes)
 app.use('/vendor', VendorRoutes);
 app.use('/vendor', VendorProfileDetailRoutes);
 
