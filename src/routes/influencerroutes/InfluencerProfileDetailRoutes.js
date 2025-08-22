@@ -11,8 +11,8 @@ const routes = express.Router();
 
 // console.log("PDController:", PDController);
 // POST request to complete user profile
-routes.post('/complete-profile', completeUserProfile);
-routes.get('/profile/:userId', authenticateUser, getUserProfile);
+routes.post('/complete-profile', authenticateUser,completeUserProfile);
+routes.get('/profile/:userId',getUserProfile);
 routes.get('/:email', getUserNameByEmail);
 routes.get('/categories', getCategories);
 

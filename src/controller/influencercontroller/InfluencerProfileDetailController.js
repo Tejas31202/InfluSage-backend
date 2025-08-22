@@ -2,6 +2,7 @@ import { Client } from "pg";
 import { client } from "../../config/db.js";
 // import authenticateUser from "../middleware/AuthMiddleware.js";
 import redis from 'redis';
+import { Console } from "console";
 
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
 redisClient.connect().catch(console.error);
@@ -96,6 +97,7 @@ export const completeUserProfile = async (req, res) => {
       await redisClient.del(redisKey);
       return res.status(200).json({ message: p_message });
     } else {
+      console.error(p_message)
       return res.status(400).json({ message: p_message });
     }
   } catch (error) {
@@ -119,10 +121,10 @@ export const getUserProfile = async (req, res) => {
  
       const profileParts = {
         p_profile: parsed.profilejson || {},
-        p_social: parsed.socialaccountjson || {},
+        p_socials: parsed.socialaccountjson || {},
         p_categories: parsed.categoriesjson || {},
-        p_portfolio: parsed.portfoliojson || {},
-        p_payment: parsed.paymentjson || {}
+        p_portfolios: parsed.portfoliojson || {},
+        p_paymentaccounts: parsed.paymentjson || {}
       };
  
       const profileCompletion = calculateProfileCompletion(profileParts);

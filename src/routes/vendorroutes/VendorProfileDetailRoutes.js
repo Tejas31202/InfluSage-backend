@@ -15,8 +15,8 @@ const routes = express.Router();
 routes.get("/categories", getVendorCategories);
 routes.get("/company-sizes", getCompanySizes);
 routes.get("/influencer-tiers", getInfluencerTiers);
-routes.post("/complete-vendor-profile", completeVendorProfile);
-routes.get('/profile/:userId', authenticateUser, getVendorProfile);
+routes.post("/complete-vendor-profile",authenticateUser,completeVendorProfile);
+routes.get('/profile/:userId',getVendorProfile);
 routes.get('/objectives', getObjectives);
 routes.get('/:email', getUserNameByEmail);
 
