@@ -170,7 +170,7 @@ export const getVendorProfile = async (req, res) => {
         p_categories: parsed.categoriesjson || {},
         p_providers: parsed.providersjson || {},
         p_objectives: parsed.objectivesjson || {},
-        p_paymentaccount: parsed.paymentjson || {},
+        p_paymentaccounts: parsed.paymentjson || {},
       };
 
       const profileCompletion = calculateProfileCompletion(
