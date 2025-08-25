@@ -2,6 +2,8 @@ import { Client } from "pg";
 import { client } from "../../config/db.js";
 import authenticateUser from "../../middleware/AuthMiddleware.js";
 import redis from "redis";
+import path from "path";
+import fs from "fs";
 
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
 redisClient.connect().catch(console.error);
@@ -222,6 +224,7 @@ export const getVendorProfile = async (req, res) => {
 
 export const completeVendorProfile = async (req, res) => {
   const userId = req.user?.id || req.body.userid;
+  const username =req.user.name
   const {
     profilejson,
     categoriesjson,
@@ -232,6 +235,20 @@ export const completeVendorProfile = async (req, res) => {
 
   const redisKey = `vendorprofile:${userId}`;
   try {
+     if (req.file) {  // ✅ check req.file for single file
+  const file = req.file;
+  const newFileName = `${username}_up_${Date.now()}${path.extname(file.originalname)}`;
+  const newPath = path.join("src/uploads/vendor", newFileName);
+
+  fs.renameSync(file.path, newPath);
+
+  const photoPath = newPath.replace(/\\/g, "/"); // normalize slashes
+  if (profilejson) {
+    const parsedProfile = JSON.parse(profilejson);
+    parsedProfile.photopath = photoPath;
+    req.body.profilejson = JSON.stringify(parsedProfile);
+  }
+}
     // Fetch existing data from Redis
     let existingData = await redisClient.get(redisKey);
     existingData = existingData ? JSON.parse(existingData) : {};
@@ -239,11 +256,13 @@ export const completeVendorProfile = async (req, res) => {
     // Merge new incoming data with existing Redis data
     const mergedData = {
       ...existingData,
-      ...(profilejson && { profilejson }),
-      ...(categoriesjson && { categoriesjson }),
-      ...(providersjson && { providersjson }),
-      ...(objectivesjson && { objectivesjson }),
-      ...(paymentjson && { paymentjson }),
+      ...(req.body.profilejson && {
+        profilejson: JSON.parse(req.body.profilejson),
+      }),
+      ...(categoriesjson && { categoriesjson:JSON.parse(categoriesjson)}),
+      ...(providersjson && { providersjson:JSON.parse(providersjson) }),
+      ...(objectivesjson && { objectivesjson:JSON.parse(objectivesjson) }),
+      ...(paymentjson && { paymentjson:JSON.parse(paymentjson) }),
       is_completed: false,
     };
 
