@@ -10,7 +10,7 @@ import InfluencerProfileDetailRoutes from "./src/routes/influencerroutes/Influen
 import VendorRoutes from "./src/routes/vendorroutes/VendorRoute.js";
 import VendorProfileDetailRoutes from "./src/routes/vendorroutes/VendorProfileDetailRoutes.js";
 import VendorCampaignRoutes from "./src/routes/vendorroutes/VendorCampaignRoutes.js";
-// import AuthRoutes from "./src/routes/AuthRoutes.js";
+import InfluencerCampaignRoutes from "./src/routes/influencerroutes/InfluencerCampaignRoutes.js"
 // import "./src/config/Passport.js";
 // import { config } from "@dotenvx/dotenvx";
 
@@ -37,8 +37,10 @@ dotenv.config(); // if app in src
 // const RoleRoutes = require("../InfluSaga/src/routes/RoleRoutes")
 // app.use('/roles', RoleRoutes);
 
+//here overlapping issue so name changes require in path
 app.use('/user', InfluencerRoutes);
 app.use('/user', InfluencerProfileDetailRoutes);
+app.use('/user', InfluencerCampaignRoutes);
 app.use('/vendor', VendorRoutes);
 app.use('/vendor', VendorProfileDetailRoutes);
 app.use('/vendor', VendorCampaignRoutes);
