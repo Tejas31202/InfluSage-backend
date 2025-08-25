@@ -1,4 +1,6 @@
 import { Client } from "pg";
+import fs from 'fs';
+import path from 'path';
 import { client } from "../../config/db.js";
 // import authenticateUser from "../middleware/AuthMiddleware.js";
 import redis from 'redis';
@@ -20,35 +22,83 @@ const calculateProfileCompletion = (profileParts) => {
 // Complete User Profile
 export const completeUserProfile = async (req, res) => {
   const userId = req.user?.id || req.body.userid;
+  console.log("userid===>",userId)
+  const username =req.user.name
+
+      console.log("username===>",username)
+
+  // Parse JSON fields
   const {
     profilejson,
     socialaccountjson,
     categoriesjson,
     portfoliojson,
-    paymentjson
+    paymentjson,
   } = req.body;
- 
+
   const redisKey = `profile:${userId}`;
- 
+
   try {
+    // Handle uploaded photo
+    if (req.files?.photo) {
+  const file = req.files.photo[0];
+  const newFileName = `${username}_up_${Date.now()}${path.extname(file.originalname)}`;
+  const newPath = path.join("src/uploads/influencer", newFileName);
+
+  fs.renameSync(file.path, newPath);
+
+  const photoPath = newPath.replace(/\\/g, "/"); // normalize slashes
+  if (profilejson) {
+    const parsedProfile = JSON.parse(profilejson);
+    parsedProfile.photopath = photoPath;
+    req.body.profilejson = JSON.stringify(parsedProfile);
+  }
+}
+
+    // Handle uploaded portfolio files
+   if (req.files?.portfolioFiles) {
+  const portfolioPaths = req.files.portfolioFiles.map(
+    f => `src/uploads/influencer/${f.filename}`
+  );
+
+  if (portfoliojson) {
+    const parsedPortfolio = JSON.parse(portfoliojson);
+
+    // ✅ Replace filepaths array with uploaded file paths
+    if (parsedPortfolio && Array.isArray(parsedPortfolio.filepaths)) {
+      parsedPortfolio.filepaths = portfolioPaths.map(p => ({ filepath: p }));
+    }
+
+    req.body.portfoliojson = JSON.stringify(parsedPortfolio);
+  }
+}
+
     // Fetch existing data from Redis
     let existingData = await redisClient.get(redisKey);
     existingData = existingData ? JSON.parse(existingData) : {};
- 
-    // Merge new incoming data with existing Redis data
+
+    // Merge with new data
     const mergedData = {
       ...existingData,
-      ...(profilejson && { profilejson }),
-      ...(socialaccountjson && { socialaccountjson }),
-      ...(categoriesjson && { categoriesjson }),
-      ...(portfoliojson && { portfoliojson }),
-      ...(paymentjson && { paymentjson }),
-      is_completed: false
+      ...(req.body.profilejson && {
+        profilejson: JSON.parse(req.body.profilejson),
+      }),
+      ...(socialaccountjson && {
+        socialaccountjson: JSON.parse(socialaccountjson),
+      }),
+      ...(categoriesjson && {
+        categoriesjson: JSON.parse(categoriesjson),
+      }),
+      ...(req.body.portfoliojson && {
+        portfoliojson: JSON.parse(req.body.portfoliojson),
+      }),
+      ...(paymentjson && { paymentjson: JSON.parse(paymentjson) }),
+      is_completed: false,
     };
- 
-    // Store updated data in Redis (no TTL)
+
+    // Save to Redis
     await redisClient.set(redisKey, JSON.stringify(mergedData));
- 
+
     // Check if all parts are present
     const allPartsPresent =
       mergedData.profilejson &&
@@ -56,27 +106,27 @@ export const completeUserProfile = async (req, res) => {
       mergedData.categoriesjson &&
       mergedData.portfoliojson &&
       mergedData.paymentjson;
- 
+
     if (!allPartsPresent) {
       return res.status(200).json({
         message: "Partial data stored in Redis",
-        source: "redis"
+        source: "redis",
       });
     }
- 
-    // All parts available → Call stored procedure
+
+    // Save to DB if everything is ready
     await client.query("BEGIN");
     const result = await client.query(
       `CALL ins.sp_complete_userprofile(
-    $1::bigint,
-    $2::json,
-    $3::json,
-    $4::json,
-    $5::json,
-    $6::json,
-    $7::boolean,
-    $8::text
-  )`,
+        $1::bigint,
+        $2::json,
+        $3::json,
+        $4::json,
+        $5::json,
+        $6::json,
+        $7::boolean,
+        $8::text
+      )`,
       [
         userId,
         JSON.stringify(mergedData.profilejson),
@@ -85,19 +135,17 @@ export const completeUserProfile = async (req, res) => {
         JSON.stringify(mergedData.portfoliojson),
         JSON.stringify(mergedData.paymentjson),
         null,
-        null
+        null,
       ]
     );
- 
     await client.query("COMMIT");
- 
+
     const { p_status, p_message } = result.rows[0];
+
     if (p_status) {
-      // Clear Redis
       await redisClient.del(redisKey);
       return res.status(200).json({ message: p_message });
     } else {
-      console.error(p_message)
       return res.status(400).json({ message: p_message });
     }
   } catch (error) {
@@ -106,7 +154,6 @@ export const completeUserProfile = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
-
 // Get User Profile
 export const getUserProfile = async (req, res) => {
   const userId = req.params.userId;

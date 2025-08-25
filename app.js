@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import path from 'path';
 // import session from "express-session";
 // import passport from "passport";
 // import { client } from './src/config/db.js';
@@ -18,6 +19,8 @@ const app = express();
 
 // Middleware
 app.use(express.json());
+app.use("/uploads", express.static(path.join(process.cwd(), "src/uploads")));
+app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 dotenv.config(); // if app in src
 
