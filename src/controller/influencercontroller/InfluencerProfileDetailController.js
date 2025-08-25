@@ -4,7 +4,6 @@ import path from 'path';
 import { client } from "../../config/db.js";
 // import authenticateUser from "../middleware/AuthMiddleware.js";
 import redis from 'redis';
-import { Console } from "console";
 
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
 redisClient.connect().catch(console.error);
