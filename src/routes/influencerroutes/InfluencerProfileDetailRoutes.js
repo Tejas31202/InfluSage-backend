@@ -1,19 +1,21 @@
 import express from 'express';
-import { 
-  completeUserProfile, 
-  getUserProfile, 
-  getUserNameByEmail, 
+import authenticateUser from "../../middleware/AuthMiddleware.js";
+import {
+  completeUserProfile,
+  getUserProfile,
+  getUserNameByEmail,
   getCategories
 } from '../../controller/influencercontroller/InfluencerProfileDetailController.js';
-import authenticateUser from "../../middleware/AuthMiddleware.js";
-
+ 
+ 
 const routes = express.Router();
-
+ 
 // console.log("PDController:", PDController);
 // POST request to complete user profile
-routes.post('/complete-profile', authenticateUser,completeUserProfile);
-routes.get('/profile/:userId',getUserProfile);
+//Changes For Role Based Auth.. =>authenticateUser(['Influencer'])
+routes.post('/complete-profile', authenticateUser(['Influencer']),completeUserProfile);
+routes.get('/profile/:userId', authenticateUser(['Influencer']), getUserProfile);
 routes.get('/:email', getUserNameByEmail);
-routes.get('/categories', getCategories);
-
+routes.get('/categories',getCategories);
+ 
 export default routes;
