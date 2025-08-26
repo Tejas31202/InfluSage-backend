@@ -19,7 +19,7 @@ const app = express();
 
 // Middleware
 app.use(express.json());
-app.use("/uploads", express.static(path.join(process.cwd(), "src/uploads")));
+app.use("/src/uploads", express.static(path.join(process.cwd(), "src/uploads")));
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 dotenv.config(); // if app in src

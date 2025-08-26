@@ -1,49 +1,89 @@
 import { client } from "../../config/db.js";
 import redis from "redis";
+import fs from "fs";
+import path from "path";
 
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
 redisClient.connect().catch(console.error);
 
 export const createMyCampaign = async (req, res) => {
   const userId = req.user?.id || req.body.p_userid;
+
+  const username =req.user.name 
+  console.log("username===>",username)
   const {
     campaignid,
     p_objectivejson,
     p_vendorinfojson,
     p_campaignjson,
-    p_campaignfilejson,
     p_contenttypejson
   } = req.body;
 
-  // Temporary Redis key if campaignid not yet generated
+  // multer files se path extract
+  let p_campaignfilejson = null;
+    if (req.file) {
+    const file = req.file;
+    const newFileName = `${username}_up_${Date.now()}${path.extname(
+      file.originalname
+    )}`;
+    const newPath = path.join("src/uploads/vendor", newFileName);
+
+    // move file
+    fs.renameSync(file.path, newPath);
+
+    const photoPath = newPath.replace(/\\/g, "/"); // normalize slashes
+    p_campaignfilejson = [{ filepath: photoPath }];
+  }
+
+  // ✅ Case 2: Multiple files (req.files)
+  if (req.files && req.files.length > 0) {
+    p_campaignfilejson = req.files.map((file) => {
+      const newFileName = `${username}_campaign_${Date.now()}${path.extname(
+        file.originalname
+      )}`;
+      const newPath = path.join("src/uploads/vendor", newFileName);
+      fs.renameSync(file.path, newPath);
+      return { filepath: newPath.replace(/\\/g, "/") };
+    });
+  }
+
   const redisKey = `getCampaign:${userId}:${campaignid || "temp"}`;
   console.log("👉 Redis Key:", redisKey);
-  console.log("👉 Incoming Request Body:", req.body);
 
   try {
     if (!userId) return res.status(400).json({ message: "User ID is required" });
 
-    // Redis se purana data
+    // Redis existing data
     let existingData = await redisClient.get(redisKey);
     existingData = existingData ? JSON.parse(existingData) : {};
-    console.log("🔎 Existing Redis Data:", existingData);
 
-    // Merge new incoming data with existing Redis
+    // Before merging JSONs
+function tryParseJSON(value) {
+  try {
+    return typeof value === "string" ? JSON.parse(value) : value;
+  } catch (e) {
+    return value; // agar parse fail ho to raw string hi rahe
+  }
+}
+
+const p_objectivejson   = tryParseJSON(req.body.p_objectivejson);
+const p_vendorinfojson  = tryParseJSON(req.body.p_vendorinfojson);
+const p_campaignjson    = tryParseJSON(req.body.p_campaignjson);
+const p_contenttypejson = tryParseJSON(req.body.p_contenttypejson);
+
+
+    // Merge
     const mergedData = {
-      p_objectivejson: p_objectivejson || existingData.p_objectivejson || null,
-      p_vendorinfojson: p_vendorinfojson || existingData.p_vendorinfojson || null,
-      p_campaignjson: p_campaignjson || existingData.p_campaignjson || null,
-      p_campaignfilejson: p_campaignfilejson || existingData.p_campaignfilejson || null,
-      p_contenttypejson: p_contenttypejson || existingData.p_contenttypejson || null,
-      is_completed: false
-    };
-    console.log("✅ Merged Data:", mergedData);
+  p_objectivejson: p_objectivejson || existingData.p_objectivejson || null,
+  p_vendorinfojson: p_vendorinfojson || existingData.p_vendorinfojson || null,
+  p_campaignjson: p_campaignjson || existingData.p_campaignjson || null,
+  p_campaignfilejson: p_campaignfilejson || existingData.p_campaignfilejson || null,
+  p_contenttypejson: p_contenttypejson || existingData.p_contenttypejson || null,
+  is_completed: false
+};
 
-    // Redis me store karo
     await redisClient.set(redisKey, JSON.stringify(mergedData));
-    console.log("💾 Redis Updated Successfully");
 
-    // Check all parts
     const allPartsPresent =
       mergedData.p_objectivejson &&
       mergedData.p_vendorinfojson &&
@@ -59,40 +99,37 @@ export const createMyCampaign = async (req, res) => {
       });
     }
 
-    // ✅ Full data → DB me save karo
+    // DB me store
     await client.query("BEGIN");
     const result = await client.query(
-      `CALL ins.sp_upsert_campaigndetails(
-        $1::BIGINT,
-        $2::BIGINT,
-        $3::JSON,
-        $4::JSON,
-        $5::JSON,
-        $6::JSON,
-        $7::JSON,
-        NULL,
-        NULL
-      )`,
-      [
-        userId,
-        campaignid || null,
-        JSON.stringify(mergedData.p_objectivejson),
-        JSON.stringify(mergedData.p_vendorinfojson),
-        JSON.stringify(mergedData.p_campaignjson),
-        JSON.stringify(mergedData.p_campaignfilejson),
-        JSON.stringify(mergedData.p_contenttypejson)
-      ]
-    );
+  `CALL ins.sp_upsert_campaigndetails(
+    $1::BIGINT,
+    $2::BIGINT,
+    $3::JSON,
+    $4::JSON,
+    $5::JSON,
+    $6::JSON,
+    $7::JSON,
+    NULL,
+    NULL
+  )`,
+  [
+    userId,
+    campaignid || null,
+    JSON.stringify(mergedData.p_objectivejson),
+    JSON.stringify(mergedData.p_vendorinfojson),
+    JSON.stringify(mergedData.p_campaignjson),   // ab yaha "name" null nahi hoga
+    JSON.stringify(mergedData.p_campaignfilejson),
+    JSON.stringify(mergedData.p_contenttypejson)
+  ]
+);
+
     await client.query("COMMIT");
 
-    // SP se status, message, campaignid milega
     const { p_status, p_message, p_campaignid } = result.rows[0] || {};
 
     if (p_status) {
-      // Redis delete old key
       await redisClient.del(redisKey);
-
-      // Set new Redis key with proper campaignId
       const newRedisKey = `getCampaign:${userId}:${p_campaignid}`;
       await redisClient.setEx(newRedisKey, 120, JSON.stringify(mergedData));
 
