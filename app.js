@@ -40,7 +40,12 @@ dotenv.config(); // if app in src
 // const RoleRoutes = require("../InfluSaga/src/routes/RoleRoutes")
 // app.use('/roles', RoleRoutes);
 
-//here overlapping issue so name changes require in path
+// here overlapping issue so name changes require in path 
+
+// app.use('/user', InfluencerRoutes);
+// app.use('/user', InfluencerProfileDetailRoutes); if we changes thn working app.use('/user', InfluencerCampaignRoutes);
+
+
 app.use('/user', InfluencerRoutes);
 app.use('/user', InfluencerProfileDetailRoutes);
 app.use('/user', InfluencerCampaignRoutes);
