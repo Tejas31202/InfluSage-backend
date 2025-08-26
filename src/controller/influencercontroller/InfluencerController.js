@@ -160,6 +160,8 @@ export const loginUser = async (req, res) => {
       message: "Welcome back " + firstname + " " + lastname,
       token, // ← send to frontend
       id: userid,
+      firstName: firstname,
+      lastName : lastname,
       name: firstname + " " + lastname,
       email: email,
       role: roleid,
