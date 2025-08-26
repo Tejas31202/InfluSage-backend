@@ -1,8 +1,9 @@
 import express from 'express';
 import {
-  createMyCampaign, getCampaign} from '../../controller/vendorcontroller/VendorCampaignController.js';
+  createMyCampaign, getCampaign, deleteCampaignFile} from '../../controller/vendorcontroller/VendorCampaignController.js';
 import authenticateUser from "../../middleware/AuthMiddleware.js";
 import {upload} from "../../middleware/CampaignMulterMiddleware.js"
+
 const routes = express.Router();
 routes.post(
   "/create-campaign",
@@ -12,4 +13,10 @@ routes.post(
 );
 
 routes.get("/campaign/:campaignId", authenticateUser(["Vendor"]), getCampaign);
+
+routes.post(
+  "/campaign/delete-file",
+  authenticateUser(["Vendor"]), // optional role check
+  deleteCampaignFile
+);
 export default routes;
