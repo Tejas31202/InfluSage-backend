@@ -275,9 +275,9 @@ export const completeVendorProfile = async (req, res) => {
 
     const allPartsPresent =
       mergedData.profilejson &&
-      mergedData.socialaccountjson &&
       mergedData.categoriesjson &&
-      mergedData.portfoliojson &&
+      mergedData.providersjson &&
+      mergedData.objectivesjson &&
       mergedData.paymentjson;
 
     // ---------------------------
@@ -325,6 +325,38 @@ export const completeVendorProfile = async (req, res) => {
         throw err;
       }
     } else {
+      // 1️⃣ Try to fetch Redis partials
+      let redisData = {};
+      const existingRedis = await redisClient.get(redisKey);
+      if (existingRedis) {
+        try {
+          redisData = JSON.parse(existingRedis);
+        } catch (e) {
+          console.warn("Redis data corrupted:", e);
+        }
+      }
+
+      // 2️⃣ Merge Redis + current request body (request takes priority)
+      const finalData = {
+        ...redisData,
+        ...mergedData,
+      };
+
+      // 3️⃣ Check completeness AFTER merging
+      const allPartsPresent =
+        finalData.profilejson &&
+        finalData.categoriesjson &&
+        finalData.providersjson &&
+        finalData.objectivesjson &&
+        finalData.paymentjson;
+
+      // 4️⃣ Now update mergedData to be finalData going forward
+      mergedData.profilejson = finalData.profilejson;
+      mergedData.categoriesjson = finalData.categoriesjson;
+      mergedData.providersjson = finalData.providersjson;
+      mergedData.objectivesjson = finalData.objectivesjson;
+      mergedData.paymentjson = finalData.paymentjson;
+
       // ✅ CASE B: User new or incomplete → check Redis
       if (!allPartsPresent) {
         const existingRedis = await redisClient.get(redisKey);
