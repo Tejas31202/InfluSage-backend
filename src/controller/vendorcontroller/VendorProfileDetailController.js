@@ -222,99 +222,157 @@ export const getVendorProfile = async (req, res) => {
   }
 };
 
+
 export const completeVendorProfile = async (req, res) => {
   const userId = req.user?.id || req.body.userid;
-  const username =req.user.name
-  const {
-    profilejson,
-    categoriesjson,
-    providersjson,
-    objectivesjson,
-    paymentjson,
-  } = req.body;
-
+  const username = req.user.name;
   const redisKey = `vendorprofile:${userId}`;
+
   try {
-     if (req.file) {  // ✅ check req.file for single file
-  const file = req.file;
-  const newFileName = `${username}_up_${Date.now()}${path.extname(file.originalname)}`;
-  const newPath = path.join("src/uploads/vendor", newFileName);
 
-  fs.renameSync(file.path, newPath);
+    // ---------------------------
+    // 1️⃣ Parse JSON fields from req.body (safe)
+    // ---------------------------
+    const {
+      profilejson = null,
+      categoriesjson = null,
+      providersjson = null,
+      objectivesjson = null,
+      paymentjson = null,
+    } = req.body || {};
 
-  const photoPath = newPath.replace(/\\/g, "/"); // normalize slashes
-  if (profilejson) {
-    const parsedProfile = JSON.parse(profilejson);
-    parsedProfile.photopath = photoPath;
-    req.body.profilejson = JSON.stringify(parsedProfile);
-  }
-}
-    // Fetch existing data from Redis
-    let existingData = await redisClient.get(redisKey);
-    existingData = existingData ? JSON.parse(existingData) : {};
+    // Step 1: Handle uploaded photo
+    let updatedProfileJson = profilejson ? JSON.parse(profilejson) : {};
 
-    // Merge new incoming data with existing Redis data
-    const mergedData = {
-      ...existingData,
-      ...(req.body.profilejson && {
-        profilejson: JSON.parse(req.body.profilejson),
-      }),
-      ...(categoriesjson && { categoriesjson:JSON.parse(categoriesjson)}),
-      ...(providersjson && { providersjson:JSON.parse(providersjson) }),
-      ...(objectivesjson && { objectivesjson:JSON.parse(objectivesjson) }),
-      ...(paymentjson && { paymentjson:JSON.parse(paymentjson) }),
-      is_completed: false,
-    };
+    if (req.file) {
+      const file = req.file;
+      const newFileName = `${username}_up_${Date.now()}${path.extname(file.originalname)}`;
+      const newPath = path.join("src/uploads/vendor", newFileName);
 
-    // Store updated data in Redis (no TTL)
-    await redisClient.set(redisKey, JSON.stringify(mergedData));
+      fs.renameSync(file.path, newPath);
 
-    // Check if all parts are present
-    const allPartsPresent =
-      mergedData.profilejson &&
-      mergedData.categoriesjson &&
-      mergedData.providersjson &&
-      mergedData.objectivesjson &&
-      mergedData.paymentjson;
-
-    if (!allPartsPresent) {
-      return res.status(200).json({
-        message: "Partial data stored in Redis",
-        source: "redis",
-      });
+      const photoPath = newPath.replace(/\\/g, "/");
+      updatedProfileJson.photopath = photoPath;
     }
 
-    // All parts available → Call stored procedure
-    await client.query("BEGIN");
-    const result = await client.query(
-      `CALL ins.sp_complete_vendorprofile(
-        $1::BIGINT, $2::JSON, $3::JSON, $4::JSON, $5::JSON, $6::JSON, $7::BOOLEAN, $8::TEXT)`,
-      [
-        userId,
-        JSON.stringify(mergedData.profilejson),
-        JSON.stringify(mergedData.categoriesjson),
-        JSON.stringify(mergedData.providersjson),
-        JSON.stringify(mergedData.objectivesjson),
-        JSON.stringify(mergedData.paymentjson),
-        null, // Assuming these are optional
-        null, // Assuming these are optional
-      ]
+
+    const safeParse = (data) => {
+      try {
+        return data ? JSON.parse(data) : null;
+      } catch {
+        return null;
+      }
+    };
+
+    const mergedData = {
+      ...(req.body.profilejson && { profilejson: updatedProfileJson }),
+      ...(categoriesjson && { categoriesjson: safeParse(categoriesjson) }),
+      ...(providersjson && { providersjson: safeParse(providersjson) }),
+      ...(req.body.objectivesjson && { objectivesjson: safeParse(objectivesjson) }),
+      ...(paymentjson && { paymentjson: safeParse(paymentjson) }),
+    };
+
+
+    const allPartsPresent =
+      mergedData.profilejson &&
+      mergedData.socialaccountjson &&
+      mergedData.categoriesjson &&
+      mergedData.portfoliojson &&
+      mergedData.paymentjson;
+
+    // ---------------------------
+    // 5️⃣ Check existing profile from DB
+    // ---------------------------
+    const dbCheck = await client.query(
+      `SELECT * FROM ins.fn_get_vendorprofilejson($1::BIGINT)`,
+      [userId]
     );
+    const existingUser = dbCheck.rows[0];
 
-    await client.query("COMMIT");
 
-    const { p_status, p_message } = result.rows[0];
-    if (p_status) {
-      // Clear Redis
-      await redisClient.del(redisKey);
-      return res.status(200).json({ message: p_message });
+    // ---------------------------
+    // 6️⃣ Logic based on existing profile
+    // ---------------------------
+    if (existingUser?.p_providers !== null && existingUser?.p_objectives !== null) {
+      // ✅ CASE A: User already has provider  + objectives → update in DB
+      try {
+        await client.query("BEGIN");
+        const result = await client.query(
+          `CALL ins.sp_complete_vendorprofile(
+          $1::BIGINT, $2::JSON, $3::JSON, $4::JSON, $5::JSON, $6::JSON, $7::BOOLEAN, $8::TEXT
+        )`,
+          [
+            userId,
+            JSON.stringify(mergedData.profilejson || existingUser.p_profile),
+            JSON.stringify(mergedData.categoriesjson || existingUser.p_categories),
+            JSON.stringify(mergedData.providersjson || existingUser.p_providers),
+            JSON.stringify(mergedData.objectivesjson || existingUser.p_objectives),
+            JSON.stringify(mergedData.paymentjson || existingUser.p_paymentaccounts),
+            null,
+            null
+          ]
+        );
+
+        await client.query("COMMIT");
+
+        const { p_status, p_message } = result.rows[0] || {};
+        return res.status(p_status ? 200 : 400).json({
+          message: p_message || "Profile updated successfully",
+          source: "db",
+        });
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+      }
     } else {
-      return res.status(400).json({ message: p_message });
+      // ✅ CASE B: User new or incomplete → check Redis
+      if (!allPartsPresent) {
+        const existingRedis = await redisClient.get(redisKey);
+        let redisData = existingRedis ? JSON.parse(existingRedis) : {};
+        redisData = { ...redisData, ...mergedData };
+
+        await redisClient.set(redisKey, JSON.stringify(redisData));
+        return res.status(200).json({
+          message: "Partial data saved in Redis (first-time user)",
+          source: "redis",
+        });
+      }
+
+      // ✅ CASE C: All parts present → insert into DB
+      try {
+
+        await client.query("BEGIN");
+        const result = await client.query(
+          `CALL ins.sp_complete_vendorprofile(
+          $1::BIGINT, $2::JSON, $3::JSON, $4::JSON, $5::JSON, $6::JSON, $7::BOOLEAN, $8::TEXT
+        )`,
+          [
+            userId,
+            JSON.stringify(mergedData.profilejson),
+            JSON.stringify(mergedData.categoriesjson),
+            JSON.stringify(mergedData.providersjson),
+            JSON.stringify(mergedData.objectivesjson),
+            JSON.stringify(mergedData.paymentjson),
+            null,
+            null
+          ]
+        );
+        await client.query("COMMIT");
+        await redisClient.del(redisKey);
+
+        const { p_status, p_message } = result.rows[0] || {};
+        return res.status(p_status ? 200 : 400).json({
+          message: p_message || "Profile created successfully",
+          source: "db",
+        });
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+      }
     }
   } catch (error) {
     await client.query("ROLLBACK");
-    console.error("complete vendor profile error:", error);
-
+    console.error("💥 Error in completeVendorProfile:", error);
     return res.status(500).json({ message: error.message });
   }
 };
