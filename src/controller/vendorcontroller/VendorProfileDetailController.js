@@ -293,7 +293,7 @@ export const completeVendorProfile = async (req, res) => {
     // ---------------------------
     // 6️⃣ Logic based on existing profile
     // ---------------------------
-    if (existingUser?.p_providers !== null && existingUser?.p_objectives !== null) {
+    if (existingUser?.p_categories !== null && existingUser?.p_objectives !== null) {
       // ✅ CASE A: User already has provider  + objectives → update in DB
       try {
         await client.query("BEGIN");

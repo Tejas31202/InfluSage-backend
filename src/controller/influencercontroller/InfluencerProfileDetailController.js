@@ -72,9 +72,19 @@ export const completeUserProfile = async (req, res) => {
       if (portfoliojson) {
         try {
           const parsedPortfolio = JSON.parse(portfoliojson);
-          parsedPortfolio.filepaths = portfolioPaths.map((p) => ({
+
+          // Preserve existing filepaths if any
+          const existingPaths = Array.isArray(parsedPortfolio.filepaths)
+            ? parsedPortfolio.filepaths.filter(p => p?.filepath)
+            : [];
+
+          // Add new uploaded files
+          const newPaths = portfolioPaths.map((p) => ({
             filepath: p,
           }));
+
+          parsedPortfolio.filepaths = [...existingPaths, ...newPaths];
+
           req.body.portfoliojson = JSON.stringify(parsedPortfolio);
         } catch (err) {
           console.error("Invalid portfoliojson:", err.message);
@@ -82,6 +92,7 @@ export const completeUserProfile = async (req, res) => {
       }
     }
 
+    
     // ---------------------------
     // 4️⃣ Merge incoming data (safe JSON.parse)
     // ---------------------------
