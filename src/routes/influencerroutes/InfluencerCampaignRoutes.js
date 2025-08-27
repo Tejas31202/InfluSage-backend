@@ -2,35 +2,30 @@ import express from 'express'
 
 const routes = express.Router();
 
-
-
-
 // Import Form Campaign Controller
 import {
     GetAllCampaign,
     GetCampaignDetails,
-    GetFilterPlateform,
     ApplyNowCampaign,
-    AppliedCampaign
-    
+    AppliedCampaign,
+    SaveCampaign,
+    GetSaveCampaign
+
 } from '../../controller/influencercontroller/InfluencerCampaignController.js'
 
 
 
 //Routes For Campaign
-
 routes.get("/browse", GetAllCampaign);
 
-routes.get("/browse/campaign/filter",GetFilterPlateform);
+routes.get("/browse/campaign/:campaignId", GetCampaignDetails);
 
-routes.get("/browse/campaign/:campaignid", GetCampaignDetails);
-
-routes.post('/apply/:campaignid', ApplyNowCampaign);
+routes.post('/apply/:campaignId', ApplyNowCampaign);
 
 routes.get('/applied', AppliedCampaign);
 
+routes.post('/saved/campaign', SaveCampaign);
 
-
-
+routes.get('/saved/campaign/:userId',GetSaveCampaign)
 
 export default routes;
