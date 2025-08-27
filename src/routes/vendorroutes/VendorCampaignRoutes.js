@@ -8,7 +8,8 @@ const routes = express.Router();
 routes.post(
   "/create-campaign",
   authenticateUser(["Vendor"]),
-  upload.array("campaignFiles", 5),  
+  upload.array("Files", 5)
+  , // max 5 files
   createMyCampaign
 );
 
@@ -19,4 +20,13 @@ routes.post(
   authenticateUser(["Vendor"]), // optional role check
   deleteCampaignFile
 );
+
+
+routes.post(
+  "/campaign/delete-file",
+  authenticateUser(["Vendor"]), // optional role check
+  deleteCampaignFile
+);
+
+
 export default routes;
