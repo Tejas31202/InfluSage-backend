@@ -107,7 +107,7 @@ export const createMyCampaign = async (req, res) => {
         JSON.stringify(mergedData.p_vendorinfojson),
         JSON.stringify(mergedData.p_campaignjson),
         JSON.stringify(mergedData.p_campaignfilejson),
-        JSON.stringify(mergedData.p_contenttypejson),
+        JSON.stringify(mergedData.p_contenttypejson)
       ]
     );
     await client.query("COMMIT");
@@ -115,9 +115,10 @@ export const createMyCampaign = async (req, res) => {
     // Clear draft Redis
     await redisClient.del(redisKey);
 
+    const { p_status, p_message } = result.rows[0] || {};
     return res.status(200).json({
-      status: true,
-      message: "Campaign saved to DB successfully",
+      status: p_status,
+      message: p_message,
       campaignParts: mergedData,
       source: "db",
     });
