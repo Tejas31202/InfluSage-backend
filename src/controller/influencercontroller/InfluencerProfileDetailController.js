@@ -2,6 +2,7 @@ import { Client } from "pg";
 import fs from "fs";
 import path from "path";
 import { client } from "../../config/db.js";
+import { deleteFileFromRedis } from "../../utils/DeleteFiles.js";
 // import authenticateUser from "../middleware/AuthMiddleware.js";
 import redis from "redis";
 
@@ -439,6 +440,42 @@ export const getCategories = async (req, res) => {
 //     return res.status(500).json({ status: false, message: error.message });
 //   }
 // };
+
+export const deletePortfolioFile = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.body.userId;
+    const filePathToDelete = req.body.filepath;
+
+    if (!userId || !filePathToDelete) {
+      return res
+        .status(400)
+        .json({ message: "userId and filepath are required" });
+    }
+
+    const redisKey = `profile:${userId}`;
+    const updatedData = await deleteFileFromRedis(
+      redisKey,
+      "portfoliojson",
+      filePathToDelete,
+      "influencer" // 👈 influencer folder
+    );
+
+    if (!updatedData) {
+      return res
+        .status(404)
+        .json({ status: false, message: "Profile draft not found in Redis" });
+    }
+
+    return res.status(200).json({
+      status: true,
+      message: "Portfolio file deleted successfully",
+      portfolioFiles: updatedData.portfoliojson || [],
+    });
+  } catch (error) {
+    console.error("❌ deletePortfolioFile error:", error);
+    return res.status(500).json({ status: false, message: error.message });
+  }
+};
 
 
 

@@ -5,7 +5,7 @@ import fs from "fs";
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     // Sirf vendor folder
-    const dir = `src/uploads/vendor/`;
+    const dir = path.join(process.cwd(), "src/uploads/vendor/");
 
     // folder create agar nahi hai
     fs.mkdirSync(dir, { recursive: true });
@@ -13,7 +13,7 @@ const storage = multer.diskStorage({
     cb(null, dir);
   },
   filename: function (req, file, cb) {
-    const username = req.user?.name || "vendor"; // filename me include
+    const username = req.user?.name || "vendor"; 
     const timestamp = Date.now();
     const ext = path.extname(file.originalname);
 
@@ -22,11 +22,11 @@ const storage = multer.diskStorage({
       .basename(file.originalname, ext)
       .replace(/\s+/g, "_");
 
-    // final filename: originalname_username_timestamp.ext
+    // final filename
     const finalName = `${sanitizedOriginalName}_${username}_${timestamp}${ext}`;
-
     cb(null, finalName);
   },
 });
+
 
 export const upload = multer({ storage });
