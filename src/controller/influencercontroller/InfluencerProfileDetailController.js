@@ -2,6 +2,7 @@ import { Client } from "pg";
 import fs from "fs";
 import path from "path";
 import { client } from "../../config/db.js";
+import { deleteFileFromRedis } from "../../utils/DeleteFiles.js";
 // import authenticateUser from "../middleware/AuthMiddleware.js";
 import redis from "redis";
 
@@ -391,3 +392,90 @@ export const getCategories = async (req, res) => {
     return res.status(500).json({ message: "Failed to fetch categories" });
   }
 };
+
+
+// export const deletePortfolioFile = async (req, res) => {
+//   try {
+//     const userId = req.user?.id || req.body.userId;
+//     const filePathToDelete = req.body.filepath; // frontend se path milega
+
+//     if (!userId || !filePathToDelete)
+//       return res
+//         .status(400)
+//         .json({ message: "userId and filepath are required" });
+
+//     // Redis key for influencer profile
+//     const redisKey = `profile:${userId}`;
+
+//     // 1 Redis se data fetch
+//     let profileData = await redisClient.get(redisKey);
+//     if (profileData) {
+//       profileData = JSON.parse(profileData);
+
+//       // Remove file from portfoliojson
+//       if (profileData.portfoliojson) {
+//         profileData.portfoliojson = profileData.portfoliojson.filter(
+//           (file) => file.filepath !== filePathToDelete
+//         );
+
+//         // Update Redis
+//         await redisClient.set(redisKey, JSON.stringify(profileData));
+//       }
+//     }
+    
+//     // 2 Delete file from folder
+//     const fullPath = path.resolve(filePathToDelete); // absolute path
+//     if (fs.existsSync(fullPath)) {
+//       fs.unlinkSync(fullPath);
+//     }
+//     console.log("Trying to delete:", fullPath);
+
+//     return res.status(200).json({
+//       status: true,
+//       message: "Portfolio file deleted successfully",
+//       portfolioFiles: profileData?.portfoliojson || [],
+//     });
+//   } catch (error) {
+//     console.error("❌ deletePortfolioFile error:", error);
+//     return res.status(500).json({ status: false, message: error.message });
+//   }
+// };
+
+export const deletePortfolioFile = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.body.userId;
+    const filePathToDelete = req.body.filepath;
+
+    if (!userId || !filePathToDelete) {
+      return res
+        .status(400)
+        .json({ message: "userId and filepath are required" });
+    }
+
+    const redisKey = `profile:${userId}`;
+    const updatedData = await deleteFileFromRedis(
+      redisKey,
+      "portfoliojson",
+      filePathToDelete,
+      "influencer" // 👈 influencer folder
+    );
+
+    if (!updatedData) {
+      return res
+        .status(404)
+        .json({ status: false, message: "Profile draft not found in Redis" });
+    }
+
+    return res.status(200).json({
+      status: true,
+      message: "Portfolio file deleted successfully",
+      portfolioFiles: updatedData.portfoliojson || [],
+    });
+  } catch (error) {
+    console.error("❌ deletePortfolioFile error:", error);
+    return res.status(500).json({ status: false, message: error.message });
+  }
+};
+
+
+

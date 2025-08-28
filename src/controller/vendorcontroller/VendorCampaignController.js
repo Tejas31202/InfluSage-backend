@@ -1,4 +1,5 @@
 import { client } from "../../config/db.js";
+import { deleteFileFromRedis } from "../../utils/DeleteFiles.js";
 import redis from "redis";
 import fs from "fs";
 import path from "path";
@@ -6,14 +7,14 @@ import path from "path";
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
 redisClient.connect().catch(console.error);
 
-// ---------------- CREATE / DRAFT CAMPAIGN ----------------
+// ---------------- CREATE / UPDATE Campaign Draft ----------------
 export const createMyCampaign = async (req, res) => {
   const userId = req.user?.id || req.body.p_userid;
   const username = req.user?.name || "user";
-  
+
   if (!userId) return res.status(400).json({ message: "User ID is required" });
 
-  // Extract incoming JSONs safely
+  // Safely parse incoming JSONs
   const tryParseJSON = (value) => {
     try {
       return typeof value === "string" ? JSON.parse(value) : value;
@@ -27,19 +28,18 @@ export const createMyCampaign = async (req, res) => {
   const p_campaignjson    = tryParseJSON(req.body.p_campaignjson);
   const p_contenttypejson = tryParseJSON(req.body.p_contenttypejson);
 
-  // Handle file uploads
+  // ---------------- File Handling ----------------
   let p_campaignfilejson = null;
 
-  // Multiple files first
   if (req.files && req.files.length > 0) {
     p_campaignfilejson = req.files.map((file) => {
       const newFileName = `${username}_campaign_${Date.now()}${path.extname(file.originalname)}`;
       const newPath = path.join("src/uploads/vendor", newFileName);
+
       fs.renameSync(file.path, newPath);
       return { filepath: newPath.replace(/\\/g, "/") };
     });
   } else if (req.file) {
-    // Single file fallback
     const file = req.file;
     const newFileName = `${username}_up_${Date.now()}${path.extname(file.originalname)}`;
     const newPath = path.join("src/uploads/vendor", newFileName);
@@ -65,62 +65,16 @@ export const createMyCampaign = async (req, res) => {
       is_completed: false
     };
 
-    // Store in Redis
-    await redisClient.set(redisKey, JSON.stringify(mergedData));
+    // Store draft in Redis
+    // ✅ Redis me draft store karo
+await redisClient.set(redisKey, JSON.stringify(mergedData));
 
-    // Check if all parts present
-    const allPartsPresent =
-      mergedData.p_objectivejson &&
-      mergedData.p_vendorinfojson &&
-      mergedData.p_campaignjson &&
-      mergedData.p_campaignfilejson &&
-      mergedData.p_contenttypejson;
-
-    // Partial save → just return draft
-    if (!allPartsPresent) {
-      return res.status(200).json({
-        status: false,
-        message: "Partial data stored in Redis. Complete all steps to save to DB.",
-        campaignParts: mergedData,
-        source: "redis",
-      });
-    }
-
-    // All complete → call SP
-    await client.query("BEGIN");
-    const result = await client.query(
-      `CALL ins.sp_upsert_campaigndetails(
-        $1::BIGINT,
-        $2::BIGINT,
-        $3::JSON,
-        $4::JSON,
-        $5::JSON,
-        $6::JSON,
-        $7::JSON,
-        NULL,
-        NULL
-      )`,
-      [
-        userId,
-        req.body.campaignid || null,
-        JSON.stringify(mergedData.p_objectivejson),
-        JSON.stringify(mergedData.p_vendorinfojson),
-        JSON.stringify(mergedData.p_campaignjson),
-        JSON.stringify(mergedData.p_campaignfilejson),
-        JSON.stringify(mergedData.p_contenttypejson),
-      ]
-    );
-    await client.query("COMMIT");
-
-    // Clear draft Redis
-    await redisClient.del(redisKey);
-
-    return res.status(200).json({
-      status: true,
-      message: "Campaign saved to DB successfully",
-      campaignParts: mergedData,
-      source: "db",
-    });
+return res.status(200).json({
+  status: true,
+  message: "Draft stored in Redis successfully",
+  campaignParts: mergedData,
+  source: "redis",
+});
 
   } catch (err) {
     await client.query("ROLLBACK");
@@ -128,6 +82,72 @@ export const createMyCampaign = async (req, res) => {
     return res.status(500).json({ status: false, message: err.message });
   }
 };
+
+// ---------------- FINALIZE Campaign ----------------
+export const finalizeCampaign = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.body.p_userid;
+const campaignId = req.body.p_campaignid || null; // ya req.body.campaignid
+
+    if (!userId) return res.status(400).json({ message: "User ID is required" });
+
+    const redisKey = `getCampaign:${userId}`;
+    const cachedData = await redisClient.get(redisKey);
+
+    if (!cachedData) {
+      return res.status(404).json({ message: "No campaign data found in Redis to finalize" });
+    }
+
+    const campaignData = JSON.parse(cachedData);
+
+    await client.query("BEGIN");
+    const result = await client.query(
+      `CALL ins.sp_upsert_campaigndetails(
+          $1::BIGINT,
+          $2::BIGINT,
+          $3::JSON,
+          $4::JSON,
+          $5::JSON,
+          $6::JSON,
+          $7::JSON,
+          NULL,
+          NULL
+      )`,
+      [
+        userId,
+        campaignId,
+        JSON.stringify(campaignData.p_objectivejson || {}),
+        JSON.stringify(campaignData.p_vendorinfojson || {}),
+        JSON.stringify(campaignData.p_campaignjson || {}),
+        JSON.stringify(campaignData.p_campaignfilejson || {}),
+        JSON.stringify(campaignData.p_contenttypejson || {})
+      ]
+    );
+    await client.query("COMMIT");
+
+    const { p_status, p_message} = result.rows[0] || {};
+    if (p_status) {
+      await redisClient.del(redisKey); // delete draft
+      return res.status(200).json({
+        status: p_status,
+        message: p_message,
+        // campaignId: p_campaignid
+      });
+    } else {
+      return res.status(400).json({
+        status: false,
+        message: p_message || "Failed to finalize campaign"
+      });
+    }
+
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("❌ finalizeCampaign error:", error);
+    return res.status(500).json({ status: false, message: error.message });
+  }
+};
+
+
 
 // ---------------- GET CAMPAIGN ----------------
 export const getCampaign = async (req, res) => {
@@ -201,42 +221,32 @@ export const deleteCampaignFile = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
     const campaignId = req.body.campaignId;
-    const filePathToDelete = req.body.filepath; // frontend se path milega
+    const filePathToDelete = req.body.filepath;
 
-    if (!userId || !campaignId || !filePathToDelete)
-      return res
-        .status(400)
-        .json({ message: "userId, campaignId and filepath are required" });
-
-    // Redis key
-    const redisKey = `getCampaign:${userId}:${campaignId}`;
-
-    // 1 Redis se data fetch
-    let campaignData = await redisClient.get(redisKey);
-    if (campaignData) {
-      campaignData = JSON.parse(campaignData);
-
-      // Remove file from JSON
-      if (campaignData.p_campaignfilejson) {
-        campaignData.p_campaignfilejson = campaignData.p_campaignfilejson.filter(
-          (file) => file.filepath !== filePathToDelete
-        );
-
-        // Update Redis
-        await redisClient.set(redisKey, JSON.stringify(campaignData));
-      }
+    if (!userId || !campaignId || !filePathToDelete) {
+      return res.status(400).json({
+        message: "userId, campaignId and filepath are required",
+      });
     }
 
-    // 2 Delete file from folder
-    const fullPath = path.resolve(filePathToDelete); // absolute path
-    if (fs.existsSync(fullPath)) {
-      fs.unlinkSync(fullPath);
+    const redisKey = `getCampaign:${userId}:${campaignId}`;
+    const updatedData = await deleteFileFromRedis(
+      redisKey,
+      "p_campaignfilejson",
+      filePathToDelete,
+      "vendor" // 👈 vendor folder
+    );
+
+    if (!updatedData) {
+      return res
+        .status(404)
+        .json({ status: false, message: "Campaign draft not found in Redis" });
     }
 
     return res.status(200).json({
       status: true,
-      message: "File deleted successfully",
-      campaignFiles: campaignData?.p_campaignfilejson || [],
+      message: "Campaign file deleted successfully",
+      campaignFiles: updatedData.p_campaignfilejson || [],
     });
   } catch (error) {
     console.error("❌ deleteCampaignFile error:", error);
