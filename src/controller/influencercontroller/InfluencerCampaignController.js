@@ -17,17 +17,18 @@ export const GetAllCampaign = async (req, res) => {
         const p_maxbudget = req.query.p_maxbudget ? parseFloat(req.query.p_maxbudget) : null;
         const p_minbudget = req.query.p_minbudget ? parseFloat(req.query.p_minbudget) : null;
 
-        console.log('Input params:', { p_providerid, p_contenttype, p_language, p_maxbudget, p_minbudget });
+        // console.log('Input params:', { p_providerid, p_contenttype, p_language, p_maxbudget, p_minbudget });
 
         //Get Data From DB
         const result = await client.query(
-            'SELECT ins.fn_get_browsecampaignjson($1, $2::smallint, $3, $4, $5)',
+            `SELECT ins.fn_get_browsecampaignjson($1, $2::smallint, $3, $4, $5)`,
             [p_providerid, p_contenttype, p_language, p_maxbudget, p_minbudget]
         );
+            
+            // console.log('DB result:', result.rows);
 
-            console.log('DB result:', result.rows);
-
-        const data = result.rows[0]?.fn_get_browsecampaignjson;
+        const data = result.rows[0];
+        // console.log("===>",data)
 
         if (!data) {
             return res.status(404).json({ message: 'Campaign not found.' });
@@ -56,8 +57,6 @@ export const GetCampaignDetails = async (req, res) => {
             [campaignId]
         );
 
-
-
         //Check From DB Not Found Campaign
         if (result.rows.length === 0) {
             return res.status(404).json({ message: 'Campaign not found.' });
@@ -78,164 +77,105 @@ export const GetCampaignDetails = async (req, res) => {
 
 //For Apply Campaign
 export const ApplyNowCampaign = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.body.userId;
+    const campaignId = req.params.campaignId;
+     const redisKey = `applyCampaign:${userId}`;
 
-    try {
-        const { campaignId } = req.params;
-        const {
-            amount,
-            deliveredDate,
-            proposalDescription,
-            portfolio,
-            installments
-        } = req.body;
+    // Parse JSON from form-data
+    let applycampaignjson = {};
+    if (req.body.applycampaignjson) {
+      try {
+        applycampaignjson = JSON.parse(req.body.applycampaignjson);
+      } catch (err) {
+        return res.status(400).json({ message: "Invalid applycampaignjson format" });
+      }
+    }
+     // Handle uploaded portfolio files
+    if (req.files && req.files.portfolioFiles) {
+      const uploadedFiles = req.files.portfolioFiles.map((file) => {
+        // normalize Windows paths -> forward slashes
+        const cleanPath = file.path.replace(/\\/g, "/");
 
-        // Check Campaign id Exist Or Not
-        if (!campaignId) {
-            return res.status(400).json({ message: 'Campaign ID is required.' });
-        }
+        // Instead of saving "src/uploads..." save as relative "/uploads/..."
+        const relativePath = cleanPath.replace("src/", "/");
 
-        //Check Amount , Date , Description , Portfolio Filled 
-        if (!amount || !deliveredDate || !proposalDescription || !portfolio) {
-            return res.status(400).json({ message: 'Missing required fields.' });
-        }
+        return { filepath: relativePath };
+      });
+
+      // Merge into filepaths array (override or push)
+      applycampaignjson.filepaths = uploadedFiles;
+    }
+    // Save in DB
+    const result = await client.query(
+      `CALL ins.sp_insert_applycampaign(
+          $1::bigint,
+          $2::bigint,
+          $3::json,
+          $4::boolean,
+          $5::text
+      )`,
+      [
+        userId,
+        campaignId,
+        JSON.stringify(applycampaignjson),
+        null,
+        null
+      ]
+    );
+
+    const { p_status, p_message } = result.rows[0];
+
+    if (p_status) {
+      await redisClient.del(redisKey);
+      return res.status(200).json({
+        message: p_message || "Application saved successfully",
+        source: "db",
+        data: applycampaignjson
+      });
+    } else {
+      return res.status(400).json({ message: p_message });
+    }
+  } catch (error) {
+    console.error("Error applying to campaign:", error);
+    return res.status(500).json({ message: error.message });
+  }
+};
 
 
-        // All Data Store In ApplicationData
-        const applicationData = {
-            campaignId,
-            amount,
-            deliveredDate,
-            proposalDescription,
-            portfolio,
-            installments: installments || []
-        };
-        //store data in redis
-        const redisKey = `applyCampaign:${campaignId}`;
+export const GetUsersAppliedCampaigns = async (req, res) => {
+  try {
+    const { userId } = req.params; 
+    const redisKey = `applyCampaign:${userId}`;
 
-        // await redisClient.setex(redisKey, JSON.stringify(applicationData));
-
-        //temp working store redis above code not store
-        await redisClient.set(redisKey, JSON.stringify(applicationData), {});
-
-
-        //Save TO DB
-
-        //temaparary after sp create then add here
-        // const result = await client.query(
-        //     " SP Call Save DB",
-        //     [campaignid, JSON.stringify(applicationData)]
-        // );
-
-        //for testing when sp created thn remove this
-        console.log('Simulating DB save:', campaignId, applicationData);
-        // const result = { rowCount: 1 };  // mock success response
-
-
-
-
-        return res.status(200).json({ message: 'Application saved successfully', source: 'db and redis' });
-
-
-    } catch (error) {
-        console.error('Error applying to campaign:', error);
-        return res.status(500).json({ message: 'Internal Server Error' });
+    // 1️⃣ Try cache first
+    const cachedData = await redisClient.get(redisKey);
+    if (cachedData) {
+      return res.status(200).json({
+        data: JSON.parse(cachedData),
+        source: "redis",
+      });
     }
 
+    // 2️⃣ If not in Redis → fetch from DB (❌ don't save in Redis)
+    const result = await client.query(
+      `SELECT * FROM ins.fn_get_appliedcampaignjson($1::bigint)`,
+      [userId]
+    );
 
-
-}
-
-
-//For Filter Options this for demo  front end work this
-// export const GetFilterPlateform = async (req, res) => {
-//     try {
-//         const { platform } = req.query;
-
-//         const result = await client.query(
-//             'SELECT * FROM ins.fn_get_browsecampaignjson($1, $2, $3, $4, $5)',
-//             [null, null, null, null, null]
-//         );
-
-//         let campaigns = result.rows;
-
-//         //Filter For Selected Plateform If User Require
-//         if (platform) {
-//             const allowedPlatforms = ['instagram', 'facebook', 'tiktok', 'youtube'];
-
-
-//             const platformsToFilter = platform
-//                 .split(',')
-//                 .map(p => p.trim().toLowerCase());
-
-//             // Validate all platforms
-//             const invalidPlatforms = platformsToFilter.filter(p => !allowedPlatforms.includes(p));
-//             if (invalidPlatforms.length > 0) {
-//                 return res.status(400).json({ message: `Invalid platform(s) specified: ${invalidPlatforms.join(', ')}` });
-//             }
-
-//             // Filter campaigns where campaign.platform is in the selected platforms list
-//             campaigns = campaigns.filter(c =>
-//                 c.platform && platformsToFilter.includes(c.platform.toLowerCase())
-//             );
-//         }
-
-
-//         if (campaigns.length === 0) {
-//             return res.status(404).json({ message: 'Campaign not found.' });
-//         }
-
-//         return res.status(200).json({
-//             data: campaigns,
-//             source: 'db',
-//             filter: platform || 'all'
-//         });
-
-//     } catch (error) {
-//         console.error('Error fetching filtered campaigns:', error);
-//         return res.status(500).json({ message: 'Internal Server Error' });
-//     }
-// };
-
-
-export const AppliedCampaign = async (req, res) => {
-    try {
-
-        const redisKey = 'appliedCampaigns';
-
-        // Try to get data from Redis
-        const cachedData = await redisClient.get(redisKey);
-
-        if (cachedData) {
-            // If data found in Redis, parse and return it
-            return res.status(200).json({
-                data: JSON.parse(cachedData),
-                source: 'redis',
-            });
-        }
-
-        // Data Not Available In Radis Then Fetch From DB
-        // const result = await client.query("get data from db sp write here");
-
-        const result = await client.query('CALL SP HERE FOR APPLIED CAMPAIGN ');
-
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({ message: 'No applied campaigns found.' });
-        }
-
-        // Store The Data In Radis
-        await redisClient.set(redisKey, JSON.stringify(result.rows));
-
-
-        // Return data from DB
-        return res.status(200).json({
-            data: result.rows,
-            source: 'db',
-        });
-    } catch (error) {
-        console.error('Error fetching applied campaigns:', error);
-        return res.status(500).json({ message: 'Internal Server Error' });
+    if (!result.rows || result.rows.length === 0) {
+      return res.status(404).json({ message: "No applied campaigns found." });
     }
+
+    // 3️⃣ Just return DB response directly
+    return res.status(200).json({
+      data: result.rows,
+      source: "db",
+    });
+  } catch (error) {
+    console.error("Error fetching applied campaigns:", error.message);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
 };
 
 

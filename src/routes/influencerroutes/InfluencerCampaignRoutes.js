@@ -7,22 +7,26 @@ import {
     GetAllCampaign,
     GetCampaignDetails,
     ApplyNowCampaign,
-    AppliedCampaign,
+    GetUsersAppliedCampaigns,
     SaveCampaign,
     GetSaveCampaign
 
 } from '../../controller/influencercontroller/InfluencerCampaignController.js'
+import authenticateUser from '../../middleware/AuthMiddleware.js';
+import {upload} from "../../middleware/MulterMiddleware.js"
 
 
 
 //Routes For Campaign
-routes.get("/browse", GetAllCampaign);
+routes.get("/browse",GetAllCampaign);
 
 routes.get("/browse/campaign/:campaignId", GetCampaignDetails);
 
-routes.post('/apply/:campaignId', ApplyNowCampaign);
+routes.post('/apply/:campaignId', authenticateUser(["Influencer"]),upload.fields([
+    { name: "portfolioFiles", maxCount: 5}
+  ]),ApplyNowCampaign);
 
-routes.get('/applied', AppliedCampaign);
+routes.get('/applied/:userId', GetUsersAppliedCampaigns);
 
 routes.post('/saved/campaign', SaveCampaign);
 

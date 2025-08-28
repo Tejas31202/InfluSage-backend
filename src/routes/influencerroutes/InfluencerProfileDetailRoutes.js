@@ -19,7 +19,7 @@ routes.post('/complete-profile', authenticateUser(["Influencer"]), upload.fields
     { name: "portfolioFiles", maxCount: 5}
   ]),completeUserProfile);
 routes.get('/profile/:userId', authenticateUser(['Influencer']), getUserProfile);
-routes.get('/:email', getUserNameByEmail);
+routes.get('/email/:email', getUserNameByEmail);
 routes.get('/categories',getCategories);
  
 export default routes;
