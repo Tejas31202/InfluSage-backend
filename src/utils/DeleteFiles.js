@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import {client} from "../config/db.js";
+import {redisClient } from "../config/db.js";
 // import redis from "redis";
 
 /**
@@ -13,7 +13,7 @@ import {client} from "../config/db.js";
  */
 export const deleteFileFromRedis = async (redisKey, jsonField, filePathToDelete, folder = "vendor") => {
   // 1. Redis fetch
-  let data = await client.get(redisKey);
+  let data = await redisClient.get(redisKey);
   if (!data) return null;
 
   data = JSON.parse(data);

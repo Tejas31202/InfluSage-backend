@@ -1,10 +1,12 @@
 import express from 'express';
 import {
-  createMyCampaign, getCampaign, deleteCampaignFile, finalizeCampaign} from '../../controller/vendorcontroller/VendorCampaignController.js';
+  createMyCampaign, getCampaign, deleteCampaignFile, finalizeCampaign, getProviders} from '../../controller/vendorcontroller/VendorCampaignController.js';
 import authenticateUser from "../../middleware/AuthMiddleware.js";
 import {upload} from "../../middleware/CampaignMulterMiddleware.js"
 
 const routes = express.Router();
+
+routes.get("/providers", getProviders); // New route to get providers
 // Step 1-5 → draft or auto-final if all parts present
 routes.post('/create-campaign', upload.array("Files", 5), authenticateUser(['Vendor']), createMyCampaign);
 
@@ -19,6 +21,7 @@ routes.post(
   authenticateUser(["Vendor"]), // optional role check
   deleteCampaignFile
 );
+
 
 
 

@@ -220,7 +220,7 @@ export const getCampaign = async (req, res) => {
 export const deleteCampaignFile = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
-    const campaignId = req.body.campaignId;
+    const campaignId = req.body.p_campaignid || req.body.campaignid;
     const filePathToDelete = req.body.filepath;
 
     if (!userId || !campaignId || !filePathToDelete) {
@@ -230,12 +230,15 @@ export const deleteCampaignFile = async (req, res) => {
     }
 
     const redisKey = `getCampaign:${userId}:${campaignId}`;
+    console.log("👉 Redis Key:", redisKey)  ;
     const updatedData = await deleteFileFromRedis(
       redisKey,
       "p_campaignfilejson",
       filePathToDelete,
       "vendor" // 👈 vendor folder
     );
+
+    console.log("✅ Updated Data after deletion:", updatedData);
 
     if (!updatedData) {
       return res
@@ -253,3 +256,27 @@ export const deleteCampaignFile = async (req, res) => {
     return res.status(500).json({ status: false, message: error.message });
   }
 };
+
+
+export const getProviders = async (req, res) => {
+  try {
+    // DB function call
+    const result = await client.query("SELECT * FROM ins.fn_get_providers()");
+
+    // console.log("providers", result.rows);
+    const providers = result.rows;
+
+    res.status(200).json({
+      status: true,
+      data: providers,
+    });
+  } catch (error) {
+    console.error("Error fetching providers:", error);
+    res.status(500).json({
+      status: false,
+      message: "Failed to fetch providers",
+      error: error.message,
+    });
+  }
+};
+
