@@ -224,36 +224,44 @@ export const getCampaign = async (req, res) => {
 export const deleteCampaignFile = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
-    const campaignId = req.body.p_campaignid || req.body.campaignid;
+    const campaignId = req.body.campaignId || req.body.campaignid; // ✅ fix
     const filePathToDelete = req.body.filepath;
 
     if (!userId || !campaignId || !filePathToDelete) {
-      return res.status(400).json({
-        message: "userId, campaignId and filepath are required",
-      });
+      return res
+        .status(400)
+        .json({ message: "userId, campaignId and filepath are required" });
     }
 
+    // Redis key
     const redisKey = `getCampaign:${userId}:${campaignId}`;
-    console.log("👉 Redis Key:", redisKey)  ;
-    const updatedData = await deleteFileFromRedis(
-      redisKey,
-      "p_campaignfilejson",
-      filePathToDelete,
-      "vendor" // 👈 vendor folder
-    );
 
-    console.log("✅ Updated Data after deletion:", updatedData);
+    // 1 Redis se data fetch
+    let campaignData = await redisClient.get(redisKey);
+    if (campaignData) {
+      campaignData = JSON.parse(campaignData);
 
-    if (!updatedData) {
-      return res
-        .status(404)
-        .json({ status: false, message: "Campaign draft not found in Redis" });
+      // Remove file from JSON
+      if (campaignData.p_campaignfilejson) {
+        campaignData.p_campaignfilejson = campaignData.p_campaignfilejson.filter(
+          (file) => file.filepath !== filePathToDelete
+        );
+
+        // Update Redis
+        await redisClient.set(redisKey, JSON.stringify(campaignData));
+      }
+    }
+
+    // 2 Delete file from folder
+    const fullPath = path.resolve(filePathToDelete);
+    if (fs.existsSync(fullPath)) {
+      fs.unlinkSync(fullPath);
     }
 
     return res.status(200).json({
       status: true,
-      message: "Campaign file deleted successfully",
-      campaignFiles: updatedData.p_campaignfilejson || [],
+      message: "File deleted successfully",
+      campaignFiles: campaignData?.p_campaignfilejson || [],
     });
   } catch (error) {
     console.error("❌ deleteCampaignFile error:", error);
