@@ -261,31 +261,6 @@ export const deleteCampaignFile = async (req, res) => {
   }
 };
 
-<<<<<<< HEAD
-
-export const getProviders = async (req, res) => {
-  try {
-    // DB function call
-    const result = await client.query("SELECT * FROM ins.fn_get_providers()");
-
-    // console.log("providers", result.rows);
-    const providers = result.rows;
-
-    res.status(200).json({
-      status: true,
-      data: providers,
-    });
-  } catch (error) {
-    console.error("Error fetching providers:", error);
-    res.status(500).json({
-      status: false,
-      message: "Failed to fetch providers",
-      error: error.message,
-    });
-  }
-};
-
-=======
 export const GetCampaignObjectives = async (req, res) => {
   try {
     const result = await client.query(
@@ -376,4 +351,26 @@ export const GetProvidorContentTypes=async(req,res)=>{
       .json({ message: "Failed to fetch GetCampaignObjectives" });
   }
 }
->>>>>>> fe6f651a07488517d8109abde263f716c4a0d82e
+
+
+export const getProviders = async (req, res) => {
+  try {
+    // DB function call
+    const result = await client.query("SELECT * FROM ins.fn_get_providers()");
+
+    // console.log("providers", result.rows);
+    const providers = result.rows;
+
+    res.status(200).json({
+      status: true,
+      data: providers,
+    });
+  } catch (error) {
+    console.error("Error fetching providers:", error);
+    res.status(500).json({
+      status: false,
+      message: "Failed to fetch providers",
+      error: error.message,
+    })
+  };
+};

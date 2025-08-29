@@ -1,10 +1,6 @@
-import express, { Router } from 'express';
+import express from 'express';
 import {
-<<<<<<< HEAD
-  createMyCampaign, getCampaign, deleteCampaignFile, finalizeCampaign, getProviders} from '../../controller/vendorcontroller/VendorCampaignController.js';
-=======
-  createMyCampaign, getCampaign, deleteCampaignFile, finalizeCampaign,GetCampaignObjectives,GetLanguages,GetInfluencerTiers,GetGender,GetProvidorContentTypes} from '../../controller/vendorcontroller/VendorCampaignController.js';
->>>>>>> fe6f651a07488517d8109abde263f716c4a0d82e
+  createMyCampaign, getCampaign, deleteCampaignFile, finalizeCampaign, getProviders, GetCampaignObjectives, GetLanguages, GetInfluencerTiers, GetGender, GetProvidorContentTypes} from '../../controller/vendorcontroller/VendorCampaignController.js';
 import authenticateUser from "../../middleware/AuthMiddleware.js";
 import {upload} from "../../middleware/CampaignMulterMiddleware.js"
 
@@ -37,8 +33,4 @@ routes.post(
 
 
 
-<<<<<<< HEAD
-=======
-
->>>>>>> fe6f651a07488517d8109abde263f716c4a0d82e
 export default routes;
