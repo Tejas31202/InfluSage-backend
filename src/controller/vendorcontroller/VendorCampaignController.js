@@ -289,3 +289,42 @@ export const GetLanguages = async (req, res) => {
     return res.status(500).json({ message: "Failed to fetch languages" });
   }
 };
+
+
+export const GetInfluencerTiers = async(req,res)=>{
+  
+   try {
+    const result = await client.query(
+      "SELECT * from ins.fn_get_influencertiers();"
+    );
+
+    return res.status(200).json({
+      influencerType: result.rows,
+      source: "db",
+    });
+  } catch (error) {
+    console.error("Error fetching GetCampaignObjectives:", error);
+    return res
+      .status(500)
+      .json({ message: "Failed to fetch GetCampaignObjectives" });
+  }
+}
+
+export const GetGender=async(req,res)=>{
+  
+  try {
+    const result = await client.query(
+      "SELECT * from ins.fn_get_genders();"
+    );
+
+    return res.status(200).json({
+      genders: result.rows,
+      source: "db",
+    });
+  } catch (error) {
+    console.error("Error fetching GetCampaignObjectives:", error);
+    return res
+      .status(500)
+      .json({ message: "Failed to fetch GetCampaignObjectives" });
+  }
+}
