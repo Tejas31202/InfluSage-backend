@@ -328,3 +328,23 @@ export const GetGender=async(req,res)=>{
       .json({ message: "Failed to fetch GetCampaignObjectives" });
   }
 }
+
+
+export const GetProvidorContentTypes=async(req,res)=>{
+  
+  try {
+    const result = await client.query(
+      "SELECT * from ins.fn_get_providercontenttypes();"
+    );
+
+    return res.status(200).json({
+      providorType: result.rows,
+      source: "db",
+    });
+  } catch (error) {
+    console.error("Error fetching GetCampaignObjectives:", error);
+    return res
+      .status(500)
+      .json({ message: "Failed to fetch GetCampaignObjectives" });
+  }
+}
