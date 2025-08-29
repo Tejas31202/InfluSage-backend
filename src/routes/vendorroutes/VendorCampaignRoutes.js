@@ -16,7 +16,10 @@ routes.get("/gender",GetGender)
 routes.get("/provider-content-type",GetProvidorContentTypes)
 
 
-routes.post('/create-campaign',authenticateUser(['Vendor']),upload.array("Files", 5),createMyCampaign);
+routes.post('/create-campaign',authenticateUser(['Vendor']),upload.fields([
+    { name: "photo", maxCount: 1 },
+    { name: "Files", maxCount: 5 },
+  ]),createMyCampaign);   
 
 // Step 6 → Finalize Campaign button
 routes.post('/finalize-campaign', authenticateUser(['Vendor']), finalizeCampaign);

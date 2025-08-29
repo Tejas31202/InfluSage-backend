@@ -10,15 +10,16 @@ redisClient.connect().catch(console.error);
 // ---------------- CREATE / UPDATE Campaign Draft ----------------
 export const createMyCampaign = async (req, res) => {
   const userId = req.user?.id || req.body.p_userid;
-  const username = req.user?.name || "user";
+  const username=req.user.name
 
-  if (!userId) return res.status(400).json({ message: "User ID is required" });
+  if (!userId) {
+    return res.status(400).json({ message: "User ID is required" });
+  }
 
-  // Safely parse incoming JSONs
   const tryParseJSON = (value) => {
     try {
       return typeof value === "string" ? JSON.parse(value) : value;
-    } catch (e) {
+    } catch {
       return value;
     }
   };
@@ -31,35 +32,46 @@ export const createMyCampaign = async (req, res) => {
   // ---------------- File Handling ----------------
   let p_campaignfilejson = null;
 
-  if (req.files && req.files.length > 0) {
-    p_campaignfilejson = req.files.map((file) => {
-      const newFileName = `${username}_campaign_${Date.now()}${path.extname(
-        file.originalname
-      )}`;
-      const newPath = path.join("src/uploads/vendor", newFileName);
+  // Photo file (single)
+   if (req.files?.photo && req.files.photo[0]) {
+    const file = req.files.photo[0];
+    const ext = path.extname(file.originalname);
+    const finalName = `${username}_cp_${Date.now()}${ext}`;
 
-      fs.renameSync(file.path, newPath);
-      return { filepath: newPath.replace(/\\/g, "/") };
-    });
-  } else if (req.file) {
-    const file = req.file;
-    const newFileName = `${username}_up_${Date.now()}${path.extname(
-      file.originalname
-    )}`;
-    const newPath = path.join("src/uploads/vendor", newFileName);
-    fs.renameSync(file.path, newPath);
-    p_campaignfilejson = [{ filepath: newPath.replace(/\\/g, "/") }];
+    // Only relative path from src/
+    const relativePath = path
+      .join("src/uploads/vendor", finalName)
+      .replace(/\\/g, "/");
+
+    if (p_campaignjson) {
+      p_campaignjson.photopath = relativePath;
+    }
+
+    // rename file from multer temp name → our format
+    fs.renameSync(file.path, relativePath);
   }
 
-  const redisKey = `getCampaign:${userId}`; // consistent draft key
-  console.log("👉 Redis Key:", redisKey);
+  // ---------------- Multiple Campaign Files ----------------
+  if (req.files?.Files && req.files.Files.length > 0) {
+    p_campaignfilejson = req.files.Files.map((file) => {
+      const ext = path.extname(file.originalname);
+      const finalName = `${username}_campaign_${Date.now()}${ext}`;
+
+      const relativePath = path
+        .join("src/uploads/vendor", finalName)
+        .replace(/\\/g, "/");
+
+      fs.renameSync(file.path, relativePath);
+
+      return { filepath: relativePath };
+    });
+  }
+  const redisKey = `getCampaign:${userId}`;
 
   try {
-    // Existing draft in Redis
     let existingData = await redisClient.get(redisKey);
     existingData = existingData ? JSON.parse(existingData) : {};
 
-    // Merge new + existing data
     const mergedData = {
       p_objectivejson: p_objectivejson || existingData.p_objectivejson || null,
       p_vendorinfojson:
@@ -72,8 +84,6 @@ export const createMyCampaign = async (req, res) => {
       is_completed: false,
     };
 
-    // Store draft in Redis
-    // ✅ Redis me draft store karo
     await redisClient.set(redisKey, JSON.stringify(mergedData));
 
     return res.status(200).json({
@@ -83,11 +93,10 @@ export const createMyCampaign = async (req, res) => {
       source: "redis",
     });
   } catch (err) {
-    await client.query("ROLLBACK");
     console.error("❌ createMyCampaign error:", err);
     return res.status(500).json({ status: false, message: err.message });
   }
-};
+};              
 
 // ---------------- FINALIZE Campaign ----------------
 export const finalizeCampaign = async (req, res) => {
