@@ -23,9 +23,9 @@ export const createMyCampaign = async (req, res) => {
     }
   };
 
-  const p_objectivejson   = tryParseJSON(req.body.p_objectivejson);
-  const p_vendorinfojson  = tryParseJSON(req.body.p_vendorinfojson);
-  const p_campaignjson    = tryParseJSON(req.body.p_campaignjson);
+  const p_objectivejson = tryParseJSON(req.body.p_objectivejson);
+  const p_vendorinfojson = tryParseJSON(req.body.p_vendorinfojson);
+  const p_campaignjson = tryParseJSON(req.body.p_campaignjson);
   const p_contenttypejson = tryParseJSON(req.body.p_contenttypejson);
 
   // ---------------- File Handling ----------------
@@ -33,7 +33,9 @@ export const createMyCampaign = async (req, res) => {
 
   if (req.files && req.files.length > 0) {
     p_campaignfilejson = req.files.map((file) => {
-      const newFileName = `${username}_campaign_${Date.now()}${path.extname(file.originalname)}`;
+      const newFileName = `${username}_campaign_${Date.now()}${path.extname(
+        file.originalname
+      )}`;
       const newPath = path.join("src/uploads/vendor", newFileName);
 
       fs.renameSync(file.path, newPath);
@@ -41,7 +43,9 @@ export const createMyCampaign = async (req, res) => {
     });
   } else if (req.file) {
     const file = req.file;
-    const newFileName = `${username}_up_${Date.now()}${path.extname(file.originalname)}`;
+    const newFileName = `${username}_up_${Date.now()}${path.extname(
+      file.originalname
+    )}`;
     const newPath = path.join("src/uploads/vendor", newFileName);
     fs.renameSync(file.path, newPath);
     p_campaignfilejson = [{ filepath: newPath.replace(/\\/g, "/") }];
@@ -58,24 +62,26 @@ export const createMyCampaign = async (req, res) => {
     // Merge new + existing data
     const mergedData = {
       p_objectivejson: p_objectivejson || existingData.p_objectivejson || null,
-      p_vendorinfojson: p_vendorinfojson || existingData.p_vendorinfojson || null,
+      p_vendorinfojson:
+        p_vendorinfojson || existingData.p_vendorinfojson || null,
       p_campaignjson: p_campaignjson || existingData.p_campaignjson || null,
-      p_campaignfilejson: p_campaignfilejson || existingData.p_campaignfilejson || null,
-      p_contenttypejson: p_contenttypejson || existingData.p_contenttypejson || null,
-      is_completed: false
+      p_campaignfilejson:
+        p_campaignfilejson || existingData.p_campaignfilejson || null,
+      p_contenttypejson:
+        p_contenttypejson || existingData.p_contenttypejson || null,
+      is_completed: false,
     };
 
     // Store draft in Redis
     // ✅ Redis me draft store karo
-await redisClient.set(redisKey, JSON.stringify(mergedData));
+    await redisClient.set(redisKey, JSON.stringify(mergedData));
 
-return res.status(200).json({
-  status: true,
-  message: "Draft stored in Redis successfully",
-  campaignParts: mergedData,
-  source: "redis",
-});
-
+    return res.status(200).json({
+      status: true,
+      message: "Draft stored in Redis successfully",
+      campaignParts: mergedData,
+      source: "redis",
+    });
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("❌ createMyCampaign error:", err);
@@ -87,15 +93,18 @@ return res.status(200).json({
 export const finalizeCampaign = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.p_userid;
-const campaignId = req.body.p_campaignid || null; // ya req.body.campaignid
+    const campaignId = req.body.p_campaignid || null; // ya req.body.campaignid
 
-    if (!userId) return res.status(400).json({ message: "User ID is required" });
+    if (!userId)
+      return res.status(400).json({ message: "User ID is required" });
 
     const redisKey = `getCampaign:${userId}`;
     const cachedData = await redisClient.get(redisKey);
 
     if (!cachedData) {
-      return res.status(404).json({ message: "No campaign data found in Redis to finalize" });
+      return res
+        .status(404)
+        .json({ message: "No campaign data found in Redis to finalize" });
     }
 
     const campaignData = JSON.parse(cachedData);
@@ -120,12 +129,12 @@ const campaignId = req.body.p_campaignid || null; // ya req.body.campaignid
         JSON.stringify(campaignData.p_vendorinfojson || {}),
         JSON.stringify(campaignData.p_campaignjson || {}),
         JSON.stringify(campaignData.p_campaignfilejson || {}),
-        JSON.stringify(campaignData.p_contenttypejson || {})
+        JSON.stringify(campaignData.p_contenttypejson || {}),
       ]
     );
     await client.query("COMMIT");
 
-    const { p_status, p_message} = result.rows[0] || {};
+    const { p_status, p_message } = result.rows[0] || {};
     if (p_status) {
       await redisClient.del(redisKey); // delete draft
       return res.status(200).json({
@@ -136,18 +145,15 @@ const campaignId = req.body.p_campaignid || null; // ya req.body.campaignid
     } else {
       return res.status(400).json({
         status: false,
-        message: p_message || "Failed to finalize campaign"
+        message: p_message || "Failed to finalize campaign",
       });
     }
-
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("❌ finalizeCampaign error:", error);
     return res.status(500).json({ status: false, message: error.message });
   }
 };
-
-
 
 // ---------------- GET CAMPAIGN ----------------
 export const getCampaign = async (req, res) => {
@@ -172,9 +178,12 @@ export const getCampaign = async (req, res) => {
     const cachedData = await redisClient.get(redisKey);
     if (cachedData) {
       return res.status(200).json({
-        message: campaignId === "01" ? "Draft campaign data from Redis" : "Campaign data from Redis",
+        message:
+          campaignId === "01"
+            ? "Draft campaign data from Redis"
+            : "Campaign data from Redis",
         campaignParts: JSON.parse(cachedData),
-        source: "redis"
+        source: "redis",
       });
     }
 
@@ -183,7 +192,7 @@ export const getCampaign = async (req, res) => {
       return res.status(200).json({
         message: "No draft found",
         campaignParts: {},
-        source: "redis"
+        source: "redis",
       });
     }
 
@@ -204,18 +213,13 @@ export const getCampaign = async (req, res) => {
     return res.status(200).json({
       message: "Campaign data from DB",
       campaignParts: fullData,
-      source: "db"
+      source: "db",
     });
-
   } catch (err) {
     console.error("❌ getCampaign error:", err);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
-
-
-
-
 
 export const deleteCampaignFile = async (req, res) => {
   try {
@@ -257,6 +261,7 @@ export const deleteCampaignFile = async (req, res) => {
   }
 };
 
+<<<<<<< HEAD
 
 export const getProviders = async (req, res) => {
   try {
@@ -280,3 +285,95 @@ export const getProviders = async (req, res) => {
   }
 };
 
+=======
+export const GetCampaignObjectives = async (req, res) => {
+  try {
+    const result = await client.query(
+      "SELECT * from ins.fn_get_campaignobjectives()"
+    );
+
+    return res.status(200).json({
+      objectives: result.rows,
+      source: "db",
+    });
+  } catch (error) {
+    console.error("Error fetching GetCampaignObjectives:", error);
+    return res
+      .status(500)
+      .json({ message: "Failed to fetch GetCampaignObjectives" });
+  }
+};
+
+export const GetLanguages = async (req, res) => {
+  try {
+    const result = await client.query("SELECT * FROM ins.fn_get_languages();");
+
+    return res.status(200).json({
+      languages: result.rows,
+      source: "db",
+    });
+  } catch (error) {
+    console.error("Error fetching languages:", error);
+    return res.status(500).json({ message: "Failed to fetch languages" });
+  }
+};
+
+
+export const GetInfluencerTiers = async(req,res)=>{
+  
+   try {
+    const result = await client.query(
+      "SELECT * from ins.fn_get_influencertiers();"
+    );
+
+    return res.status(200).json({
+      influencerType: result.rows,
+      source: "db",
+    });
+  } catch (error) {
+    console.error("Error fetching GetCampaignObjectives:", error);
+    return res
+      .status(500)
+      .json({ message: "Failed to fetch GetCampaignObjectives" });
+  }
+}
+
+export const GetGender=async(req,res)=>{
+  
+  try {
+    const result = await client.query(
+      "SELECT * from ins.fn_get_genders();"
+    );
+
+    return res.status(200).json({
+      genders: result.rows,
+      source: "db",
+    });
+  } catch (error) {
+    console.error("Error fetching GetCampaignObjectives:", error);
+    return res
+      .status(500)
+      .json({ message: "Failed to fetch GetCampaignObjectives" });
+  }
+}
+
+
+export const GetProvidorContentTypes=async(req,res)=>{
+  
+  try {
+    const result = await client.query(
+      "SELECT * from ins.fn_get_providercontenttypes();"
+    );
+
+    return res.status(200).json({
+      providorType: result.rows,
+      source: "db",
+    });
+  } catch (error) {
+    console.error("Error fetching GetCampaignObjectives:", error);
+    return res
+      .status(500)
+      .json({ message: "Failed to fetch GetCampaignObjectives" });
+  }
+}
+>>>>>>> fe6f651a07488517d8109abde263f716c4a0d82e
