@@ -19,6 +19,6 @@ const routes = express.Router();
   routes.post("/complete-vendor-profile", authenticateUser(['Vendor']),uploadVendor.single("photo"),completeVendorProfile);
   routes.get('/profile/:userId', authenticateUser(['Vendor']), getVendorProfile);
   routes.get('/objectives', getObjectives);
-  routes.get('/:email', getUserNameByEmail);
+  routes.get('/email/:email', getUserNameByEmail);
  
 export default routes;
