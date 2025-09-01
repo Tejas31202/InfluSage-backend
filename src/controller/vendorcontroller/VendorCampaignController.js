@@ -1,5 +1,4 @@
 import { client } from "../../config/db.js";
-import { deleteFileFromRedis } from "../../utils/DeleteFiles.js";
 import redis from "redis";
 import fs from "fs";
 import path from "path";

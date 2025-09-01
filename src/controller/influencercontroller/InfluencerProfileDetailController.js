@@ -2,7 +2,6 @@ import { Client } from "pg";
 import fs from "fs";
 import path from "path";
 import { client } from "../../config/db.js";
-import { deleteFileFromRedis } from "../../utils/DeleteFiles.js";
 // import authenticateUser from "../middleware/AuthMiddleware.js";
 import redis from "redis";
 
@@ -29,7 +28,7 @@ export const completeUserProfile = async (req, res) => {
 
   try {
     // ---------------------------
-    // 1️⃣ Parse JSON fields from req.body (safe)
+    // 1 Parse JSON fields from req.body (safe)
     // ---------------------------
     const {
       profilejson = null,
@@ -40,7 +39,7 @@ export const completeUserProfile = async (req, res) => {
     } = req.body || {};
 
     // ---------------------------
-    // 2️⃣ Handle photo upload
+    // 2 Handle photo upload
     // ---------------------------
     if (req.files?.photo) {
       const file = req.files.photo[0];
@@ -63,7 +62,7 @@ export const completeUserProfile = async (req, res) => {
     }
 
     // ---------------------------
-    // 3️⃣ Handle portfolio uploads
+    // 3 Handle portfolio uploads
     // ---------------------------
     if (req.files?.portfolioFiles) {
       const portfolioPaths = req.files.portfolioFiles.map(
@@ -95,7 +94,7 @@ export const completeUserProfile = async (req, res) => {
 
     
     // ---------------------------
-    // 4️⃣ Merge incoming data (safe JSON.parse)
+    // 4 Merge incoming data (safe JSON.parse)
     // ---------------------------
     const safeParse = (data) => {
       try {
@@ -127,17 +126,13 @@ export const completeUserProfile = async (req, res) => {
       mergedData.paymentjson;
 
     // ---------------------------
-    // 5️⃣ Check existing profile from DB
+    // 5 Check existing profile from DB
     // ---------------------------
     const dbCheck = await client.query(
       "SELECT * FROM ins.fn_get_userprofilejson($1)",
       [userId]
     );
     const existingUser = dbCheck.rows[0];
-    // console.log("===>",existingUser)
-    // ---------------------------
-    // 6️⃣ Logic based on existing profile
-    // ---------------------------
     if (
       existingUser?.p_socials !== null &&
       existingUser?.p_categories !== null
@@ -393,58 +388,10 @@ export const getCategories = async (req, res) => {
   }
 };
 
-
-// export const deletePortfolioFile = async (req, res) => {
-//   try {
-//     const userId = req.user?.id || req.body.userId;
-//     const filePathToDelete = req.body.filepath; // frontend se path milega
-
-//     if (!userId || !filePathToDelete)
-//       return res
-//         .status(400)
-//         .json({ message: "userId and filepath are required" });
-
-//     // Redis key for influencer profile
-//     const redisKey = `profile:${userId}`;
-
-//     // 1 Redis se data fetch
-//     let profileData = await redisClient.get(redisKey);
-//     if (profileData) {
-//       profileData = JSON.parse(profileData);
-
-//       // Remove file from portfoliojson
-//       if (profileData.portfoliojson) {
-//         profileData.portfoliojson = profileData.portfoliojson.filter(
-//           (file) => file.filepath !== filePathToDelete
-//         );
-
-//         // Update Redis
-//         await redisClient.set(redisKey, JSON.stringify(profileData));
-//       }
-//     }
-    
-//     // 2 Delete file from folder
-//     const fullPath = path.resolve(filePathToDelete); // absolute path
-//     if (fs.existsSync(fullPath)) {
-//       fs.unlinkSync(fullPath);
-//     }
-//     console.log("Trying to delete:", fullPath);
-
-//     return res.status(200).json({
-//       status: true,
-//       message: "Portfolio file deleted successfully",
-//       portfolioFiles: profileData?.portfoliojson || [],
-//     });
-//   } catch (error) {
-//     console.error("❌ deletePortfolioFile error:", error);
-//     return res.status(500).json({ status: false, message: error.message });
-//   }
-// };
-
 export const deletePortfolioFile = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
-    const filePathToDelete = req.body.filepath;
+    const filePathToDelete = req.body.filepath; // frontend se milega
 
     if (!userId || !filePathToDelete) {
       return res
@@ -452,30 +399,48 @@ export const deletePortfolioFile = async (req, res) => {
         .json({ message: "userId and filepath are required" });
     }
 
-    const redisKey = `profile:${userId}`;
-    const updatedData = await deleteFileFromRedis(
-      redisKey,
-      "portfoliojson",
-      filePathToDelete,
-      "influencer" // 👈 influencer folder
-    );
+    // Redis key (influencer profile ke liye)
+    const redisKey = `getInfluencerProfile:${userId}`;
 
-    if (!updatedData) {
-      return res
-        .status(404)
-        .json({ status: false, message: "Profile draft not found in Redis" });
+    // 1 Redis se data fetch
+    let profileData = await redisClient.get(redisKey);
+    if (profileData) {
+      profileData = JSON.parse(profileData);
+
+
+      if (profileData.portfoliojson) {
+        profileData.portfoliojson = profileData.portfoliojson.filter(
+          (file) => file.filepath !== filePathToDelete
+        );
+
+      
+        await redisClient.set(redisKey, JSON.stringify(profileData));
+      }
+    }
+
+    const uploadDir = path.join(process.cwd(), "src", "uploads", "influencer");
+
+    
+    const fileName = path.basename(filePathToDelete);
+
+ 
+    const fullPath = path.join(uploadDir, fileName);
+
+
+    if (fs.existsSync(fullPath)) {
+      fs.unlinkSync(fullPath);
+      console.log(" File deleted from folder:", fullPath);
+    } else {
+      console.log(" File not found in folder:", fullPath);
     }
 
     return res.status(200).json({
       status: true,
       message: "Portfolio file deleted successfully",
-      portfolioFiles: updatedData.portfoliojson || [],
+      portfolioFiles: profileData?.portfoliojson || [],
     });
   } catch (error) {
     console.error("❌ deletePortfolioFile error:", error);
     return res.status(500).json({ status: false, message: error.message });
   }
 };
-
-
-

@@ -4,7 +4,8 @@ import {
   completeUserProfile,
   getUserProfile,
   getUserNameByEmail,
-  getCategories
+  getCategories,
+  deletePortfolioFile
 } from '../../controller/influencercontroller/InfluencerProfileDetailController.js';
 import {upload} from "../../middleware/MulterMiddleware.js"
  
@@ -21,5 +22,11 @@ routes.post('/complete-profile', authenticateUser(["Influencer"]), upload.fields
 routes.get('/profile/:userId', authenticateUser(['Influencer']), getUserProfile);
 routes.get('/email/:email', getUserNameByEmail);
 routes.get('/categories',getCategories);
+
+routes.post(
+  "/profile/delete-portfolio-file",
+  authenticateUser(["Influencer"]), // optional role check
+  deletePortfolioFile
+);
  
 export default routes;
