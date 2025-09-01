@@ -189,7 +189,7 @@ export const getVendorProfile = async (req, res) => {
 
     // If not in Redis → fetch from DB
     const result = await client.query(
-      `SELECT * FROM ins.fn_get_vendorprofilejson($1::BIGINT)`,
+      `SELECT * FROM ins.fn_get_vendorprofile($1::BIGINT)`,
       [vendorId]
     );
 
@@ -284,7 +284,7 @@ export const completeVendorProfile = async (req, res) => {
     // 5️⃣ Check existing profile from DB
     // ---------------------------
     const dbCheck = await client.query(
-      `SELECT * FROM ins.fn_get_vendorprofilejson($1::BIGINT)`,
+      `SELECT * FROM ins.fn_get_vendorprofile($1::BIGINT)`,
       [userId]
     );
     const existingUser = dbCheck.rows[0];
@@ -298,7 +298,7 @@ export const completeVendorProfile = async (req, res) => {
       try {
         await client.query("BEGIN");
         const result = await client.query(
-          `CALL ins.sp_complete_vendorprofile(
+          `CALL ins.usp_upsert_vendorprofile(
           $1::BIGINT, $2::JSON, $3::JSON, $4::JSON, $5::JSON, $6::JSON, $7::BOOLEAN, $8::TEXT
         )`,
           [
@@ -375,7 +375,7 @@ export const completeVendorProfile = async (req, res) => {
 
         await client.query("BEGIN");
         const result = await client.query(
-          `CALL ins.sp_complete_vendorprofile(
+          `CALL ins.usp_upsert_vendorprofile(
           $1::BIGINT, $2::JSON, $3::JSON, $4::JSON, $5::JSON, $6::JSON, $7::BOOLEAN, $8::TEXT
         )`,
           [

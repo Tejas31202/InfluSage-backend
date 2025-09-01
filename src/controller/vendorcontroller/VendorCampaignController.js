@@ -119,7 +119,7 @@ export const finalizeCampaign = async (req, res) => {
 
     await client.query("BEGIN");
     const result = await client.query(
-      `CALL ins.sp_upsert_campaigndetails(
+      `CALL ins.usp_upsert_campaigndetails(
           $1::BIGINT,
           $2::BIGINT,
           $3::JSON,

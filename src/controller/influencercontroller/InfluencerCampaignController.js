@@ -21,7 +21,7 @@ export const GetAllCampaign = async (req, res) => {
 
         //Get Data From DB
         const result = await client.query(
-            `SELECT ins.fn_get_browsecampaignjson($1, $2::smallint, $3, $4, $5)`,
+            `SELECT ins.fn_get_campaignbrowse($1, $2::smallint, $3, $4, $5)`,
             [p_providerid, p_contenttype, p_language, p_maxbudget, p_minbudget]
         );
             
@@ -53,7 +53,7 @@ export const GetCampaignDetails = async (req, res) => {
         const { campaignId } = req.params;
 
         const result = await client.query(
-            'select * from ins.fn_get_browsecampaigndetailsjson($1)',
+            'select * from ins.fn_get_campaignbrowsedetails($1)',
             [campaignId]
         );
 
@@ -108,7 +108,7 @@ export const ApplyNowCampaign = async (req, res) => {
     }
     // Save in DB
     const result = await client.query(
-      `CALL ins.sp_insert_applycampaign(
+      `CALL ins.usp_insert_campaignapplication(
           $1::bigint,
           $2::bigint,
           $3::json,
@@ -159,7 +159,7 @@ export const GetUsersAppliedCampaigns = async (req, res) => {
 
     // 2️⃣ If not in Redis → fetch from DB (❌ don't save in Redis)
     const result = await client.query(
-      `SELECT * FROM ins.fn_get_appliedcampaignjson($1::bigint)`,
+      `SELECT * FROM ins.fn_get_campaignapplication($1::bigint)`,
       [userId]
     );
 
@@ -189,7 +189,7 @@ export const SaveCampaign = async (req, res) => {
             return res.status(400).json({ message: 'User ID and Campaign ID are required.' });
         }
 
-        //comment (// const CheckCampaign = await client.query(`SELECT * FROM ins.fn_get_savedcampaignjson($1)`, [userid])
+        //comment (// const CheckCampaign = await client.query(`SELECT * FROM ins.fn_get_campaignsave($1)`, [userid])
 
         // //Check Campaign Available and also Check If Available Campaign Same or Not
         // const alreadySaved = CheckCampaign.rows.some(
@@ -200,7 +200,7 @@ export const SaveCampaign = async (req, res) => {
         //     return res.status(200).json({ message: 'You have already save to this campaign.' });
         // })
 
-        const SaveCampaign = await client.query(`CALL ins.sp_insert_savedcampaign($1::bigint,$2::bigint, $3, $4)`, [userId, campaignId, null, null]);
+        const SaveCampaign = await client.query(`CALL ins.usp_insert_campaignsave($1::bigint,$2::bigint, $3, $4)`, [userId, campaignId, null, null]);
 
         return res.status(201).json({
             message: 'Campaign application saved successfully.',
@@ -223,7 +223,7 @@ export const GetSaveCampaign = async (req, res) => {
 
             return res.status(400).json({ message: "User Id Required." })
         }
-        const result = await client.query(`SELECT * FROM ins.fn_get_savedcampaignjson($1)`, [userId])
+        const result = await client.query(`SELECT * FROM ins.fn_get_campaignsave($1)`, [userId])
 
         if (result.rows.length === 0) {
             return res.status(404).json({ message: 'Campaign not found.' });
@@ -259,7 +259,7 @@ export const GetSingleApplyCampaign=async(req,res)=>{
 
     // 2️⃣ If not in Redis → fetch from DB (❌ don't save in Redis)
     const result = await client.query(
-      `SELECT ins.fn_get_applycampaigndetailsjson($1,$2)`,
+      `SELECT ins.fn_get_campaignapplicationdetails($1,$2)`,
       [userId,campaignId]
     );
 
@@ -295,7 +295,7 @@ export const GetUserCampaignWithDetails = async (req, res) => {
 
     // 1️⃣ Get campaign details (from DB)
     const campaignResult = await client.query(
-      "SELECT * FROM ins.fn_get_browsecampaigndetailsjson($1)",
+      "SELECT * FROM ins.fn_get_campaignbrowsedetails($1)",
       [campaignId]
     );
 
@@ -311,7 +311,7 @@ export const GetUserCampaignWithDetails = async (req, res) => {
       responseData.appliedDetails = JSON.parse(cachedData);
     } else {
       const appliedResult = await client.query(
-        `SELECT ins.fn_get_applycampaigndetailsjson($1,$2)`,
+        `SELECT ins.fn_get_campaignapplicationdetails($1,$2)`,
         [userId, campaignId]
       );
 

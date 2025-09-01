@@ -129,7 +129,7 @@ export const completeUserProfile = async (req, res) => {
     // 5 Check existing profile from DB
     // ---------------------------
     const dbCheck = await client.query(
-      "SELECT * FROM ins.fn_get_userprofilejson($1)",
+      "SELECT * FROM ins.fn_get_userprofile($1)",
       [userId]
     );
     const existingUser = dbCheck.rows[0];
@@ -141,7 +141,7 @@ export const completeUserProfile = async (req, res) => {
       try {
         await client.query("BEGIN");
         const result = await client.query(
-          `CALL ins.sp_complete_userprofile(
+          `CALL ins.usp_upsert_userprofile(
                 $1::bigint,
                 $2::json,
                 $3::json,
@@ -231,7 +231,7 @@ export const completeUserProfile = async (req, res) => {
       try {
         await client.query("BEGIN");
         const result = await client.query(
-          `CALL ins.sp_complete_userprofile(
+          `CALL ins.usp_upsert_userprofile(
         $1::bigint,
         $2::json,
         $3::json,
@@ -302,7 +302,7 @@ export const getUserProfile = async (req, res) => {
 
     // If not in Redis → fetch from DB
     const result = await client.query(
-      `SELECT * FROM ins.fn_get_userprofilejson($1::BIGINT)`,
+      `SELECT * FROM ins.fn_get_userprofile($1::BIGINT)`,
       [userId]
     );
 

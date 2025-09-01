@@ -12,7 +12,7 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 // Utility: Check if email exists using stored procedure
 async function isEmailExists(email) {
-  const result = await client.query(`CALL ins.sp_is_registered($1::VARCHAR,NULL,NULL,NULL)`, [email]);
+  const result = await client.query(`CALL ins.usp_is_registered($1::VARCHAR,NULL,NULL,NULL)`, [email]);
   const isUserExists = result.rows[0].p_isregistered;
   return isUserExists;
 }
@@ -70,7 +70,7 @@ export const verifyOtpAndRegister = async (req, res) => {
 
     // Insert vendor into DB
     const result = await client.query(
-      `CALL ins.sp_insert_user($1::VARCHAR, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::BOOLEAN, $6::SMALLINT, NULL, NULL, NULL)`,
+      `CALL ins.usp_insert_user($1::VARCHAR, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::BOOLEAN, $6::SMALLINT, NULL, NULL, NULL)`,
       [firstName, lastName, email, passwordhash, true, roleId]
     );
 
@@ -215,7 +215,7 @@ export const resetPassword = async (req, res) => {
 
     // Update password in DB (adjust query as per your DB)
     const updateResult = await client.query(
-      `CALL ins.sp_reset_userpassword($1::BIGINT, $2::VARCHAR, NULL, NULL)`,
+      `CALL ins.usp_reset_userpassword($1::BIGINT, $2::VARCHAR, NULL, NULL)`,
       [vendorId, passwordhash]
     );
 
