@@ -277,3 +277,58 @@ export const GetSingleApplyCampaign=async(req,res)=>{
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
+
+export const GetUserCampaignWithDetails = async (req, res) => {
+  try {
+    const userId = req.user?.id; 
+    const { campaignId } = req.params;
+
+    if (!userId || !campaignId) {
+      return res.status(400).json({ message: "UserId and CampaignId are required." });
+    }
+
+    let responseData = {
+      campaignDetails: null,
+      appliedDetails: null,
+    };
+
+    // 1️⃣ Get campaign details (from DB)
+    const campaignResult = await client.query(
+      "SELECT * FROM ins.fn_get_browsecampaigndetailsjson($1)",
+      [campaignId]
+    );
+
+    if (campaignResult.rows.length > 0) {
+      responseData.campaignDetails = campaignResult.rows[0];
+    }
+
+    // 2️⃣ Get applied campaign details (check Redis first)
+    const redisKey = `applyCampaign:${userId}:${campaignId}`;
+    const cachedData = await redisClient.get(redisKey);
+
+    if (cachedData) {
+      responseData.appliedDetails = JSON.parse(cachedData);
+    } else {
+      const appliedResult = await client.query(
+        `SELECT ins.fn_get_applycampaigndetailsjson($1,$2)`,
+        [userId, campaignId]
+      );
+
+      if (appliedResult.rows && appliedResult.rows.length > 0) {
+        responseData.appliedDetails = appliedResult.rows;
+      }
+    }
+
+    // 3️⃣ Return combined response
+    return res.status(200).json({
+      status: true,
+      data: responseData,
+    });
+  } catch (error) {
+    console.error("❌ Error fetching campaign with details:", error.message);
+    return res.status(500).json({ status: false, message: "Internal Server Error" });
+  }
+};
+
+
