@@ -273,12 +273,12 @@ export const completeVendorProfile = async (req, res) => {
     };
 
 
-    const allPartsPresent =
-      mergedData.profilejson &&
-      mergedData.categoriesjson &&
-      mergedData.providersjson &&
-      mergedData.objectivesjson &&
-      mergedData.paymentjson;
+    // const allPartsPresent =
+    //   mergedData.profilejson &&
+    //   mergedData.categoriesjson &&
+    //   mergedData.providersjson &&
+    //   mergedData.objectivesjson &&
+    //   mergedData.paymentjson;
 
     // ---------------------------
     // 5️⃣ Check existing profile from DB
@@ -303,11 +303,11 @@ export const completeVendorProfile = async (req, res) => {
         )`,
           [
             userId,
-            JSON.stringify(mergedData.profilejson || existingUser.p_profile),
-            JSON.stringify(mergedData.categoriesjson || existingUser.p_categories),
-            JSON.stringify(mergedData.providersjson || existingUser.p_providers),
-            JSON.stringify(mergedData.objectivesjson || existingUser.p_objectives),
-            JSON.stringify(mergedData.paymentjson || existingUser.p_paymentaccounts),
+            JSON.stringify(mergedData.profilejson),
+            JSON.stringify(mergedData.categoriesjson),
+            JSON.stringify(mergedData.providersjson),
+            JSON.stringify(mergedData.objectivesjson),
+            JSON.stringify(mergedData.paymentjson),
             null,
             null
           ]
@@ -390,9 +390,12 @@ export const completeVendorProfile = async (req, res) => {
           ]
         );
         await client.query("COMMIT");
-        await redisClient.del(redisKey);
-
         const { p_status, p_message } = result.rows[0] || {};
+        
+        if (p_status === true) {
+          await redisClient.del(redisKey);
+        }
+
         return res.status(p_status ? 200 : 400).json({
           message: p_message || "Profile created successfully",
           source: "db",

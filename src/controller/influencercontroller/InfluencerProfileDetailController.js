@@ -118,12 +118,12 @@ export const completeUserProfile = async (req, res) => {
       ...(paymentjson && { paymentjson: safeParse(paymentjson) }),
     };
 
-    const allPartsPresent =
-      mergedData.profilejson &&
-      mergedData.socialaccountjson &&
-      mergedData.categoriesjson &&
-      mergedData.portfoliojson &&
-      mergedData.paymentjson;
+    // const allPartsPresent =
+    //   mergedData.profilejson &&
+    //   mergedData.socialaccountjson &&
+    //   mergedData.categoriesjson &&
+    //   mergedData.portfoliojson &&
+    //   mergedData.paymentjson;
 
     // ---------------------------
     // 5 Check existing profile from DB
@@ -153,19 +153,11 @@ export const completeUserProfile = async (req, res) => {
             )`,
           [
             userId,
-            JSON.stringify(mergedData.profilejson || existingUser.p_profile),
-            JSON.stringify(
-              mergedData.socialaccountjson || existingUser.p_socials
-            ),
-            JSON.stringify(
-              mergedData.categoriesjson || existingUser.p_categories
-            ),
-            JSON.stringify(
-              mergedData.portfoliojson || existingUser.p_portfolios
-            ),
-            JSON.stringify(
-              mergedData.paymentjson || existingUser.p_paymentaccounts
-            ),
+            JSON.stringify(mergedData.profilejson ),
+            JSON.stringify(mergedData.socialaccountjson),
+            JSON.stringify(mergedData.categoriesjson),
+            JSON.stringify(mergedData.portfoliojson),
+            JSON.stringify(mergedData.paymentjson),
             null,
             null,
           ]
@@ -256,6 +248,10 @@ export const completeUserProfile = async (req, res) => {
         await redisClient.del(redisKey);
 
         const { p_status, p_message } = result.rows[0] || {};
+        if (p_status === true) {
+          await redisClient.del(redisKey);
+        }
+
         return res.status(p_status ? 200 : 400).json({
           message: p_message || "Profile created successfully",
           source: "db",
