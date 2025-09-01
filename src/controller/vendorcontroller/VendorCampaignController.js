@@ -232,17 +232,16 @@ export const getCampaign = async (req, res) => {
 export const deleteCampaignFile = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
-    const campaignId = req.body.campaignId || req.body.campaignid; // ✅ fix
     const filePathToDelete = req.body.filepath;
 
-    if (!userId || !campaignId || !filePathToDelete) {
+    if (!userId || !filePathToDelete) {
       return res
         .status(400)
-        .json({ message: "userId, campaignId and filepath are required" });
+        .json({ message: "userId and filepath are required" });
     }
 
-    // Redis key
-    const redisKey = `getCampaign:${userId}:${campaignId}`;
+    // Redis key (ab campaignId nahi hoga)
+    const redisKey = `getCampaign:${userId}`;
 
     // 1 Redis se data fetch
     let campaignData = await redisClient.get(redisKey);
