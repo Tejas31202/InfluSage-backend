@@ -9,7 +9,8 @@ import {
     ApplyNowCampaign,
     GetUsersAppliedCampaigns,
     SaveCampaign,
-    GetSaveCampaign
+    GetSaveCampaign,
+    GetSingleApplyCampaign
 
 } from '../../controller/influencercontroller/InfluencerCampaignController.js'
 import authenticateUser from '../../middleware/AuthMiddleware.js';
@@ -27,6 +28,8 @@ routes.post('/apply/:campaignId', authenticateUser(["Influencer"]),upload.fields
   ]),ApplyNowCampaign);
 
 routes.get('/applied/:userId', GetUsersAppliedCampaigns);
+
+routes.get("/apply/:campaignId",authenticateUser(["Influencer"]),GetSingleApplyCampaign)
 
 routes.post('/saved/campaign', SaveCampaign);
 

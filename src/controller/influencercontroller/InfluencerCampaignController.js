@@ -242,3 +242,38 @@ export const GetSaveCampaign = async (req, res) => {
 }
 
 
+export const GetSingleApplyCampaign=async(req,res)=>{
+  try {
+    const userId = req.user?.id||req.userId; 
+    const {campaignId}=req.params
+    const redisKey = `applyCampaign:${userId}:${campaignId}`;
+
+    // 1️⃣ Try cache first
+    const cachedData = await redisClient.get(redisKey);
+    if (cachedData) {
+      return res.status(200).json({
+        data: JSON.parse(cachedData),
+        source: "redis",
+      });
+    }
+
+    // 2️⃣ If not in Redis → fetch from DB (❌ don't save in Redis)
+    const result = await client.query(
+      `SELECT ins.fn_get_applycampaigndetailsjson($1,$2)`,
+      [userId,campaignId]
+    );
+
+    if (!result.rows || result.rows.length === 0) {
+      return res.status(404).json({ message: "No applied campaigns found." });
+    }
+
+    // 3️⃣ Just return DB response directly
+    return res.status(200).json({
+      data: result.rows,
+      source: "db",
+    });
+  } catch (error) {
+    console.error("Error fetching applied campaigns:", error.message);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
