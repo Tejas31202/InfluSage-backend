@@ -178,7 +178,7 @@ export const GetUsersAppliedCampaigns = async (req, res) => {
   }
 };
 
-
+//For Save Campaign
 export const SaveCampaign = async (req, res) => {
 
     try {
@@ -214,6 +214,7 @@ export const SaveCampaign = async (req, res) => {
     }
 }
 
+//For Get Save Camapign
 export const GetSaveCampaign = async (req, res) => {
 
     try {
@@ -330,5 +331,97 @@ export const GetUserCampaignWithDetails = async (req, res) => {
     return res.status(500).json({ status: false, message: "Internal Server Error" });
   }
 };
+
+//Filter Options Added
+// export const GetFilteredCampaigns = async (req, res) => {
+//   try {
+//     const {
+//       platform,
+//       providerid,
+//       contenttypeid,
+//       languageid,
+//       maxbudget,
+//       minbudget
+//     } = req.query;
+
+    
+//     const result = await client.query(
+//       'SELECT * FROM ins.fn_get_campaignbrowse($1::json, $2::json, $3::json, $4::int, $5::int)',
+//       [null, null, null, null, null]
+//     );
+//     let campaigns = result.rows;
+
+   
+//     if (!campaigns.length) {
+//       return res.status(404).json({ message: 'No campaigns found.' });
+//     }
+
+   
+//     if (platform) {
+//       const allowedPlatforms = ['instagram', 'facebook', 'tiktok', 'youtube'];
+//       const requested = platform.split(',')
+//         .map(p => p.trim().toLowerCase());
+
+//       const invalid = requested.filter(p => !allowedPlatforms.includes(p));
+//       if (invalid.length) {
+//         return res.status(400).json({
+//           message: `Invalid platform(s): ${invalid.join(', ')}`
+//         });
+//       }
+
+//       campaigns = campaigns.filter(c =>
+//         c.platform && requested.includes(c.platform.toLowerCase())
+//       );
+
+//       if (!campaigns.length) {
+//         return res.status(404).json({ message: 'No campaigns found for these platforms.' });
+//       }
+//     }
+
+    
+//     const toJsonArray = (param, field) => {
+//       if (!param) return null;
+//       const arr = param.split(',').map(v => v.trim()).filter(v => v);
+//       if (!arr.length) return null;
+//       return JSON.stringify(arr.map(v => ({ [field]: parseInt(v, 10) })));
+//     };
+
+//     const providerJson = toJsonArray(providerid, 'providerid');
+//     const contentTypeJson = toJsonArray(contenttypeid, 'contenttypeid');
+//     const languageJson = toJsonArray(languageid, 'languageid');
+//     const maxBudgetInt = maxbudget ? parseInt(maxbudget, 10) : null;
+//     const minBudgetInt = minbudget ? parseInt(minbudget, 10) : null;
+
+    
+//     const filteredRes = await client.query(
+//       'SELECT * FROM ins.fn_get_campaignbrowse($1::json, $2::json, $3::json, $4::int, $5::int)',
+//       [providerJson, contentTypeJson, languageJson, maxBudgetInt, minBudgetInt]
+//     );
+//     const filteredCampaigns = filteredRes.rows;
+
+//     if (!filteredCampaigns.length) {
+//       return res.status(404).json({ message: 'No campaigns matched filters.' });
+//     }
+
+    
+//     return res.status(200).json({
+//       status: true,
+//       count: filteredCampaigns.length,
+//       data: filteredCampaigns,
+//       filters: {
+//         platform: platform || 'all',
+//         providerid,
+//         contenttypeid,
+//         languageid,
+//         maxbudget,
+//         minbudget
+//       }
+//     });
+//   } catch (error) {
+//     console.error('Error fetching filtered campaigns:', error);
+//     return res.status(500).json({ message: 'Internal Server Error' });
+//   }
+// };
+
 
 

@@ -11,3 +11,17 @@
 
 // export default routes;
 
+// src/routes/AuthRoutes.js
+
+
+//Changes  For Apple Id Login
+// import express from 'express';
+// import { appleLogin, appleCallback } from '../controller/AuthController.js';
+
+// const routes = express.Router();
+
+// // Apple Sign In
+// routes.get('/apple', appleLogin);
+// routes.post('/apple/callback', appleCallback);
+
+// export default routes;
