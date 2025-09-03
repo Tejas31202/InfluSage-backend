@@ -51,25 +51,57 @@ export const createMyCampaign = async (req, res) => {
   }
 
   // ---------------- Multiple Campaign Files ----------------
-  if (req.files?.Files && req.files.Files.length > 0) {
-    p_campaignfilejson = req.files.Files.map((file) => {
-      const ext = path.extname(file.originalname);
-      const finalName = `${username}_campaign_${Date.now()}${ext}`;
 
-      const relativePath = path
-        .join("src/uploads/vendor", finalName)
-        .replace(/\\/g, "/");
 
-      fs.renameSync(file.path, relativePath);
+  //changes before files
 
-      return { filepath: relativePath };
-    });
-  }
+  // if (req.files?.Files && req.files.Files.length > 0) {
+  //   p_campaignfilejson = req.files.Files.map((file) => {
+  //     const ext = path.extname(file.originalname);
+  //     const finalName = `${username}_campaign_${Date.now()}${ext}`;
+
+  //     const relativePath = path
+  //       .join("src/uploads/vendor", finalName)
+  //       .replace(/\\/g, "/");
+
+  //     fs.renameSync(file.path, relativePath);
+
+  //     return { filepath: relativePath };
+  //   });
+  // }
   const redisKey = `getCampaign:${userId}`;
 
   try {
     let existingData = await redisClient.get(redisKey);
     existingData = existingData ? JSON.parse(existingData) : {};
+
+
+    //Changes Below For Multiple Files In Edit Options 
+
+
+     // Extract old files array or default to empty array
+    const oldFiles = Array.isArray(existingData.p_campaignfilejson)
+      ? existingData.p_campaignfilejson
+      : [];
+
+       let newFiles = [];
+
+           if (req.files?.Files && req.files.Files.length > 0) {
+      newFiles = req.files.Files.map((file) => {
+        const ext = path.extname(file.originalname);
+        const finalName = `${username}_campaign_${Date.now()}${ext}`;
+        const relativePath = path.join("src/uploads/vendor", finalName).replace(/\\/g, "/");
+
+        fs.renameSync(file.path, relativePath);
+
+        return { filepath: relativePath };
+      });
+    }
+
+    // Merge old and new files (if any new files exist)
+    const p_campaignfilejson = newFiles.length > 0 ? [...oldFiles, ...newFiles] : oldFiles;
+
+      //Changes Below For Multiple Files In Edit Options 
 
     const mergedData = {
       p_objectivejson: p_objectivejson || existingData.p_objectivejson || null,
@@ -95,7 +127,7 @@ export const createMyCampaign = async (req, res) => {
     console.error("❌ createMyCampaign error:", err);
     return res.status(500).json({ status: false, message: err.message });
   }
-};              
+};  
 
 // ---------------- FINALIZE Campaign ----------------
 export const finalizeCampaign = async (req, res) => {
