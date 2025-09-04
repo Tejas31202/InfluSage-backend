@@ -20,27 +20,30 @@
 // src/controllers/AuthController.js
 
 
+
+
 // Changes For Apple Id Login
-// import passport from 'passport';
 
-// export const appleLogin = passport.authenticate('apple', {
-//   scope: ['name', 'email']
-// });
 
-// export const appleCallback = (req, res, next) => {
-//   passport.authenticate('apple', {
-//     failureRedirect: '/login',
-//     session: false
-//   }, (err, user) => {
-//     if (err || !user) {
-//       return res.status(401).json({ message: 'Authentication failed' });
-//     }
-
-//     return res.status(200).json({
-//       message: 'Apple login successful',
-//       user
+// export const loginSuccess = (req, res) => {
+//   if (req.user) {
+//     res.status(200).json({
+//       message: 'Login successful',
+//       user: req.user
 //     });
-//   })(req, res, next);
+//   } else {
+//     res.status(401).json({ message: 'Unauthorized' });
+//   }
+// };
+
+// export const loginFailure = (req, res) => {
+//   res.status(401).json({ message: 'Login failed' });
+// };
+
+// export const logout = (req, res) => {
+//   req.logout(() => {
+//     res.redirect('/');
+//   });
 // };
 
 

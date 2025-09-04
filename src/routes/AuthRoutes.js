@@ -13,15 +13,30 @@
 
 // src/routes/AuthRoutes.js
 
+//Changes For Apple Id Login
 
-//Changes  For Apple Id Login
-// import express from 'express';
-// import { appleLogin, appleCallback } from '../controller/AuthController.js';
+// import { Router } from 'express';
+// import passport from 'passport';
+// import { loginSuccess, loginFailure, logout } from '../controller/AuthController.js';
 
-// const routes = express.Router();
+// const router = Router();
 
-// // Apple Sign In
-// routes.get('/apple', appleLogin);
-// routes.post('/apple/callback', appleCallback);
+// router.get('/apple', (req, res, next) => {
+//   console.log('GET /auth/apple route accessed');
+//   next();
+// }, passport.authenticate('apple'));
 
-// export default routes;
+// router.post('/apple/callback',
+//   passport.authenticate('apple', {
+//     successRedirect: '/auth/success',
+//     failureRedirect: '/auth/failure',
+//   })
+// );
+
+// router.get('/success', loginSuccess);
+// router.get('/failure', loginFailure);
+// router.get('/logout', logout);
+
+// export default router;
+
+

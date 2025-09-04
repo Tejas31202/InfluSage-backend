@@ -8,71 +8,71 @@ redisClient.connect().catch(console.error);
 
 // For All Campaign Details
 export const GetAllCampaign = async (req, res) => {
-    try {
+  try {
 
-        // For Converting Data String Into Int Float etc
-        const p_providerid = req.query.p_providerid ? parseInt(req.query.p_providerid, 10) : null;
-        const p_contenttype = req.query.p_contenttype ? parseInt(req.query.p_contenttype, 10) : null;
-        const p_language = req.query.p_language ? parseInt(req.query.p_language, 10) : null;
-        const p_maxbudget = req.query.p_maxbudget ? parseFloat(req.query.p_maxbudget) : null;
-        const p_minbudget = req.query.p_minbudget ? parseFloat(req.query.p_minbudget) : null;
+    // For Converting Data String Into Int Float etc
+    const p_providerid = req.query.p_providerid ? parseInt(req.query.p_providerid, 10) : null;
+    const p_contenttype = req.query.p_contenttype ? parseInt(req.query.p_contenttype, 10) : null;
+    const p_language = req.query.p_language ? parseInt(req.query.p_language, 10) : null;
+    const p_maxbudget = req.query.p_maxbudget ? parseFloat(req.query.p_maxbudget) : null;
+    const p_minbudget = req.query.p_minbudget ? parseFloat(req.query.p_minbudget) : null;
 
-        // console.log('Input params:', { p_providerid, p_contenttype, p_language, p_maxbudget, p_minbudget });
+    // console.log('Input params:', { p_providerid, p_contenttype, p_language, p_maxbudget, p_minbudget });
 
-        //Get Data From DB
-        const result = await client.query(
-            `SELECT ins.fn_get_campaignbrowse($1, $2::smallint, $3, $4, $5)`,
-            [p_providerid, p_contenttype, p_language, p_maxbudget, p_minbudget]
-        );
-            
-            // console.log('DB result:', result.rows);
+    //Get Data From DB
+    const result = await client.query(
+      `SELECT ins.fn_get_campaignbrowse($1, $2::smallint, $3, $4, $5)`,
+      [p_providerid, p_contenttype, p_language, p_maxbudget, p_minbudget]
+    );
 
-        const data = result.rows[0];
-        // console.log("===>",data)
+    // console.log('DB result:', result.rows);
 
-        if (!data) {
-            return res.status(404).json({ message: 'Campaign not found.' });
-        }
+    const data = result.rows[0];
+    // console.log("===>",data)
 
-        return res.status(200).json({
-            data,
-            source: 'db'
-        });
-
-    } catch (error) {
-        console.error('Error fetching Camapign Details:', error);
-        return res.status(500).json({ message: 'Internal server error' });
+    if (!data) {
+      return res.status(404).json({ message: 'Campaign not found.' });
     }
+
+    return res.status(200).json({
+      data,
+      source: 'db'
+    });
+
+  } catch (error) {
+    console.error('Error fetching Camapign Details:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
 }
 
 //For Selected Camapign Details
 export const GetCampaignDetails = async (req, res) => {
 
-    try {
+  try {
 
-        const { campaignId } = req.params;
+    const { campaignId } = req.params;
 
-        const result = await client.query(
-            'select * from ins.fn_get_campaignbrowsedetails($1)',
-            [campaignId]
-        );
+    const result = await client.query(
+      'select * from ins.fn_get_campaignbrowsedetails($1)',
+      [campaignId]
+    );
 
-        //Check From DB Not Found Campaign
-        if (result.rows.length === 0) {
-            return res.status(404).json({ message: 'Campaign not found.' });
-        }
-
-
-        const campaignDetails = result.rows[0];
-
-        return res.status(200).json({ data: campaignDetails, source: 'db' });
-
-    } catch (error) {
-
-        console.error('Error fetching campaign details:', error);
-        res.status(500).json({ message: 'Internal Server Error' });
-
+    //Check From DB Not Found Campaign
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Campaign not found.' });
     }
+
+
+    const campaignDetails = result.rows[0];
+
+    return res.status(200).json({ data: campaignDetails, source: 'db' });
+
+  } catch (error) {
+
+    console.error('Error fetching campaign details:', error);
+    res.status(500).json({ message: 'Internal Server Error' });
+
+  }
 }
 
 //For Apply Campaign
@@ -80,7 +80,7 @@ export const ApplyNowCampaign = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
     const campaignId = req.params.campaignId;
-     const redisKey = `applyCampaign:${userId}`;
+    const redisKey = `applyCampaign:${userId}`;
 
     // Parse JSON from form-data
     let applycampaignjson = {};
@@ -91,7 +91,7 @@ export const ApplyNowCampaign = async (req, res) => {
         return res.status(400).json({ message: "Invalid applycampaignjson format" });
       }
     }
-     // Handle uploaded portfolio files
+    // Handle uploaded portfolio files
     if (req.files && req.files.portfolioFiles) {
       const uploadedFiles = req.files.portfolioFiles.map((file) => {
         // normalize Windows paths -> forward slashes
@@ -145,7 +145,7 @@ export const ApplyNowCampaign = async (req, res) => {
 
 export const GetUsersAppliedCampaigns = async (req, res) => {
   try {
-    const { userId } = req.params; 
+    const { userId } = req.params;
     const redisKey = `applyCampaign:${userId}`;
 
     // 1️⃣ Try cache first
@@ -181,72 +181,72 @@ export const GetUsersAppliedCampaigns = async (req, res) => {
 //For Save Campaign
 export const SaveCampaign = async (req, res) => {
 
-    try {
+  try {
 
-        const { campaignId, userId } = req.body;
+    const { campaignId, userId } = req.body;
 
-        if (!campaignId || !userId) {
-            return res.status(400).json({ message: 'User ID and Campaign ID are required.' });
-        }
-
-        //comment (// const CheckCampaign = await client.query(`SELECT * FROM ins.fn_get_campaignsave($1)`, [userid])
-
-        // //Check Campaign Available and also Check If Available Campaign Same or Not
-        // const alreadySaved = CheckCampaign.rows.some(
-        //     (row) => row.campaignid === campaignid && row.applied === true
-        // );
-
-        // if (alreadySaved) {
-        //     return res.status(200).json({ message: 'You have already save to this campaign.' });
-        // })
-
-        const SaveCampaign = await client.query(`CALL ins.usp_insert_campaignsave($1::bigint,$2::bigint, $3, $4)`, [userId, campaignId, null, null]);
-
-        return res.status(201).json({
-            message: 'Campaign application saved successfully.',
-            data: SaveCampaign.rows[0],
-            source: 'db'
-        });
-
-    } catch (error) {
-        console.error('Error saving campaign application:', error);
-        return res.status(500).json({ message: 'Internal Server Error' });
+    if (!campaignId || !userId) {
+      return res.status(400).json({ message: 'User ID and Campaign ID are required.' });
     }
+
+    //comment (// const CheckCampaign = await client.query(`SELECT * FROM ins.fn_get_campaignsave($1)`, [userid])
+
+    // //Check Campaign Available and also Check If Available Campaign Same or Not
+    // const alreadySaved = CheckCampaign.rows.some(
+    //     (row) => row.campaignid === campaignid && row.applied === true
+    // );
+
+    // if (alreadySaved) {
+    //     return res.status(200).json({ message: 'You have already save to this campaign.' });
+    // })
+
+    const SaveCampaign = await client.query(`CALL ins.usp_insert_campaignsave($1::bigint,$2::bigint, $3, $4)`, [userId, campaignId, null, null]);
+
+    return res.status(201).json({
+      message: 'Campaign application saved successfully.',
+      data: SaveCampaign.rows[0],
+      source: 'db'
+    });
+
+  } catch (error) {
+    console.error('Error saving campaign application:', error);
+    return res.status(500).json({ message: 'Internal Server Error' });
+  }
 }
 
 //For Get Save Camapign
 export const GetSaveCampaign = async (req, res) => {
 
-    try {
+  try {
 
-        const { userId } = req.params;
-        if (!userId) {
+    const { userId } = req.params;
+    if (!userId) {
 
-            return res.status(400).json({ message: "User Id Required." })
-        }
-        const result = await client.query(`SELECT * FROM ins.fn_get_campaignsave($1)`, [userId])
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({ message: 'Campaign not found.' });
-        }
-
-
-        const savedcampaign = result.rows[0];
-
-        return res.status(200).json({ data: savedcampaign, source: 'db' });
-
-    } catch (error) {
-        console.error('Error saving campaign application:', error);
-        return res.status(500).json({ message: 'Internal Server Error' });
+      return res.status(400).json({ message: "User Id Required." })
     }
+    const result = await client.query(`SELECT * FROM ins.fn_get_campaignsave($1)`, [userId])
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Campaign not found.' });
+    }
+
+
+    const savedcampaign = result.rows[0];
+
+    return res.status(200).json({ data: savedcampaign, source: 'db' });
+
+  } catch (error) {
+    console.error('Error saving campaign application:', error);
+    return res.status(500).json({ message: 'Internal Server Error' });
+  }
 
 }
 
 
-export const GetSingleApplyCampaign=async(req,res)=>{
+export const GetSingleApplyCampaign = async (req, res) => {
   try {
-    const userId = req.user?.id||req.userId; 
-    const {campaignId}=req.params
+    const userId = req.user?.id || req.userId;
+    const { campaignId } = req.params
     const redisKey = `applyCampaign:${userId}:${campaignId}`;
 
     // 1️⃣ Try cache first
@@ -261,7 +261,7 @@ export const GetSingleApplyCampaign=async(req,res)=>{
     // 2️⃣ If not in Redis → fetch from DB (❌ don't save in Redis)
     const result = await client.query(
       `SELECT ins.fn_get_campaignapplicationdetails($1,$2)`,
-      [userId,campaignId]
+      [userId, campaignId]
     );
 
     if (!result.rows || result.rows.length === 0) {
@@ -282,7 +282,7 @@ export const GetSingleApplyCampaign=async(req,res)=>{
 
 export const GetUserCampaignWithDetails = async (req, res) => {
   try {
-    const userId = req.user?.id; 
+    const userId = req.user?.id;
     const { campaignId } = req.params;
 
     if (!userId || !campaignId) {
@@ -344,19 +344,19 @@ export const GetUserCampaignWithDetails = async (req, res) => {
 //       minbudget
 //     } = req.query;
 
-    
+
 //     const result = await client.query(
 //       'SELECT * FROM ins.fn_get_campaignbrowse($1::json, $2::json, $3::json, $4::int, $5::int)',
 //       [null, null, null, null, null]
 //     );
 //     let campaigns = result.rows;
 
-   
+
 //     if (!campaigns.length) {
 //       return res.status(404).json({ message: 'No campaigns found.' });
 //     }
 
-   
+
 //     if (platform) {
 //       const allowedPlatforms = ['instagram', 'facebook', 'tiktok', 'youtube'];
 //       const requested = platform.split(',')
@@ -378,7 +378,7 @@ export const GetUserCampaignWithDetails = async (req, res) => {
 //       }
 //     }
 
-    
+
 //     const toJsonArray = (param, field) => {
 //       if (!param) return null;
 //       const arr = param.split(',').map(v => v.trim()).filter(v => v);
@@ -392,7 +392,7 @@ export const GetUserCampaignWithDetails = async (req, res) => {
 //     const maxBudgetInt = maxbudget ? parseInt(maxbudget, 10) : null;
 //     const minBudgetInt = minbudget ? parseInt(minbudget, 10) : null;
 
-    
+
 //     const filteredRes = await client.query(
 //       'SELECT * FROM ins.fn_get_campaignbrowse($1::json, $2::json, $3::json, $4::int, $5::int)',
 //       [providerJson, contentTypeJson, languageJson, maxBudgetInt, minBudgetInt]
@@ -403,7 +403,7 @@ export const GetUserCampaignWithDetails = async (req, res) => {
 //       return res.status(404).json({ message: 'No campaigns matched filters.' });
 //     }
 
-    
+
 //     return res.status(200).json({
 //       status: true,
 //       count: filteredCampaigns.length,
@@ -423,5 +423,147 @@ export const GetUserCampaignWithDetails = async (req, res) => {
 //   }
 // };
 
+//For Sort Recent Campaign
+const parseFilters = (req) => {
+  return {
+    p_providerid: req.query.p_providerid ? JSON.parse(req.query.p_providerid) : null,
+    p_contenttype: req.query.p_contenttype ? JSON.parse(req.query.p_contenttype) : null,
+    p_language: req.query.p_language ? JSON.parse(req.query.p_language) : null,
+    p_maxbudget: req.query.p_maxbudget ? parseFloat(req.query.p_maxbudget) : null,
+    p_minbudget: req.query.p_minbudget ? parseFloat(req.query.p_minbudget) : null
+  };
+};
+//For Sort Recent Campaign
+export const GetRecentCampaign = async (req, res) => {
+  try {
+    const Filters = parseFilters(req);
+    const p_sortby = 'createddate';
+    const p_sortorder = 'DESC';
+
+    const result = await client.query(
+      `SELECT ins.fn_get_campaignbrowse($1, $2, $3, $4, $5, $6, $7) AS campaigns`,
+      [
+        Filters.p_providerid,
+        Filters.p_contenttype,
+        Filters.p_language,
+        Filters.p_maxbudget,
+        Filters.p_minbudget,
+        p_sortby,
+        p_sortorder
+      ]
+    );
+
+    const rawData = result.rows[0]?.campaigns || [];
+
+    if (!Array.isArray(rawData) || rawData.length === 0) {
+      return res.status(404).json({ message: 'No recent campaigns found.' });
+    }
+
+    const data = rawData.map(({ createddate, ...rest }) => rest); //For Hide Date
+
+    return res.status(200).json({
+      message: 'Recent campaigns fetched successfully.',
+      data
+    });
+
+  } catch (error) {
+    console.error('Error fetching Recent Camapign :', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+//For Get Price Low TO High
+export const GetPriceLowToHigh = async (req, res) => {
+  try {
+    const filters = {
+      p_providerid: req.query.p_providerid ? JSON.parse(req.query.p_providerid) : null,
+      p_contenttype: req.query.p_contenttype ? JSON.parse(req.query.p_contenttype) : null,
+      p_language: req.query.p_language ? JSON.parse(req.query.p_language) : null,
+      p_maxbudget: req.query.p_maxbudget ? parseFloat(req.query.p_maxbudget) : null,
+      p_minbudget: req.query.p_minbudget ? parseFloat(req.query.p_minbudget) : null
+    };
+
+    const p_sortby = 'estimatedbudget';
+    const p_sortorder = 'ASC';
+
+    const result = await client.query(
+      `SELECT * FROM ins.fn_get_campaignbrowse($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        filters.p_providerid,
+        filters.p_contenttype,
+        filters.p_language,
+        filters.p_maxbudget,
+        filters.p_minbudget,
+        p_sortby,
+        p_sortorder
+      ]
+    );
+
+    const rawData = result.rows[0]?.fn_get_campaignbrowse; 
 
 
+    if (!rawData || rawData.length === 0) {
+      return res.status(404).json({ message: 'No campaigns found (Low to High).' });
+    }
+
+    // 🔒 Remove createddate from result
+    const data = rawData.map(({ createddate, ...rest }) => rest);
+
+    return res.status(200).json({
+      message: 'Campaigns sorted by price (low to high)',
+      data
+    });
+
+  } catch (error) {
+    console.error('Error fetching Low Price TO High Price Details:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+//For Get Price High TO Low
+export const GetPriceHighToLow = async (req, res) => {
+  try {
+
+    const filters = {
+      p_providerid: req.query.p_providerid ? JSON.parse(req.query.p_providerid) : null,
+      p_contenttype: req.query.p_contenttype ? JSON.parse(req.query.p_contenttype) : null,
+      p_language: req.query.p_language ? JSON.parse(req.query.p_language) : null,
+      p_maxbudget: req.query.p_maxbudget ? parseFloat(req.query.p_maxbudget) : null,
+      p_minbudget: req.query.p_minbudget ? parseFloat(req.query.p_minbudget) : null
+    };
+
+    const p_sortby = 'estimatedbudget';
+    const p_sortorder = 'DESC';
+
+
+    const result = await client.query(
+      `SELECT ins.fn_get_campaignbrowse($1, $2, $3, $4, $5, $6, $7) AS campaigns`,
+      [
+        filters.p_providerid,
+        filters.p_contenttype,
+        filters.p_language,
+        filters.p_maxbudget,
+        filters.p_minbudget,
+        p_sortby,
+        p_sortorder
+      ]
+    );
+
+    const rawData = result.rows[0]?.campaigns || [];
+
+    if (!Array.isArray(rawData) || rawData.length === 0) {
+      return res.status(404).json({ message: 'No campaigns found (High to Low).' });
+    }
+
+    const data = rawData.map(({ createddate, ...rest }) => rest);
+
+    return res.status(200).json({
+      message: 'Campaigns sorted by price (high to low)',
+      data
+    });
+
+  } catch (error) {
+    console.error('Error fetching High Price To Low Price Camapign Details:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};

@@ -5,8 +5,9 @@ import path from 'path';
 //Changes For Apple Id Login
 // import session from 'express-session';
 // import passport from "passport";
-// import AuthRoutes from './src/routes/AuthRoutes.js'
 // import './src/config/Passport.js'
+// import router from './src/routes/AuthRoutes.js'
+//Changes Above For Apple Id Login
 import InfluencerRoutes from "./src/routes/influencerroutes/InfluencerRoutes.js";
 import InfluencerProfileDetailRoutes from "./src/routes/influencerroutes/InfluencerProfileDetailRoutes.js";
 import VendorRoutes from "./src/routes/vendorroutes/VendorRoute.js";
@@ -19,58 +20,37 @@ import InfluencerCampaignRoutes from "./src/routes/influencerroutes/InfluencerCa
 // import { client } from './src/config/db.js';
 // import authenticateUser from './src/middleware/AuthMiddleware.js';
 
+dotenv.config();
 
 const app = express();
 
 // Middleware
 app.use(express.json());
-app.use("/src/uploads", express.static(path.join(process.cwd(), "src/uploads")));
-app.use(express.urlencoded({ extended: true }));
-app.use(cors());
-dotenv.config(); // if app in src
 
-//Changes For Apple Id Login
-
-// app.use(session({
-//   secret: process.env.SESSION_SECRET || 'defaultsecret',  // use your env secret
-//   resave: false,
-//   saveUninitialized: false,
-//   cookie: {
-//     secure: false, // if using HTTPS, set to true
-//     maxAge: 24 * 60 * 60 * 1000 // 1 day, for example
-//   }
-// }));
+//Changes For Apple ID Login 
 
 // app.use(session({
 //   secret: process.env.SESSION_SECRET,
 //   resave: false,
-//   saveUninitialized: true,
+//   saveUninitialized: false
 // }));
 
 // app.use(passport.initialize());
 // app.use(passport.session());
 
+// app.use('/auth', router);
+
+// app.get('/', (req, res) => {
+//   res.send('✅ Apple Sign-In Backend Running');
+// });
 
 
+//Changes For AppleId Login Above
 
-// Routes
-// app.use("/auth", AuthRoutes);
-
-// Routes
-// const RoleRoutes = require("../InfluSaga/src/routes/RoleRoutes")
-// app.use('/roles', RoleRoutes);
-
-// here overlapping issue so name changes require in path 
-
-// app.use('/user', InfluencerRoutes);
-// app.use('/user', InfluencerProfileDetailRoutes); if we changes thn working app.use('/user', InfluencerCampaignRoutes);
-
-//Changes For Apple Id Login
-// app.use(passport.initialize());
-// app.use(passport.session());
-
-// app.use('/api/auth', AuthRoutes);
-
+app.use("/src/uploads", express.static(path.join(process.cwd(), "src/uploads")));
+app.use(express.urlencoded({ extended: true }));
+app.use(cors());
+dotenv.config(); // if app in src
 
 app.use('/user', InfluencerRoutes);
 app.use('/user', InfluencerProfileDetailRoutes);
