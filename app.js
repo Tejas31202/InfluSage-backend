@@ -2,6 +2,15 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from 'path';
+// import session from 'express-session';
+// import passport from "passport";
+// // import indexRoutes from './src/routes/index.js'
+// import authRoutes from './src/routes/authRoutes.js'
+// import './src/config/Passport.js';
+// import 'dotenv/config'; //  Must be the first import
+
+
+
 //Changes For Apple Id Login
 // import session from 'express-session';
 // import passport from "passport";
@@ -71,6 +80,23 @@ dotenv.config(); // if app in src
 
 // app.use('/api/auth', AuthRoutes);
 
+
+
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false, // only save when session changes
+  })
+);
+
+// Passport middleware
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Routes
+// app.use('/', indexRoutes);
+app.use('/auth', authRoutes);
 
 app.use('/user', InfluencerRoutes);
 app.use('/user', InfluencerProfileDetailRoutes);
