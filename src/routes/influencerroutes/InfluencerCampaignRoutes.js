@@ -14,8 +14,9 @@ import {
   GetUserCampaignWithDetails,
   GetRecentCampaign,
   GetPriceLowToHigh,
-  GetPriceHighToLow
-  // GetFilteredCampaigns
+  GetPriceHighToLow,
+  // GetFilteredCampaigns,
+  GetFilteredCampaigns
 } from '../../controller/influencercontroller/InfluencerCampaignController.js'
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 import { upload } from "../../middleware/MulterMiddleware.js"
@@ -25,7 +26,7 @@ import { upload } from "../../middleware/MulterMiddleware.js"
 //Routes For Campaign
 routes.get("/browse",authenticateUser(), GetAllCampaign);
 
-// routes.get("/filter",GetFilteredCampaigns)
+routes.get("/filter",GetFilteredCampaigns)
 
 routes.get("/browse/campaign/:campaignId", GetCampaignDetails);
 

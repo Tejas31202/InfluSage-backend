@@ -332,96 +332,81 @@ export const GetUserCampaignWithDetails = async (req, res) => {
   }
 };
 
-//Filter Options Added
-// export const GetFilteredCampaigns = async (req, res) => {
-//   try {
-//     const {
-//       platform,
-//       providerid,
-//       contenttypeid,
-//       languageid,
-//       maxbudget,
-//       minbudget
-//     } = req.query;
 
+export const GetFilteredCampaigns = async (req, res) => {
+  try {
+    const {
+      platform,
+      providerid,
+      contenttypeid,
+      languageid,
+      maxbudget,
+      minbudget
+    } = req.query;
 
-//     const result = await client.query(
-//       'SELECT * FROM ins.fn_get_campaignbrowse($1::json, $2::json, $3::json, $4::int, $5::int)',
-//       [null, null, null, null, null]
-//     );
-//     let campaigns = result.rows;
+    // Helper: convert comma-separated string to JSON array
+    const toJsonArray = (param, field) => {
+      if (!param) return null;
+      const arr = param.split(',').map(v => v.trim()).filter(v => v);
+      if (!arr.length) return null;
+      return JSON.stringify(arr.map(v => ({ [field]: parseInt(v, 10) })));
+    };
 
+    const providerJson = toJsonArray(providerid, 'providerid');
+    const contentTypeJson = toJsonArray(contenttypeid, 'contenttypeid');
+    const languageJson = toJsonArray(languageid, 'languageid');
+    const maxBudgetInt = maxbudget ? parseInt(maxbudget, 10) : null;
+    const minBudgetInt = minbudget ? parseInt(minbudget, 10) : null;
 
-//     if (!campaigns.length) {
-//       return res.status(404).json({ message: 'No campaigns found.' });
-//     }
+    // DB query
+    const filteredRes = await client.query(
+      `SELECT * 
+       FROM ins.fn_get_campaignbrowse($1::json,$2::json,$3::json,$4::int,$5::int)`,
+      [providerJson, contentTypeJson, languageJson, maxBudgetInt, minBudgetInt]
+    );
 
+    // Extract actual campaign array from nested JSON
+    let finalData = filteredRes.rows.length ? filteredRes.rows[0].fn_get_campaignbrowse : [];
 
-//     if (platform) {
-//       const allowedPlatforms = ['instagram', 'facebook', 'tiktok', 'youtube'];
-//       const requested = platform.split(',')
-//         .map(p => p.trim().toLowerCase());
+    // console.log("Extracted campaigns:", finalData);
 
-//       const invalid = requested.filter(p => !allowedPlatforms.includes(p));
-//       if (invalid.length) {
-//         return res.status(400).json({
-//           message: `Invalid platform(s): ${invalid.join(', ')}`
-//         });
-//       }
+    // Platform filter (nested providercontenttype array)
+    if (platform) {
+      const allowedPlatforms = ['instagram', 'facebook', 'tiktok', 'youtube'];
+      const requested = platform.split(',').map(p => p.trim().toLowerCase());
 
-//       campaigns = campaigns.filter(c =>
-//         c.platform && requested.includes(c.platform.toLowerCase())
-//       );
+      const invalid = requested.filter(p => !allowedPlatforms.includes(p));
+      if (invalid.length) {
+        return res.status(400).json({ message: `Invalid platform(s): ${invalid.join(', ')}` });
+      }
 
-//       if (!campaigns.length) {
-//         return res.status(404).json({ message: 'No campaigns found for these platforms.' });
-//       }
-//     }
+      finalData = finalData.filter(c => 
+        c.providercontenttype &&
+        c.providercontenttype.some(pc => 
+          pc.platform && requested.includes(pc.platform.trim().toLowerCase())
+        )
+      );
 
+      console.log("After platform filter:", finalData.map(c => c.name));
+    }
 
-//     const toJsonArray = (param, field) => {
-//       if (!param) return null;
-//       const arr = param.split(',').map(v => v.trim()).filter(v => v);
-//       if (!arr.length) return null;
-//       return JSON.stringify(arr.map(v => ({ [field]: parseInt(v, 10) })));
-//     };
+    if (!finalData.length) {
+      console.log("No campaigns matched after all filters.");
+      return res.status(404).json({ message: 'No campaigns matched filters.' });
+    }
 
-//     const providerJson = toJsonArray(providerid, 'providerid');
-//     const contentTypeJson = toJsonArray(contenttypeid, 'contenttypeid');
-//     const languageJson = toJsonArray(languageid, 'languageid');
-//     const maxBudgetInt = maxbudget ? parseInt(maxbudget, 10) : null;
-//     const minBudgetInt = minbudget ? parseInt(minbudget, 10) : null;
+    return res.status(200).json({
+      status: true,
+      count: finalData.length,
+      data: finalData,
+      filters: { platform, providerid, contenttypeid, languageid, maxbudget, minbudget }
+    });
 
-
-//     const filteredRes = await client.query(
-//       'SELECT * FROM ins.fn_get_campaignbrowse($1::json, $2::json, $3::json, $4::int, $5::int)',
-//       [providerJson, contentTypeJson, languageJson, maxBudgetInt, minBudgetInt]
-//     );
-//     const filteredCampaigns = filteredRes.rows;
-
-//     if (!filteredCampaigns.length) {
-//       return res.status(404).json({ message: 'No campaigns matched filters.' });
-//     }
-
-
-//     return res.status(200).json({
-//       status: true,
-//       count: filteredCampaigns.length,
-//       data: filteredCampaigns,
-//       filters: {
-//         platform: platform || 'all',
-//         providerid,
-//         contenttypeid,
-//         languageid,
-//         maxbudget,
-//         minbudget
-//       }
-//     });
-//   } catch (error) {
-//     console.error('Error fetching filtered campaigns:', error);
-//     return res.status(500).json({ message: 'Internal Server Error' });
-//   }
-// };
+  } catch (error) {
+    console.error('Error fetching filtered campaigns:', error);
+    return res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
 
 //For Sort Recent Campaign
 const parseFilters = (req) => {
