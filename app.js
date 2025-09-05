@@ -62,21 +62,21 @@ app.use(cors());
 dotenv.config(); // if app in src
 
 
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false, // only save when session changes
-  })
-);
+// app.use(
+//   session({
+//     secret: process.env.SESSION_SECRET,
+//     resave: false,
+//     saveUninitialized: false, // only save when session changes
+//   })
+// );
 
 // Passport middleware
-app.use(passport.initialize());
-app.use(passport.session());
+// app.use(passport.initialize());
+// app.use(passport.session());
 
 // Routes
 // app.use('/', indexRoutes);
-app.use('/auth', authRoutes);
+// app.use('/auth', authRoutes);
 
 app.use('/user', InfluencerRoutes);
 app.use('/user', InfluencerProfileDetailRoutes);

@@ -333,222 +333,85 @@ export const GetUserCampaignWithDetails = async (req, res) => {
 };
 
 
-export const GetFilteredCampaigns = async (req, res) => {
+export const GetFilterdCampaigns = async (req, res) => {
   try {
     const {
-      platform,
       providerid,
       contenttypeid,
       languageid,
       maxbudget,
-      minbudget
+      minbudget,
+      sortby = 'estimatedbudget',
+      sortorder = 'ASC'
     } = req.query;
 
-    // Helper: convert comma-separated string to JSON array
-    const toJsonArray = (param, field) => {
+    // Helper to convert query string to JSON array of integers
+    const toJsonIntArray = (param) => {
       if (!param) return null;
-      const arr = param.split(',').map(v => v.trim()).filter(v => v);
-      if (!arr.length) return null;
-      return JSON.stringify(arr.map(v => ({ [field]: parseInt(v, 10) })));
-    };
+      let values = [];
 
-    const providerJson = toJsonArray(providerid, 'providerid');
-    const contentTypeJson = toJsonArray(contenttypeid, 'contenttypeid');
-    const languageJson = toJsonArray(languageid, 'languageid');
-    const maxBudgetInt = maxbudget ? parseInt(maxbudget, 10) : null;
-    const minBudgetInt = minbudget ? parseInt(minbudget, 10) : null;
-
-    // DB query
-    const filteredRes = await client.query(
-      `SELECT * 
-       FROM ins.fn_get_campaignbrowse($1::json,$2::json,$3::json,$4::int,$5::int)`,
-      [providerJson, contentTypeJson, languageJson, maxBudgetInt, minBudgetInt]
-    );
-
-    // Extract actual campaign array from nested JSON
-    let finalData = filteredRes.rows.length ? filteredRes.rows[0].fn_get_campaignbrowse : [];
-
-    // console.log("Extracted campaigns:", finalData);
-
-    // Platform filter (nested providercontenttype array)
-    if (platform) {
-      const allowedPlatforms = ['instagram', 'facebook', 'tiktok', 'youtube'];
-      const requested = platform.split(',').map(p => p.trim().toLowerCase());
-
-      const invalid = requested.filter(p => !allowedPlatforms.includes(p));
-      if (invalid.length) {
-        return res.status(400).json({ message: `Invalid platform(s): ${invalid.join(', ')}` });
+      if (typeof param === 'string') {
+        values = param.split(',').map(v => parseInt(v.trim(), 10));
+      } else if (typeof param === 'number') {
+        values = [param];
+      } else if (Array.isArray(param)) {
+        values = param.map(v => parseInt(v, 10));
       }
 
-      finalData = finalData.filter(c => 
-        c.providercontenttype &&
-        c.providercontenttype.some(pc => 
-          pc.platform && requested.includes(pc.platform.trim().toLowerCase())
-        )
-      );
+      // Filter out invalid numbers
+      values = values.filter(v => !isNaN(v));
 
-      console.log("After platform filter:", finalData.map(c => c.name));
-    }
-
-    if (!finalData.length) {
-      console.log("No campaigns matched after all filters.");
-      return res.status(404).json({ message: 'No campaigns matched filters.' });
-    }
-
-    return res.status(200).json({
-      status: true,
-      count: finalData.length,
-      data: finalData,
-      filters: { platform, providerid, contenttypeid, languageid, maxbudget, minbudget }
-    });
-
-  } catch (error) {
-    console.error('Error fetching filtered campaigns:', error);
-    return res.status(500).json({ message: 'Internal Server Error' });
-  }
-};
-
-//For Sort Recent Campaign
-const parseFilters = (req) => {
-  return {
-    p_providerid: req.query.p_providerid ? JSON.parse(req.query.p_providerid) : null,
-    p_contenttype: req.query.p_contenttype ? JSON.parse(req.query.p_contenttype) : null,
-    p_language: req.query.p_language ? JSON.parse(req.query.p_language) : null,
-    p_maxbudget: req.query.p_maxbudget ? parseFloat(req.query.p_maxbudget) : null,
-    p_minbudget: req.query.p_minbudget ? parseFloat(req.query.p_minbudget) : null
-  };
-};
-//For Sort Recent Campaign
-export const GetRecentCampaign = async (req, res) => {
-  try {
-    const Filters = parseFilters(req);
-    const p_sortby = 'createddate';
-    const p_sortorder = 'DESC';
-
-    const result = await client.query(
-      `SELECT ins.fn_get_campaignbrowse($1, $2, $3, $4, $5, $6, $7) AS campaigns`,
-      [
-        Filters.p_providerid,
-        Filters.p_contenttype,
-        Filters.p_language,
-        Filters.p_maxbudget,
-        Filters.p_minbudget,
-        p_sortby,
-        p_sortorder
-      ]
-    );
-
-    const rawData = result.rows[0]?.campaigns || [];
-
-    if (!Array.isArray(rawData) || rawData.length === 0) {
-      return res.status(404).json({ message: 'No recent campaigns found.' });
-    }
-
-    const data = rawData.map(({ createddate, ...rest }) => rest); //For Hide Date
-
-    return res.status(200).json({
-      message: 'Recent campaigns fetched successfully.',
-      data
-    });
-
-  } catch (error) {
-    console.error('Error fetching Recent Camapign :', error);
-    return res.status(500).json({ message: 'Internal server error' });
-  }
-};
-
-//For Get Price Low TO High
-export const GetPriceLowToHigh = async (req, res) => {
-  try {
-    const filters = {
-      p_providerid: req.query.p_providerid ? JSON.parse(req.query.p_providerid) : null,
-      p_contenttype: req.query.p_contenttype ? JSON.parse(req.query.p_contenttype) : null,
-      p_language: req.query.p_language ? JSON.parse(req.query.p_language) : null,
-      p_maxbudget: req.query.p_maxbudget ? parseFloat(req.query.p_maxbudget) : null,
-      p_minbudget: req.query.p_minbudget ? parseFloat(req.query.p_minbudget) : null
+      return values.length ? JSON.stringify(values) : null;
     };
 
-    const p_sortby = 'estimatedbudget';
-    const p_sortorder = 'ASC';
+    const providerJson = toJsonIntArray(providerid);
+    const contentTypeJson = toJsonIntArray(contenttypeid);
+    const languageJson = toJsonIntArray(languageid);
+    const maxBudget = maxbudget ? parseFloat(maxbudget) : null;
+    const minBudget = minbudget ? parseFloat(minbudget) : null;
 
     const result = await client.query(
       `SELECT * FROM ins.fn_get_campaignbrowse($1, $2, $3, $4, $5, $6, $7)`,
       [
-        filters.p_providerid,
-        filters.p_contenttype,
-        filters.p_language,
-        filters.p_maxbudget,
-        filters.p_minbudget,
-        p_sortby,
-        p_sortorder
+        providerJson,
+        contentTypeJson,
+        languageJson,
+        maxBudget,
+        minBudget,
+        sortby,
+        sortorder.toUpperCase()
       ]
     );
 
-    const rawData = result.rows[0]?.fn_get_campaignbrowse; 
+    const campaigns = result.rows[0]?.fn_get_campaignbrowse || [];
 
-
-    if (!rawData || rawData.length === 0) {
-      return res.status(404).json({ message: 'No campaigns found (Low to High).' });
+    if (!campaigns.length) {
+      return res.status(404).json({ message: 'No campaigns found with given filters.' });
     }
 
-    // 🔒 Remove createddate from result
-    const data = rawData.map(({ createddate, ...rest }) => rest);
+    const data = campaigns.map(({ createddate, ...rest }) => rest);
 
-    return res.status(200).json({
-      message: 'Campaigns sorted by price (low to high)',
-      data
-    });
-
-  } catch (error) {
-    console.error('Error fetching Low Price TO High Price Details:', error);
-    return res.status(500).json({ message: 'Internal server error' });
-  }
-};
-
-//For Get Price High TO Low
-export const GetPriceHighToLow = async (req, res) => {
-  try {
-
+    // Construct filters for response
     const filters = {
-      p_providerid: req.query.p_providerid ? JSON.parse(req.query.p_providerid) : null,
-      p_contenttype: req.query.p_contenttype ? JSON.parse(req.query.p_contenttype) : null,
-      p_language: req.query.p_language ? JSON.parse(req.query.p_language) : null,
-      p_maxbudget: req.query.p_maxbudget ? parseFloat(req.query.p_maxbudget) : null,
-      p_minbudget: req.query.p_minbudget ? parseFloat(req.query.p_minbudget) : null
+      providerid: providerid ? toJsonIntArray(providerid) : null,
+      contenttypeid: contenttypeid ? toJsonIntArray(contenttypeid) : null,
+      languageid: languageid ? toJsonIntArray(languageid) : null,
+      maxbudget: maxBudget,
+      minbudget: minBudget
     };
 
-    const p_sortby = 'estimatedbudget';
-    const p_sortorder = 'DESC';
-
-
-    const result = await client.query(
-      `SELECT ins.fn_get_campaignbrowse($1, $2, $3, $4, $5, $6, $7) AS campaigns`,
-      [
-        filters.p_providerid,
-        filters.p_contenttype,
-        filters.p_language,
-        filters.p_maxbudget,
-        filters.p_minbudget,
-        p_sortby,
-        p_sortorder
-      ]
-    );
-
-    const rawData = result.rows[0]?.campaigns || [];
-
-    if (!Array.isArray(rawData) || rawData.length === 0) {
-      return res.status(404).json({ message: 'No campaigns found (High to Low).' });
-    }
-
-    const data = rawData.map(({ createddate, ...rest }) => rest);
-
     return res.status(200).json({
-      message: 'Campaigns sorted by price (high to low)',
-      data
+      message: `Campaigns fetched successfully (${sortorder.toUpperCase()})`,
+      count: data.length,
+      data,
+      filters,
+      sortby,
+      sortorder: sortorder.toUpperCase()
     });
 
   } catch (error) {
-    console.error('Error fetching High Price To Low Price Camapign Details:', error);
-    return res.status(500).json({ message: 'Internal server error' });
+    console.error('Error in GetCampaigns:', error);
+    return res.status(500).json({ message: 'Internal Server Error' });
   }
 };
+
