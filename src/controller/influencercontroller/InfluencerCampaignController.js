@@ -374,7 +374,7 @@ export const browseCampaigns = async (req, res) => {
       ]
     );
 
-    return res.json(result.rows[0]); // function json return करता है
+    return res.json(result.rows[0]); 
   } catch (error) {
     console.error("Error browsing campaigns:", error.message);
     return res.status(500).json({ error: "Internal Server Error" });
