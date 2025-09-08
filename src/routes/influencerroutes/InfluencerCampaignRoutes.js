@@ -4,7 +4,7 @@ const routes = express.Router();
 
 // Import Form Campaign Controller
 import {
-  GetAllCampaign,
+  // GetAllCampaign,
   GetCampaignDetails,
   ApplyNowCampaign,
   GetUsersAppliedCampaigns,
@@ -20,7 +20,7 @@ import { upload } from "../../middleware/MulterMiddleware.js"
 
 
 //Routes For Campaign
-routes.get("/browse",authenticateUser(), GetAllCampaign);
+// routes.get("/browse",authenticateUser(), GetAllCampaign);
 
 routes.get("/browse/campaign/:campaignId", GetCampaignDetails);
 
@@ -32,7 +32,7 @@ routes.get('/applied/:userId', GetUsersAppliedCampaigns);
 
 routes.get("/apply/:campaignId", authenticateUser(["Influencer"]), GetSingleApplyCampaign)
 
-routes.get('/fiterWithSort', browseCampaigns);
+routes.get('/browse/fiterWithSort', browseCampaigns);
 
 routes.post('/saved/campaign', SaveCampaign);
 

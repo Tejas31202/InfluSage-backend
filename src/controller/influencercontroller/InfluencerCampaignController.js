@@ -7,43 +7,43 @@ redisClient.connect().catch(console.error);
 
 
 // For All Campaign Details
-export const GetAllCampaign = async (req, res) => {
-  try {
+// export const GetAllCampaign = async (req, res) => {
+//   try {
 
-    // For Converting Data String Into Int Float etc
-    const p_providerid = req.query.p_providerid ? parseInt(req.query.p_providerid, 10) : null;
-    const p_contenttype = req.query.p_contenttype ? parseInt(req.query.p_contenttype, 10) : null;
-    const p_language = req.query.p_language ? parseInt(req.query.p_language, 10) : null;
-    const p_maxbudget = req.query.p_maxbudget ? parseFloat(req.query.p_maxbudget) : null;
-    const p_minbudget = req.query.p_minbudget ? parseFloat(req.query.p_minbudget) : null;
+//     // For Converting Data String Into Int Float etc
+//     const p_providerid = req.query.p_providerid ? parseInt(req.query.p_providerid, 10) : null;
+//     const p_contenttype = req.query.p_contenttype ? parseInt(req.query.p_contenttype, 10) : null;
+//     const p_language = req.query.p_language ? parseInt(req.query.p_language, 10) : null;
+//     const p_maxbudget = req.query.p_maxbudget ? parseFloat(req.query.p_maxbudget) : null;
+//     const p_minbudget = req.query.p_minbudget ? parseFloat(req.query.p_minbudget) : null;
 
-    // console.log('Input params:', { p_providerid, p_contenttype, p_language, p_maxbudget, p_minbudget });
+//     // console.log('Input params:', { p_providerid, p_contenttype, p_language, p_maxbudget, p_minbudget });
 
-    //Get Data From DB
-    const result = await client.query(
-      `SELECT ins.fn_get_campaignbrowse($1, $2::smallint, $3, $4, $5)`,
-      [p_providerid, p_contenttype, p_language, p_maxbudget, p_minbudget]
-    );
+//     //Get Data From DB
+//     const result = await client.query(
+//       `SELECT ins.fn_get_campaignbrowse($1, $2::smallint, $3, $4, $5)`,
+//       [p_providerid, p_contenttype, p_language, p_maxbudget, p_minbudget]
+//     );
 
-    // console.log('DB result:', result.rows);
+//     // console.log('DB result:', result.rows);
 
-    const data = result.rows[0];
-    // console.log("===>",data)
+//     const data = result.rows[0];
+//     // console.log("===>",data)
 
-    if (!data) {
-      return res.status(404).json({ message: 'Campaign not found.' });
-    }
+//     if (!data) {
+//       return res.status(404).json({ message: 'Campaign not found.' });
+//     }
 
-    return res.status(200).json({
-      data,
-      source: 'db'
-    });
+//     return res.status(200).json({
+//       data,
+//       source: 'db'
+//     });
 
-  } catch (error) {
-    console.error('Error fetching Camapign Details:', error);
-    return res.status(500).json({ message: 'Internal server error' });
-  }
-}
+//   } catch (error) {
+//     console.error('Error fetching Camapign Details:', error);
+//     return res.status(500).json({ message: 'Internal server error' });
+//   }
+// }
 
 //For Selected Camapign Details
 export const GetCampaignDetails = async (req, res) => {
