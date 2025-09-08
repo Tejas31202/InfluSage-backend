@@ -22,7 +22,8 @@ import InfluencerProfileDetailRoutes from "./src/routes/influencerroutes/Influen
 import VendorRoutes from "./src/routes/vendorroutes/VendorRoute.js";
 import VendorProfileDetailRoutes from "./src/routes/vendorroutes/VendorProfileDetailRoutes.js";
 import VendorCampaignRoutes from "./src/routes/vendorroutes/VendorCampaignRoutes.js";
-import InfluencerCampaignRoutes from "./src/routes/influencerroutes/InfluencerCampaignRoutes.js"
+import InfluencerCampaignRoutes from "./src/routes/influencerroutes/InfluencerCampaignRoutes.js";
+import CommonRoutes from "./src/routes/CommonRoutes.js"
 // import "./src/config/Passport.js";
 // import { config } from "@dotenvx/dotenvx";
 // import session from "express-session";
@@ -84,6 +85,7 @@ app.use('/user', InfluencerCampaignRoutes);
 app.use('/vendor', VendorRoutes);
 app.use('/vendor', VendorProfileDetailRoutes);
 app.use('/vendor', VendorCampaignRoutes);
+app.use("/",CommonRoutes)
 // app.use('/auth', AuthRoutes);
 
 const PORT =  process.env.BACKEND_PORT || 3001;
