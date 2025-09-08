@@ -12,7 +12,7 @@ import {
   GetSaveCampaign,
   GetSingleApplyCampaign,
   GetUserCampaignWithDetails,
-  GetFilterdCampaigns
+  browseCampaigns
 } from '../../controller/influencercontroller/InfluencerCampaignController.js'
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 import { upload } from "../../middleware/MulterMiddleware.js"
@@ -32,7 +32,7 @@ routes.get('/applied/:userId', GetUsersAppliedCampaigns);
 
 routes.get("/apply/:campaignId", authenticateUser(["Influencer"]), GetSingleApplyCampaign)
 
-routes.get('/fiterWithSort', GetFilterdCampaigns)
+routes.get('/fiterWithSort', browseCampaigns);
 
 routes.post('/saved/campaign', SaveCampaign);
 

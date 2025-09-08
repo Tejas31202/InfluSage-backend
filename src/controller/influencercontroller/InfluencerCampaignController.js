@@ -333,85 +333,51 @@ export const GetUserCampaignWithDetails = async (req, res) => {
 };
 
 
-export const GetFilterdCampaigns = async (req, res) => {
+// Browse Campaigns
+export const browseCampaigns = async (req, res) => {
   try {
     const {
-      providerid,
-      contenttypeid,
-      languageid,
+      providers,
+      contenttypes,
+      languages,
       maxbudget,
       minbudget,
-      sortby = 'estimatedbudget',
-      sortorder = 'ASC'
+      sortby,
+      sortorder,
+      pagenumber,
+      pagesize,
     } = req.query;
 
-    // Helper to convert query string to JSON array of integers
-    const toJsonIntArray = (param) => {
-      if (!param) return null;
-      let values = [];
-
-      if (typeof param === 'string') {
-        values = param.split(',').map(v => parseInt(v.trim(), 10));
-      } else if (typeof param === 'number') {
-        values = [param];
-      } else if (Array.isArray(param)) {
-        values = param.map(v => parseInt(v, 10));
-      }
-
-      // Filter out invalid numbers
-      values = values.filter(v => !isNaN(v));
-
-      return values.length ? JSON.stringify(values) : null;
-    };
-
-    const providerJson = toJsonIntArray(providerid);
-    const contentTypeJson = toJsonIntArray(contenttypeid);
-    const languageJson = toJsonIntArray(languageid);
-    const maxBudget = maxbudget ? parseFloat(maxbudget) : null;
-    const minBudget = minbudget ? parseFloat(minbudget) : null;
-
+    
     const result = await client.query(
-      `SELECT * FROM ins.fn_get_campaignbrowse($1, $2, $3, $4, $5, $6, $7)`,
+      `SELECT * FROM ins.fn_get_campaignbrowse(
+        $1::json,
+        $2::json,
+        $3::json,
+        $4::numeric,
+        $5::numeric,
+        $6::text,
+        $7::text,
+        $8::integer,
+        $9::integer
+      )`,
       [
-        providerJson,
-        contentTypeJson,
-        languageJson,
-        maxBudget,
-        minBudget,
-        sortby,
-        sortorder.toUpperCase()
+        providers || null,
+        contenttypes || null,
+        languages || null,
+        maxbudget || null,
+        minbudget || null,
+        sortby || "createddate",
+        sortorder || "DESC",
+        pagenumber || 1,
+        pagesize || 20,
       ]
     );
 
-    const campaigns = result.rows[0]?.fn_get_campaignbrowse || [];
-
-    if (!campaigns.length) {
-      return res.status(404).json({ message: 'No campaigns found with given filters.' });
-    }
-
-    const data = campaigns.map(({ createddate, ...rest }) => rest);
-
-    // Construct filters for response
-    const filters = {
-      providerid: providerid ? toJsonIntArray(providerid) : null,
-      contenttypeid: contenttypeid ? toJsonIntArray(contenttypeid) : null,
-      languageid: languageid ? toJsonIntArray(languageid) : null,
-      maxbudget: maxBudget,
-      minbudget: minBudget
-    };
-
-    return res.status(200).json({
-      message: `Campaigns fetched successfully (${sortorder.toUpperCase()})`,
-      count: data.length,
-      data,
-      filters,
-      sortby,
-      sortorder: sortorder.toUpperCase()
-    });
-
+    return res.json(result.rows[0]); // function json return करता है
   } catch (error) {
-    console.error('Error in GetCampaigns:', error);
-    return res.status(500).json({ message: 'Internal Server Error' });
+    console.error("Error browsing campaigns:", error.message);
+    return res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
