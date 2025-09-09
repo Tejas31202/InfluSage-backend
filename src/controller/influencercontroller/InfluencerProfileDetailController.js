@@ -357,32 +357,32 @@ export const getUserNameByEmail = async (req, res) => {
   }
 };
 
-export const getCategories = async (req, res) => {
-  const redisKey = "categories";
+// export const getCategories = async (req, res) => {
+//   const redisKey = "categories";
 
-  try {
-    const cachedData = await redisClient.get(redisKey);
+//   try {
+//     const cachedData = await redisClient.get(redisKey);
 
-    if (cachedData) {
-      return res.status(200).json({
-        categories: JSON.parse(cachedData),
-        source: "redis",
-      });
-    }
+//     if (cachedData) {
+//       return res.status(200).json({
+//         categories: JSON.parse(cachedData),
+//         source: "redis",
+//       });
+//     }
 
-    const result = await client.query("select * from ins.fn_get_categories();");
+//     const result = await client.query("select * from ins.fn_get_categories();");
 
-    await redisClient.setEx(redisKey, 300, JSON.stringify(result.rows)); // TTL 5 mins
+//     await redisClient.setEx(redisKey, 300, JSON.stringify(result.rows)); // TTL 5 mins
 
-    return res.status(200).json({
-      categories: result.rows,
-      source: "db",
-    });
-  } catch (error) {
-    console.error("Error fetching categories:", error);
-    return res.status(500).json({ message: "Failed to fetch categories" });
-  }
-};
+//     return res.status(200).json({
+//       categories: result.rows,
+//       source: "db",
+//     });
+//   } catch (error) {
+//     console.error("Error fetching categories:", error);
+//     return res.status(500).json({ message: "Failed to fetch categories" });
+//   }
+// };
 
 export const deletePortfolioFile = async (req, res) => {
   try {

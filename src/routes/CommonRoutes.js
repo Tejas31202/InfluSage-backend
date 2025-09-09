@@ -1,10 +1,20 @@
 import express from "express";
-import { getRoles ,getContentTypes} from "../controller/CommonController.js";
-
+import {
+  getRoles,
+  getContentTypes,
+  GetGender,
+  GetLanguages,
+  getCategories,
+  getProviders,
+} from "../controller/CommonController.js";
 
 const routes = express.Router();
 
 routes.get("/roles", getRoles);
-routes.get("/content-type",getContentTypes)
+routes.get("/content-type", getContentTypes);
+routes.get("/genders", GetGender);
+routes.get("/languages", GetLanguages);
+routes.get("/categories", getCategories);
+routes.get("/providers", getProviders);
 
 export default routes;

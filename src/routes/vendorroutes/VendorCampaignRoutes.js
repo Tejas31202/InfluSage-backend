@@ -1,29 +1,47 @@
-import express from 'express';
+import express from "express";
 import {
-  createMyCampaign, getCampaign, deleteCampaignFile, finalizeCampaign, getProviders, GetCampaignObjectives, GetLanguages, GetInfluencerTiers, GetGender, GetProvidorContentTypes} from '../../controller/vendorcontroller/VendorCampaignController.js';
+  createMyCampaign,
+  getCampaign,
+  deleteCampaignFile,
+  finalizeCampaign,
+  //  getProviders,
+  GetCampaignObjectives,
+  //  GetLanguages,
+  GetInfluencerTiers,
+  // GetGender,
+  GetProvidorContentTypes,
+} from "../../controller/vendorcontroller/VendorCampaignController.js";
 import authenticateUser from "../../middleware/AuthMiddleware.js";
-import {upload} from "../../middleware/CampaignMulterMiddleware.js"
+import { upload } from "../../middleware/CampaignMulterMiddleware.js";
 
 const routes = express.Router();
 
-routes.get("/providers", getProviders); // New route to get providers
+// routes.get("/providers", getProviders); // New route to get providers
+
 // Step 1-5 → draft or auto-final if all parts present
 
-routes.get("/campaign/objectives",GetCampaignObjectives);
-routes.get("/campaign/languages",GetLanguages);
-routes.get("/influencer-type",GetInfluencerTiers);
-routes.get("/gender",GetGender)
-routes.get("/provider-content-type",GetProvidorContentTypes)
+routes.get("/campaign/objectives", GetCampaignObjectives);
+// routes.get("/campaign/languages",GetLanguages);
+routes.get("/influencer-type", GetInfluencerTiers);
+// routes.get("/gender",GetGender)
+routes.get("/provider-content-type", GetProvidorContentTypes);
 
-
-routes.post('/create-campaign',authenticateUser(['Vendor']),upload.fields([
+routes.post(
+  "/create-campaign",
+  authenticateUser(["Vendor"]),
+  upload.fields([
     { name: "photo", maxCount: 1 },
     { name: "Files", maxCount: 5 },
-  ]),createMyCampaign);   
+  ]),
+  createMyCampaign
+);
 
 // Step 6 → Finalize Campaign button
-routes.post('/finalize-campaign', authenticateUser(['Vendor']), finalizeCampaign);
-
+routes.post(
+  "/finalize-campaign",
+  authenticateUser(["Vendor"]),
+  finalizeCampaign
+);
 
 routes.get("/campaign/:campaignId", authenticateUser(["Vendor"]), getCampaign);
 
@@ -32,8 +50,5 @@ routes.post(
   authenticateUser(["Vendor"]), // optional role check
   deleteCampaignFile
 );
-
-
-
 
 export default routes;

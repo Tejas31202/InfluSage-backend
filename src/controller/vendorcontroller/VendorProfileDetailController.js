@@ -1,6 +1,5 @@
 import { Client } from "pg";
 import { client } from "../../config/db.js";
-import authenticateUser from "../../middleware/AuthMiddleware.js";
 import redis from "redis";
 import path from "path";
 import fs from "fs";
@@ -45,34 +44,34 @@ const calculateProfileCompletion = (profileParts) => {
   return Math.round((filledSections / totalSections) * 100);
 };
 
-export const getVendorCategories = async (req, res) => {
-  const redisKey = "vendor_categories";
+// export const getVendorCategories = async (req, res) => {
+//   const redisKey = "vendor_categories";
 
-  try {
-    const cachedData = await redisClient.get(redisKey);
+//   try {
+//     const cachedData = await redisClient.get(redisKey);
 
-    if (cachedData) {
-      return res.status(200).json({
-        categories: JSON.parse(cachedData),
-        source: "redis",
-      });
-    }
+//     if (cachedData) {
+//       return res.status(200).json({
+//         categories: JSON.parse(cachedData),
+//         source: "redis",
+//       });
+//     }
 
-    const result = await client.query("select * from ins.fn_get_categories();");
+//     const result = await client.query("select * from ins.fn_get_categories();");
 
-    await redisClient.setEx(redisKey, 300, JSON.stringify(result.rows)); // TTL 5 mins
+//     await redisClient.setEx(redisKey, 300, JSON.stringify(result.rows)); // TTL 5 mins
 
-    return res.status(200).json({
-      categories: result.rows,
-      source: "db",
-    });
-  } catch (error) {
-    console.error("Error fetching vendor categories:", error);
-    return res
-      .status(500)
-      .json({ message: "Failed to fetch vendor categories" });
-  }
-};
+//     return res.status(200).json({
+//       categories: result.rows,
+//       source: "db",
+//     });
+//   } catch (error) {
+//     console.error("Error fetching vendor categories:", error);
+//     return res
+//       .status(500)
+//       .json({ message: "Failed to fetch vendor categories" });
+//   }
+// };
 
 export const getCompanySizes = async (req, res) => {
   const redisKey = "company_sizes";

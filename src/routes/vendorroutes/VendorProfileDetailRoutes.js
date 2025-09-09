@@ -1,6 +1,6 @@
 import express from 'express';
 import {
-  getVendorCategories,
+  // getVendorCategories,
   getCompanySizes,
   getInfluencerTiers,
   completeVendorProfile,
@@ -13,7 +13,7 @@ import {uploadVendor} from"../../middleware/MulterVenderMiddelware.js"
 const routes = express.Router();
  
 //Changes For Role Based Auth..=>authenticateUser(['Vendor'])
-  routes.get("/categories", getVendorCategories);
+  // routes.get("/categories", getVendorCategories);
   routes.get("/company-sizes", getCompanySizes);
   routes.get("/influencer-tiers", getInfluencerTiers);
   routes.post("/complete-vendor-profile", authenticateUser(['Vendor']),uploadVendor.single("photo"),completeVendorProfile);
