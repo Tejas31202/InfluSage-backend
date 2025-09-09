@@ -7,195 +7,209 @@ const redisClient = redis.createClient({ url: process.env.REDIS_URL });
 redisClient.connect().catch(console.error);
 
 // ---------------- CREATE / UPDATE Campaign Draft ----------------
-export const createMyCampaign = async (req, res) => {
-  const userId = req.user?.id || req.body.p_userid;
-  const username=req.user.name
+  export const createMyCampaign = async (req, res) => {
+    const userId = req.user?.id || req.body.p_userid;
+    const username = req.user.name
 
-  if (!userId) {
-    return res.status(400).json({ message: "User ID is required" });
-  }
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required" });
+    }
 
-  const tryParseJSON = (value) => {
+    const tryParseJSON = (value) => {
+      try {
+        return typeof value === "string" ? JSON.parse(value) : value;
+      } catch {
+        return value;
+      }
+    };
+
+    const p_objectivejson = tryParseJSON(req.body.p_objectivejson);
+    const p_vendorinfojson = tryParseJSON(req.body.p_vendorinfojson);
+    const p_campaignjson = tryParseJSON(req.body.p_campaignjson);
+    //changes 
+    const p_campaigncategoryjson = tryParseJSON(req.body.p_campaigncategoryjson);
+
+    const p_contenttypejson = tryParseJSON(req.body.p_contenttypejson);
+
+    // ---------------- File Handling ----------------
+    // let p_campaignfilejson = null;
+
+    // Photo file (single)
+    if (req.files?.photo && req.files.photo[0]) {
+      const file = req.files.photo[0];
+      const ext = path.extname(file.originalname);
+      const finalName = `${username}_cp_${Date.now()}${ext}`;
+
+      // Only relative path from src/
+      const relativePath = path
+        .join("src/uploads/vendor", finalName)
+        .replace(/\\/g, "/");
+
+      if (p_campaignjson) {
+        p_campaignjson.photopath = relativePath;
+      }
+
+      // rename file from multer temp name → our format
+      fs.renameSync(file.path, relativePath);
+    }
+
+    // ---------------- Multiple Campaign Files ----------------
+
+
+    //changes before files
+
+    // if (req.files?.Files && req.files.Files.length > 0) {
+    //   p_campaignfilejson = req.files.Files.map((file) => {
+    //     const ext = path.extname(file.originalname);
+    //     const finalName = `${username}_campaign_${Date.now()}${ext}`;
+
+    //     const relativePath = path
+    //       .join("src/uploads/vendor", finalName)
+    //       .replace(/\\/g, "/");
+
+    //     fs.renameSync(file.path, relativePath);
+
+    //     return { filepath: relativePath };
+    //   });
+    // }
+    const redisKey = `getCampaign:${userId}`;
+
     try {
-      return typeof value === "string" ? JSON.parse(value) : value;
-    } catch {
-      return value;
-    }
-  };
+      let existingData = await redisClient.get(redisKey);
+      existingData = existingData ? JSON.parse(existingData) : {};
 
-  const p_objectivejson = tryParseJSON(req.body.p_objectivejson);
-  const p_vendorinfojson = tryParseJSON(req.body.p_vendorinfojson);
-  const p_campaignjson = tryParseJSON(req.body.p_campaignjson);
-  const p_contenttypejson = tryParseJSON(req.body.p_contenttypejson);
-
-  // ---------------- File Handling ----------------
-  let p_campaignfilejson = null;
-
-  // Photo file (single)
-   if (req.files?.photo && req.files.photo[0]) {
-    const file = req.files.photo[0];
-    const ext = path.extname(file.originalname);
-    const finalName = `${username}_cp_${Date.now()}${ext}`;
-
-    // Only relative path from src/
-    const relativePath = path
-      .join("src/uploads/vendor", finalName)
-      .replace(/\\/g, "/");
-
-    if (p_campaignjson) {
-      p_campaignjson.photopath = relativePath;
-    }
-
-    // rename file from multer temp name → our format
-    fs.renameSync(file.path, relativePath);
-  }
-
-  // ---------------- Multiple Campaign Files ----------------
-
-
-  //changes before files
-
-  // if (req.files?.Files && req.files.Files.length > 0) {
-  //   p_campaignfilejson = req.files.Files.map((file) => {
-  //     const ext = path.extname(file.originalname);
-  //     const finalName = `${username}_campaign_${Date.now()}${ext}`;
-
-  //     const relativePath = path
-  //       .join("src/uploads/vendor", finalName)
-  //       .replace(/\\/g, "/");
-
-  //     fs.renameSync(file.path, relativePath);
-
-  //     return { filepath: relativePath };
-  //   });
-  // }
-  const redisKey = `getCampaign:${userId}`;
-
-  try {
-    let existingData = await redisClient.get(redisKey);
-    existingData = existingData ? JSON.parse(existingData) : {};
-
-
-    //Changes Below For Multiple Files In Edit Options 
-
-
-     // Extract old files array or default to empty array
-    const oldFiles = Array.isArray(existingData.p_campaignfilejson)
-      ? existingData.p_campaignfilejson
-      : [];
-
-       let newFiles = [];
-
-           if (req.files?.Files && req.files.Files.length > 0) {
-      newFiles = req.files.Files.map((file) => {
-        const ext = path.extname(file.originalname);
-        const finalName = `${username}_campaign_${Date.now()}${ext}`;
-        const relativePath = path.join("src/uploads/vendor", finalName).replace(/\\/g, "/");
-
-        fs.renameSync(file.path, relativePath);
-
-        return { filepath: relativePath };
-      });
-    }
-
-    // Merge old and new files (if any new files exist)
-    const p_campaignfilejson = newFiles.length > 0 ? [...oldFiles, ...newFiles] : oldFiles;
 
       //Changes Below For Multiple Files In Edit Options 
 
-    const mergedData = {
-      p_objectivejson: p_objectivejson || existingData.p_objectivejson || null,
-      p_vendorinfojson:
-        p_vendorinfojson || existingData.p_vendorinfojson || null,
-      p_campaignjson: p_campaignjson || existingData.p_campaignjson || null,
-      p_campaignfilejson:
-        p_campaignfilejson || existingData.p_campaignfilejson || null,
-      p_contenttypejson:
-        p_contenttypejson || existingData.p_contenttypejson || null,
-      is_completed: false,
-    };
 
-    await redisClient.set(redisKey, JSON.stringify(mergedData));
+      // Extract old files array or default to empty array
+      const oldFiles = Array.isArray(existingData.p_campaignfilejson)
+        ? existingData.p_campaignfilejson
+        : [];
 
-    return res.status(200).json({
-      status: true,
-      message: "Draft stored in Redis successfully",
-      campaignParts: mergedData,
-      source: "redis",
-    });
-  } catch (err) {
-    console.error("❌ createMyCampaign error:", err);
-    return res.status(500).json({ status: false, message: err.message });
-  }
-};  
+      let newFiles = [];
 
-// ---------------- FINALIZE Campaign ----------------
-export const finalizeCampaign = async (req, res) => {
-  try {
-    const userId = req.user?.id || req.body.p_userid;
-    const campaignId = req.body.p_campaignid || null; // ya req.body.campaignid
+      if (req.files?.Files && req.files.Files.length > 0) {
+        newFiles = req.files.Files.map((file) => {
+          const ext = path.extname(file.originalname);
+          const finalName = `${username}_campaign_${Date.now()}${ext}`;
+          const relativePath = path.join("src/uploads/vendor", finalName).replace(/\\/g, "/");
 
-    if (!userId)
-      return res.status(400).json({ message: "User ID is required" });
+          fs.renameSync(file.path, relativePath);
 
-    const redisKey = `getCampaign:${userId}`;
-    const cachedData = await redisClient.get(redisKey);
+          return { filepath: relativePath };
+        });
+      }
 
-    if (!cachedData) {
-      return res
-        .status(404)
-        .json({ message: "No campaign data found in Redis to finalize" });
-    }
+      // Merge old and new files (if any new files exist)
+      const p_campaignfilejson = newFiles.length > 0 ? [...oldFiles, ...newFiles] : oldFiles;
 
-    const campaignData = JSON.parse(cachedData);
+      //Changes 
+      // if (p_campaignjson) {
+      //   p_campaignjson.applicationstartdate = req.body.applicationstartdate || p_campaignjson.applicationstartdate;
+      //   p_campaignjson.applicationenddate = req.body.applicationenddate || p_campaignjson.applicationenddate;
+      // }
 
-    await client.query("BEGIN");
-    const result = await client.query(
-      `CALL ins.usp_upsert_campaigndetails(
-          $1::BIGINT,
-          $2::BIGINT,
-          $3::JSON,
-          $4::JSON,
-          $5::JSON,
-          $6::JSON,
-          $7::JSON,
-          NULL,
-          NULL
-      )`,
-      [
-        userId,
-        campaignId,
-        JSON.stringify(campaignData.p_objectivejson || {}),
-        JSON.stringify(campaignData.p_vendorinfojson || {}),
-        JSON.stringify(campaignData.p_campaignjson || {}),
-        JSON.stringify(campaignData.p_campaignfilejson || {}),
-        JSON.stringify(campaignData.p_contenttypejson || {}),
-      ]
-    );
-    await client.query("COMMIT");
+      //Changes Below For Multiple Files In Edit Options 
 
-    const { p_status, p_message } = result.rows[0] || {};
-    if (p_status) {
-      await redisClient.del(redisKey); // delete draft
+      const mergedData = {
+        p_objectivejson: p_objectivejson || existingData.p_objectivejson || null,
+        p_vendorinfojson:
+          p_vendorinfojson || existingData.p_vendorinfojson || null,
+        p_campaignjson: p_campaignjson || existingData.p_campaignjson || null,
+        p_campaignfilejson:
+          p_campaignfilejson || existingData.p_campaignfilejson || null,
+          //Changes
+        p_campaigncategoryjson: p_campaigncategoryjson || existingData.p_campaigncategoryjson || null,
+        p_contenttypejson:
+          p_contenttypejson || existingData.p_contenttypejson || null,
+        is_completed: false,
+      };
+
+      await redisClient.set(redisKey, JSON.stringify(mergedData));
+
       return res.status(200).json({
-        status: p_status,
-        message: p_message,
-        // campaignId: p_campaignid
+        status: true,
+        message: "Draft stored in Redis successfully",
+        campaignParts: mergedData,
+        source: "redis",
       });
-    } else {
-      return res.status(400).json({
-        status: false,
-        message: p_message || "Failed to finalize campaign",
-      });
+    } catch (err) {
+      console.error("❌ createMyCampaign error:", err);
+      return res.status(500).json({ status: false, message: err.message });
     }
-  } catch (error) {
-    await client.query("ROLLBACK");
-    console.error("❌ finalizeCampaign error:", error);
-    return res.status(500).json({ status: false, message: error.message });
-  }
-};
+  };
 
-// ---------------- GET CAMPAIGN ----------------
+  // ---------------- FINALIZE Campaign ----------------
+  export const finalizeCampaign = async (req, res) => {
+    try {
+      const userId = req.user?.id || req.body.p_userid;
+      const campaignId = req.body.p_campaignid || null; // ya req.body.campaignid
+
+      if (!userId)
+        return res.status(400).json({ message: "User ID is required" });
+
+      const redisKey = `getCampaign:${userId}`;
+      const cachedData = await redisClient.get(redisKey);
+
+      if (!cachedData) {
+        return res
+          .status(404)
+          .json({ message: "No campaign data found in Redis to finalize" });
+      }
+
+      const campaignData = JSON.parse(cachedData);
+
+      await client.query("BEGIN");
+      const result = await client.query(
+        `CALL ins.usp_upsert_campaigndetails(
+            $1::BIGINT,
+            $2::BIGINT,
+            $3::JSON,
+            $4::JSON,
+            $5::JSON,
+            $6::JSON,
+            $7::JSON,
+            $8::JSON,
+            NULL,
+            NULL
+        )`,
+        [
+          userId,
+          campaignId,
+          JSON.stringify(campaignData.p_objectivejson || {}),
+          JSON.stringify(campaignData.p_vendorinfojson || {}),
+          JSON.stringify(campaignData.p_campaignjson || {}),
+          JSON.stringify(campaignData.p_campaigncategoryjson || {}),
+          JSON.stringify(campaignData.p_campaignfilejson || {}),
+          JSON.stringify(campaignData.p_contenttypejson || {}),
+        ]
+      );
+      
+      await client.query("COMMIT");
+
+      const { p_status, p_message } = result.rows[0] || {};
+      if (p_status) {
+        await redisClient.del(redisKey); // delete draft
+        return res.status(200).json({
+          status: p_status,
+          message: p_message,
+          // campaignId: p_campaignid
+        });
+      } else {
+        return res.status(400).json({
+          status: false,
+          message: p_message || "Failed to finalize campaign",
+        });
+      }
+    } catch (error) {
+      await client.query("ROLLBACK");
+      console.error("❌ finalizeCampaign error:", error);
+      return res.status(500).json({ status: false, message: error.message });
+    }
+  };
+
+// ---------------- GET CAMPAIGN ----------------gi
 export const getCampaign = async (req, res) => {
   try {
     const userId = req.user?.id || req.query.p_userid;
@@ -341,9 +355,9 @@ export const GetCampaignObjectives = async (req, res) => {
 // };
 
 
-export const GetInfluencerTiers = async(req,res)=>{
-  
-   try {
+export const GetInfluencerTiers = async (req, res) => {
+
+  try {
     const result = await client.query(
       "SELECT * from ins.fn_get_influencertiers();"
     );
@@ -361,7 +375,7 @@ export const GetInfluencerTiers = async(req,res)=>{
 }
 
 // export const GetGender=async(req,res)=>{
-  
+
 //   try {
 //     const result = await client.query(
 //       "SELECT * from ins.fn_get_genders();"
@@ -380,8 +394,8 @@ export const GetInfluencerTiers = async(req,res)=>{
 // }
 
 
-export const GetProvidorContentTypes=async(req,res)=>{
-  
+export const GetProvidorContentTypes = async (req, res) => {
+
   try {
     const result = await client.query(
       "SELECT * from ins.fn_get_providercontenttypes();"
