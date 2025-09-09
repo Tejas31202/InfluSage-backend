@@ -1,7 +1,6 @@
-
 import { OAUTH_EXCHANGE_EXPIRY } from "../config/constants.js";
-import { client } from "../config/db.js"; 
-import  authenticateUser  from "../middleware/AuthMiddleware.js"; 
+import { client } from "../config/db.js";
+import authenticateUser from "../middleware/AuthMiddleware.js";
 import { google } from "googleapis"; // for token exchange
 import { randomBytes } from "crypto";
 import cookieParser from "cookie-parser";
@@ -12,10 +11,12 @@ dotenv.config();
 
 // const { BACKEND_PORT, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } = process.env;
 
-
 // Example: call stored procedure
 async function getUserByEmail(email) {
-  const result = await client.query("SELECT * FROM ins.fn_get_loginpassword($1)", [email]);
+  const result = await client.query(
+    "SELECT * FROM ins.fn_get_loginpassword($1)",
+    [email]
+  );
   return result.rows[0];
 }
 
@@ -43,7 +44,6 @@ async function createUser(data) {
 
   return { p_code, p_message };
 }
-
 
 // Google login redirect
 export async function getGoogleLoginPage(req, res) {
@@ -74,16 +74,15 @@ export async function getGoogleLoginPage(req, res) {
   res.redirect(redirectUrl);
 }
 
-
 // Google callback
 // Google callback
 export async function getGoogleLoginCallback(req, res) {
   const { code, state } = req.query;
   const storedState = req.cookies["google_oauth_state"];
-  const selectedRole = req.cookies["selected_role"]; //  frontend choice
+  const selectedRole = req.cookies["selected_role"]; // frontend choice
 
   if (!code || !state || state !== storedState) {
-    return res.redirect("http://localhost:5173/login");
+    return res.status(401).json({ message: "Invalid Google login attempt" });
   }
 
   try {
@@ -110,57 +109,80 @@ export async function getGoogleLoginCallback(req, res) {
         lastname: data.family_name || "",
         email: data.email,
         passwordhash: hashedPassword,
-        roleid: selectedRole || 1, //  user choice
+        roleId: selectedRole || 1, // fallback
       });
 
-      console.log("User created with SP:", dbResponse);
+      console.log("✅ User created with SP:", dbResponse);
+
       user = await getUserByEmail(data.email);
+
+      if (!user || !user.userid) {
+        console.error("❌ User create hua, par DB se fetch nahi hua");
+        return res.status(500).json({ message: "User creation failed" });
+      }
     }
 
-    // Token generate 
-    const token = generateToken(user);
-
-    res.cookie("auth_token", token, {
-      httpOnly: true,
-      secure: false,
-      maxAge: 3600000,
+    // 🔑 Token generate (same as loginUser)
+    const token = generateToken({
+      id: user.userid,
+      email: user.email,
+      role: user.roleid,
+      name: `${user.firstname}_${user.lastname}`,
     });
 
-    res.redirect("http://localhost:5173/dashboard");
+    // backend: getGoogleLoginCallback
+    // return res.status(200).json({
+    //   message: "Google login successful",
+    //   token,
+    //   id: user.userid,
+    //   firstName: user.firstname,
+    //   lastName: user.lastname,
+    //   role: user.roleid,
+    // });
+
+    // const redirectUrl = `http://localhost:5173/login?token=${token}&id=${user.userid}&role=${user.roleid}&firstName=${user.firstname}&lastName=${user.lastname}`;
+    // res.redirect(redirectUrl);
+    if (user.roleid == 1) {  
+      const redirectUrl = `http://localhost:5173/complate-profile`;
+      return res.redirect(redirectUrl);
+    } else if (user.roleid == 2) {
+      const redirectUrl = `http://localhost:5173/complete-vendor-profile`;
+      return res.redirect(redirectUrl);
+    } else {
+      const redirectUrl = `http://localhost:5173/login`;
+      return res.redirect(redirectUrl);
+    }
+
   } catch (err) {
     console.error("Google login error:", err);
-    res.redirect("http://localhost:5173/login");
+    return res
+      .status(500)
+      .json({ message: "Server error during Google login" });
   }
 }
 
+// export const authGoogle = (req, res, next) => {
+//   // Initiates Google OAuth
+//   const passport = req.app.get("passport");
+//   passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
+// };
 
-    
-    // export const authGoogle = (req, res, next) => {
-    //   // Initiates Google OAuth
-    //   const passport = req.app.get("passport");
-    //   passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
-    // };
+// export const authGoogleCallback = (req, res, next) => {
+//   const passport = req.app.get("passport");
+//   passport.authenticate("google", (err, user, info) => {
+//     if (err) return res.status(500).json({ error: err.message });
+//     if (!user) return res.status(401).json({ error: "Google login failed" });
 
-    // export const authGoogleCallback = (req, res, next) => {
-    //   const passport = req.app.get("passport");
-    //   passport.authenticate("google", (err, user, info) => {
-    //     if (err) return res.status(500).json({ error: err.message });
-    //     if (!user) return res.status(401).json({ error: "Google login failed" });
-
-    //     req.login(user, (err) => {
-    //       if (err) return res.status(500).json({ error: err.message });
-    //       // Return JSON with user info and maybe a JWT or session info
-    //       res.json({ message: "Google login successful", user });
-    //     });
-    //   })(req, res, next);
-    // };
+//     req.login(user, (err) => {
+//       if (err) return res.status(500).json({ error: err.message });
+//       // Return JSON with user info and maybe a JWT or session info
+//       res.json({ message: "Google login successful", user });
+//     });
+//   })(req, res, next);
+// };
 // src/controllers/AuthController.js
 
-
-
-
 // Changes For Apple Id Login
-
 
 // export const loginSuccess = (req, res) => {
 //   if (req.user) {
@@ -182,5 +204,3 @@ export async function getGoogleLoginCallback(req, res) {
 //     res.redirect('/');
 //   });
 // };
-
-

@@ -63,7 +63,12 @@ app.use(cookieParser())
 
 app.use("/src/uploads", express.static(path.join(process.cwd(), "src/uploads")));
 app.use(express.urlencoded({ extended: true }));
-app.use(cors());
+// app.use(cors());
+app.use(cors({
+  origin: "http://localhost:5173",
+  credentials: true
+}));
+
 dotenv.config(); // if app in src
 
 
