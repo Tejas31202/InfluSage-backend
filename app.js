@@ -2,6 +2,9 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from 'path';
+import authRoutes from './src/routes/AuthRoutes.js'
+import cookieParser from "cookie-parser";
+
 // import session from 'express-session';
 // import passport from "passport";
 // // import indexRoutes from './src/routes/index.js'
@@ -22,8 +25,7 @@ import InfluencerProfileDetailRoutes from "./src/routes/influencerroutes/Influen
 import VendorRoutes from "./src/routes/vendorroutes/VendorRoute.js";
 import VendorProfileDetailRoutes from "./src/routes/vendorroutes/VendorProfileDetailRoutes.js";
 import VendorCampaignRoutes from "./src/routes/vendorroutes/VendorCampaignRoutes.js";
-import InfluencerCampaignRoutes from "./src/routes/influencerroutes/InfluencerCampaignRoutes.js";
-import CommonRoutes from "./src/routes/CommonRoutes.js"
+import InfluencerCampaignRoutes from "./src/routes/influencerroutes/InfluencerCampaignRoutes.js"
 // import "./src/config/Passport.js";
 // import { config } from "@dotenvx/dotenvx";
 // import session from "express-session";
@@ -36,6 +38,7 @@ const app = express();
 
 // Middleware
 app.use(express.json());
+app.use(cookieParser())
 
 //Changes For Apple ID Login 
 
@@ -77,7 +80,7 @@ dotenv.config(); // if app in src
 
 // Routes
 // app.use('/', indexRoutes);
-// app.use('/auth', authRoutes);
+app.use('/auth', authRoutes);
 
 app.use('/user', InfluencerRoutes);
 app.use('/user', InfluencerProfileDetailRoutes);
@@ -85,7 +88,6 @@ app.use('/user', InfluencerCampaignRoutes);
 app.use('/vendor', VendorRoutes);
 app.use('/vendor', VendorProfileDetailRoutes);
 app.use('/vendor', VendorCampaignRoutes);
-app.use("/",CommonRoutes)
 // app.use('/auth', AuthRoutes);
 
 const PORT =  process.env.BACKEND_PORT || 3001;
