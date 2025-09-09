@@ -26,6 +26,7 @@ import VendorRoutes from "./src/routes/vendorroutes/VendorRoute.js";
 import VendorProfileDetailRoutes from "./src/routes/vendorroutes/VendorProfileDetailRoutes.js";
 import VendorCampaignRoutes from "./src/routes/vendorroutes/VendorCampaignRoutes.js";
 import InfluencerCampaignRoutes from "./src/routes/influencerroutes/InfluencerCampaignRoutes.js"
+import CommonRoutes from "./src/routes/CommonRoutes.js";
 // import "./src/config/Passport.js";
 // import { config } from "@dotenvx/dotenvx";
 // import session from "express-session";
@@ -81,7 +82,7 @@ dotenv.config(); // if app in src
 // Routes
 // app.use('/', indexRoutes);
 app.use('/auth', authRoutes);
-
+app.use('/',CommonRoutes)
 app.use('/user', InfluencerRoutes);
 app.use('/user', InfluencerProfileDetailRoutes);
 app.use('/user', InfluencerCampaignRoutes);
