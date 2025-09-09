@@ -142,13 +142,21 @@ export const ApplyNowCampaign = async (req, res) => {
   }
 };
 
-
+//For Applied Campaign
 export const GetUsersAppliedCampaigns = async (req, res) => {
   try {
-    const { userId } = req.params;
-    const redisKey = `applyCampaign:${userId}`;
+    const { userId,
+      p_sortby = 'createddate',
+      p_sortorder = 'DESC',
+      p_pagenumber = 1,
+      p_pagesize = 20,
+    } = {
+      ...req.query,
+      ...req.params
+    };
+    const redisKey = `applyCampaign:${userId}:${p_sortby}:${p_sortorder}:${p_pagenumber}:${p_pagesize}`;
 
-    // 1️⃣ Try cache first
+    //Try Cache First From Redis
     const cachedData = await redisClient.get(redisKey);
     if (cachedData) {
       return res.status(200).json({
@@ -157,17 +165,28 @@ export const GetUsersAppliedCampaigns = async (req, res) => {
       });
     }
 
-    // 2️⃣ If not in Redis → fetch from DB (❌ don't save in Redis)
+    //If Not In Redis → Fetch From DB (don't save in Redis)
     const result = await client.query(
-      `SELECT * FROM ins.fn_get_campaignapplication($1::bigint)`,
-      [userId]
+      `SELECT * FROM ins.fn_get_campaignapplication(
+      $1::bigint,
+      $2::text,
+      $3::text,
+      $4::int,
+      $5::int)`,
+
+      [userId,
+        p_sortby,
+        p_sortorder,
+        p_pagenumber,
+        p_pagesize]
     );
 
+    //Check Db Return Data OR Not
     if (!result.rows || result.rows.length === 0) {
       return res.status(404).json({ message: "No applied campaigns found." });
     }
 
-    // 3️⃣ Just return DB response directly
+    //Return Data From Db
     return res.status(200).json({
       data: result.rows,
       source: "db",
@@ -242,7 +261,7 @@ export const GetSaveCampaign = async (req, res) => {
 
 }
 
-
+//For Apply Single Campaign
 export const GetSingleApplyCampaign = async (req, res) => {
   try {
     const userId = req.user?.id || req.userId;
@@ -279,7 +298,7 @@ export const GetSingleApplyCampaign = async (req, res) => {
   }
 };
 
-
+//For Get user Campign With Details
 export const GetUserCampaignWithDetails = async (req, res) => {
   try {
     const userId = req.user?.id;
@@ -333,7 +352,7 @@ export const GetUserCampaignWithDetails = async (req, res) => {
 };
 
 
-// Browse Campaigns
+//For Browse Campaigns 
 export const browseCampaigns = async (req, res) => {
   try {
     const {
@@ -348,7 +367,7 @@ export const browseCampaigns = async (req, res) => {
       pagesize,
     } = req.query;
 
-    
+
     const result = await client.query(
       `SELECT * FROM ins.fn_get_campaignbrowse(
         $1::json,
@@ -374,7 +393,7 @@ export const browseCampaigns = async (req, res) => {
       ]
     );
 
-    return res.json(result.rows[0]); 
+    return res.json(result.rows[0]);
   } catch (error) {
     console.error("Error browsing campaigns:", error.message);
     return res.status(500).json({ error: "Internal Server Error" });
