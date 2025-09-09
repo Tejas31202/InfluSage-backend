@@ -27,6 +27,7 @@ export const createMyCampaign = async (req, res) => {
   const p_vendorinfojson = tryParseJSON(req.body.p_vendorinfojson);
   const p_campaignjson = tryParseJSON(req.body.p_campaignjson);
   const p_contenttypejson = tryParseJSON(req.body.p_contenttypejson);
+  const p_campaigncategoyjson =tryParseJSON(req.body.p_campaigncategoyjson );
 
   // ---------------- File Handling ----------------
   let p_campaignfilejson = null;
@@ -89,7 +90,8 @@ export const createMyCampaign = async (req, res) => {
            if (req.files?.Files && req.files.Files.length > 0) {
       newFiles = req.files.Files.map((file) => {
         const ext = path.extname(file.originalname);
-        const finalName = `${username}_campaign_${Date.now()}${ext}`;
+        const baseName = path.basename(file.originalname, ext);
+        const finalName = `${username}_campaign_${Date.now()}_${baseName}${ext}`;
         const relativePath = path.join("src/uploads/vendor", finalName).replace(/\\/g, "/");
 
         fs.renameSync(file.path, relativePath);
@@ -108,6 +110,7 @@ export const createMyCampaign = async (req, res) => {
       p_vendorinfojson:
         p_vendorinfojson || existingData.p_vendorinfojson || null,
       p_campaignjson: p_campaignjson || existingData.p_campaignjson || null,
+      p_campaigncategoyjson :p_campaigncategoyjson ||existingData.p_campaigncategoyjson||null,
       p_campaignfilejson:
         p_campaignfilejson || existingData.p_campaignfilejson || null,
       p_contenttypejson:
@@ -116,6 +119,7 @@ export const createMyCampaign = async (req, res) => {
     };
 
     await redisClient.set(redisKey, JSON.stringify(mergedData));
+    // console.log("===>",mergedData)
 
     return res.status(200).json({
       status: true,
@@ -159,6 +163,7 @@ export const finalizeCampaign = async (req, res) => {
           $5::JSON,
           $6::JSON,
           $7::JSON,
+          $8::JSON,
           NULL,
           NULL
       )`,
@@ -168,6 +173,7 @@ export const finalizeCampaign = async (req, res) => {
         JSON.stringify(campaignData.p_objectivejson || {}),
         JSON.stringify(campaignData.p_vendorinfojson || {}),
         JSON.stringify(campaignData.p_campaignjson || {}),
+        JSON.stringify(campaignData.p_campaigncategoyjson||{}),
         JSON.stringify(campaignData.p_campaignfilejson || {}),
         JSON.stringify(campaignData.p_contenttypejson || {}),
       ]
@@ -195,7 +201,7 @@ export const finalizeCampaign = async (req, res) => {
   }
 };
 
-// ---------------- GET CAMPAIGN ----------------
+// ---------------- GET CAMPAIGN ----------------gi
 export const getCampaign = async (req, res) => {
   try {
     const userId = req.user?.id || req.query.p_userid;
@@ -341,9 +347,9 @@ export const GetCampaignObjectives = async (req, res) => {
 // };
 
 
-export const GetInfluencerTiers = async(req,res)=>{
-  
-   try {
+export const GetInfluencerTiers = async (req, res) => {
+
+  try {
     const result = await client.query(
       "SELECT * from ins.fn_get_influencertiers();"
     );
@@ -361,7 +367,7 @@ export const GetInfluencerTiers = async(req,res)=>{
 }
 
 // export const GetGender=async(req,res)=>{
-  
+
 //   try {
 //     const result = await client.query(
 //       "SELECT * from ins.fn_get_genders();"
@@ -380,8 +386,8 @@ export const GetInfluencerTiers = async(req,res)=>{
 // }
 
 
-export const GetProvidorContentTypes=async(req,res)=>{
-  
+export const GetProvidorContentTypes = async (req, res) => {
+
   try {
     const result = await client.query(
       "SELECT * from ins.fn_get_providercontenttypes();"
