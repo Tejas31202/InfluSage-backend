@@ -45,43 +45,56 @@ async function createUser(data) {
   return { p_code, p_message };
 }
 
-// Google login redirect
+// Google OAuth redirect
 export async function getGoogleLoginPage(req, res) {
-  const state = randomBytes(16).toString("hex");
-  const { roleid } = req.query; // frontend choice
+  try {
+    const state = randomBytes(16).toString("hex");
+    const { roleid } = req.query;
 
-  const redirectUrl =
-    `https://accounts.google.com/o/oauth2/v2/auth?` +
-    `client_id=${process.env.GOOGLE_CLIENT_ID}` +
-    `&redirect_uri=http://localhost:3001/auth/google/callback` +
-    `&response_type=code` +
-    `&scope=openid email profile` +
-    `&state=${state}`;
+    // console.log("[DEBUG] Generating Google OAuth state:", state, "roleid:", roleid);
 
-  // state + roleId dono cookie me daal do
-  res.cookie("google_oauth_state", state, {
-    maxAge: OAUTH_EXCHANGE_EXPIRY,
-    httpOnly: true,
-    secure: false,
-  });
+    const redirectUrl =
+      `https://accounts.google.com/o/oauth2/v2/auth?` +
+      `client_id=${process.env.GOOGLE_CLIENT_ID}` +
+      `&redirect_uri=http://localhost:3001/auth/google/callback` +
+      `&response_type=code` +
+      `&scope=openid email profile` +
+      `&state=${state}`;
 
-  res.cookie("selected_role", roleid, {
-    maxAge: OAUTH_EXCHANGE_EXPIRY,
-    httpOnly: true,
-    secure: false,
-  });
+    res.cookie("google_oauth_state", state, {
+      maxAge: 10 * 60 * 1000, // 10 min
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+    });
 
-  res.redirect(redirectUrl);
+    res.cookie("selected_role", roleid, {
+      maxAge: 10 * 60 * 1000,
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+    });
+
+    // console.log("[DEBUG] Redirecting to Google OAuth:", redirectUrl);
+    res.redirect(redirectUrl);
+  } catch (err) {
+    // console.error("[ERROR] getGoogleLoginPage:", err);
+    res.status(500).json({ message: "Server error generating Google login" });
+  }
 }
 
-// Google callback
-// Google callback
+// Google OAuth callback
 export async function getGoogleLoginCallback(req, res) {
   const { code, state } = req.query;
   const storedState = req.cookies["google_oauth_state"];
-  const selectedRole = req.cookies["selected_role"]; // frontend choice
+  const selectedRole = req.cookies["selected_role"] || 1;
+
+  // console.log("[DEBUG] Callback query code:", code, "state:", state);
+  // console.log("[DEBUG] Stored state cookie:", storedState);
+  // console.log("[DEBUG] Selected role cookie:", selectedRole);
 
   if (!code || !state || state !== storedState) {
+    console.error("[ERROR] Invalid Google login attempt");
     return res.status(401).json({ message: "Invalid Google login attempt" });
   }
 
@@ -92,72 +105,53 @@ export async function getGoogleLoginCallback(req, res) {
       "http://localhost:3001/auth/google/callback"
     );
 
+    // console.log("[DEBUG] Exchanging code for tokens...");
     const { tokens } = await oauth2Client.getToken(code);
+    // console.log("[DEBUG] Received tokens:", tokens);
+
     oauth2Client.setCredentials(tokens);
 
     const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
     const { data } = await oauth2.userinfo.get();
+    // console.log("[DEBUG] Google user info:", data);
 
     let user = await getUserByEmail(data.email);
+    // console.log("[DEBUG] Existing user from DB:", user);
 
     if (!user) {
+      // console.log("[DEBUG] Creating new user...");
       const randomPassword = randomBytes(16).toString("hex");
       const hashedPassword = await bcrypt.hash(randomPassword, 10);
 
-      const dbResponse = await createUser({
+      await createUser({
         firstname: data.given_name || "",
         lastname: data.family_name || "",
         email: data.email,
         passwordhash: hashedPassword,
-        roleId: selectedRole || 1, // fallback
+        roleId: selectedRole,
       });
 
-      console.log("✅ User created with SP:", dbResponse);
-
       user = await getUserByEmail(data.email);
-
-      if (!user || !user.userid) {
-        console.error("❌ User create hua, par DB se fetch nahi hua");
-        return res.status(500).json({ message: "User creation failed" });
-      }
+      // console.log("[DEBUG] Newly created user:", user);
     }
 
-    // 🔑 Token generate (same as loginUser)
+    // Generate token
     const token = generateToken({
-      id: user.userid,
-      email: user.email,
-      role: user.roleid,
-      name: `${user.firstname}_${user.lastname}`,
+      id: user.userid,     
+      role: user.roleid,    
+      firstName: user.firstname,
+      lastName: user.lastname,
     });
 
-    // backend: getGoogleLoginCallback
-    // return res.status(200).json({
-    //   message: "Google login successful",
-    //   token,
-    //   id: user.userid,
-    //   firstName: user.firstname,
-    //   lastName: user.lastname,
-    //   role: user.roleid,
-    // });
+    // console.log("[DEBUG] Generated JWT token:", token);
 
-    // const redirectUrl = `http://localhost:5173/login?token=${token}&id=${user.userid}&role=${user.roleid}&firstName=${user.firstname}&lastName=${user.lastname}`;
-    // res.redirect(redirectUrl);
-    if (user.roleid == 1) {  
-      const redirectUrl = `http://localhost:5173/complate-profile`;
-      return res.redirect(redirectUrl);
-    } else if (user.roleid == 2) {
-      const redirectUrl = `http://localhost:5173/complete-vendor-profile`;
-      return res.redirect(redirectUrl);
-    } else {
-      const redirectUrl = `http://localhost:5173/login`;
-      return res.redirect(redirectUrl);
-    }
+    const redirectUrl = `http://localhost:5173/login?token=${token}&userId=${user.userid}&roleId=${user.roleid}&firstName=${user.firstname}&lastName=${user.lastname}`;
+    // console.log("[DEBUG] Redirecting to frontend:", redirectUrl);
 
+    res.redirect(redirectUrl);
   } catch (err) {
-    console.error("Google login error:", err);
-    return res
-      .status(500)
-      .json({ message: "Server error during Google login" });
+    console.error("[ERROR] Google login callback failed:", err);
+    return res.status(500).json({ message: "Server error during Google login" });
   }
 }
 
