@@ -1,7 +1,8 @@
 import express from "express";
 import { getGoogleLoginPage, getGoogleLoginCallback } from "../controller/AuthController.js";
 
-const routes = express.Router();
+const 
+routes = express.Router();
 
 // Google routes
 routes.get("/google", getGoogleLoginPage);

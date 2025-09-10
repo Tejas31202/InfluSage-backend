@@ -10,6 +10,7 @@ import {
   GetInfluencerTiers,
   // GetGender,
   GetProvidorContentTypes,
+  getInfluencerBrowseDetails
 } from "../../controller/vendorcontroller/VendorCampaignController.js";
 import authenticateUser from "../../middleware/AuthMiddleware.js";
 import { upload } from "../../middleware/CampaignMulterMiddleware.js";
@@ -44,6 +45,8 @@ routes.post(
 );
 
 routes.get("/campaign/:campaignId", authenticateUser(["Vendor"]), getCampaign);
+
+routes.get("/influencer/browse",getInfluencerBrowseDetails)
 
 routes.post(
   "/campaign/delete-file",
