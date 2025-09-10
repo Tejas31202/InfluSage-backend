@@ -10,7 +10,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 // const { BACKEND_PORT, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } = process.env;
-
+  
 // Example: call stored procedure
 async function getUserByEmail(email) {
   const result = await client.query(
@@ -87,7 +87,7 @@ export async function getGoogleLoginPage(req, res) {
 export async function getGoogleLoginCallback(req, res) {
   const { code, state } = req.query;
   const storedState = req.cookies["google_oauth_state"];
-  const selectedRole = req.cookies["selected_role"] || 1;
+  const selectedRole = req.cookies["selected_role"];
 
   // console.log("[DEBUG] Callback query code:", code, "state:", state);
   // console.log("[DEBUG] Stored state cookie:", storedState);
@@ -116,7 +116,7 @@ export async function getGoogleLoginCallback(req, res) {
     // console.log("[DEBUG] Google user info:", data);
 
     let user = await getUserByEmail(data.email);
-    // console.log("[DEBUG] Existing user from DB:", user);
+    // console.log("[DEBUG] Existing user from DB:", data.email);
 
     if (!user) {
       // console.log("[DEBUG] Creating new user...");
@@ -132,7 +132,7 @@ export async function getGoogleLoginCallback(req, res) {
       });
 
       user = await getUserByEmail(data.email);
-      // console.log("[DEBUG] Newly created user:", user);
+      console.log("[DEBUG] Newly created user:", user);
     }
 
     // Generate token
@@ -141,12 +141,14 @@ export async function getGoogleLoginCallback(req, res) {
       role: user.roleid,    
       firstName: user.firstname,
       lastName: user.lastname,
+      email: user.email || data.email,
     });
 
     // console.log("[DEBUG] Generated JWT token:", token);
 
-    const redirectUrl = `http://localhost:5173/login?token=${token}&userId=${user.userid}&roleId=${user.roleid}&firstName=${user.firstname}&lastName=${user.lastname}`;
-    // console.log("[DEBUG] Redirecting to frontend:", redirectUrl);
+    const redirectUrl = `http://localhost:5173/login?token=${token}&userId=${user.userid}&roleId=${user.roleid}&firstName=${encodeURIComponent(user.firstname)}&lastName=${encodeURIComponent(user.lastname)}&email=${encodeURIComponent(data.email)}`;
+
+    console.log("[DEBUG] Redirecting to frontend:", redirectUrl);
 
     res.redirect(redirectUrl);
   } catch (err) {
