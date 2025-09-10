@@ -22,22 +22,22 @@ import { upload } from "../../middleware/MulterMiddleware.js"
 //Routes For Campaign
 // routes.get("/browse",authenticateUser(), GetAllCampaign);
 
-routes.get("/browse/campaign/:campaignId", GetCampaignDetails);
+routes.get("/campaign-details/:campaignId", GetCampaignDetails);
 
-routes.post('/apply/:campaignId', authenticateUser(["Influencer"]), upload.fields([
+routes.post('/apply-for-campaign/:campaignId', authenticateUser(["Influencer"]), upload.fields([
   { name: "portfolioFiles", maxCount: 5 }
 ]), ApplyNowCampaign);
 
-routes.get('/applied/:userId', GetUsersAppliedCampaigns);
+routes.get('/applied-campaigns', authenticateUser(["Influencer"]), GetUsersAppliedCampaigns);
 
-routes.get("/apply/:campaignId", authenticateUser(["Influencer"]), GetSingleApplyCampaign)
+routes.get("/signle-applied/:campaignId", authenticateUser(["Influencer"]), GetSingleApplyCampaign)
 
-routes.get('/browse/fiterWithSort', browseCampaigns);
+routes.get('/browse-all-campaigns/fiterWithSort', authenticateUser(["Influencer"]), browseCampaigns);
 
-routes.post('/saved/campaign', SaveCampaign);
+routes.post('/save-campaign/:campaignId', authenticateUser(["Influencer"]), SaveCampaign);
 
-routes.get('/saved/campaign/:userId', GetSaveCampaign)
+routes.get('/saved-campaign', authenticateUser(["Influencer"]), GetSaveCampaign)
 
-routes.get('/campaign/:campaignId/details', authenticateUser(["Influencer"]), GetUserCampaignWithDetails)
+routes.get('/applied-campaign-details/:campaignId', authenticateUser(["Influencer"]), GetUserCampaignWithDetails)
 
 export default routes;

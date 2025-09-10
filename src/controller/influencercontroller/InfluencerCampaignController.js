@@ -131,7 +131,6 @@ export const ApplyNowCampaign = async (req, res) => {
       return res.status(200).json({
         message: p_message || "Application saved successfully",
         source: "db",
-        data: applycampaignjson
       });
     } else {
       return res.status(400).json({ message: p_message });
@@ -145,7 +144,9 @@ export const ApplyNowCampaign = async (req, res) => {
 //For Applied Campaign
 export const GetUsersAppliedCampaigns = async (req, res) => {
   try {
-    const { userId,
+
+    const userId = req.user?.id || req.body.userId;
+    const {
       p_sortby = 'createddate',
       p_sortorder = 'DESC',
       p_pagenumber = 1,
@@ -188,7 +189,7 @@ export const GetUsersAppliedCampaigns = async (req, res) => {
 
     //Return Data From Db
     return res.status(200).json({
-      data: result.rows,
+      data: result.rows[0].fn_get_campaignapplication,
       source: "db",
     });
   } catch (error) {
@@ -201,8 +202,9 @@ export const GetUsersAppliedCampaigns = async (req, res) => {
 export const SaveCampaign = async (req, res) => {
 
   try {
+    const userId = req.user?.id || req.body.userId;
+    const campaignId = req.params.campaignId;
 
-    const { campaignId, userId } = req.body;
 
     if (!campaignId || !userId) {
       return res.status(400).json({ message: 'User ID and Campaign ID are required.' });
@@ -219,12 +221,13 @@ export const SaveCampaign = async (req, res) => {
     //     return res.status(200).json({ message: 'You have already save to this campaign.' });
     // })
 
+
+
     const SaveCampaign = await client.query(`CALL ins.usp_insert_campaignsave($1::bigint,$2::bigint, $3, $4)`, [userId, campaignId, null, null]);
 
+    const { p_message } = SaveCampaign.rows[0]
     return res.status(201).json({
-      message: 'Campaign application saved successfully.',
-      data: SaveCampaign.rows[0],
-      source: 'db'
+      message: p_message
     });
 
   } catch (error) {
@@ -237,20 +240,40 @@ export const SaveCampaign = async (req, res) => {
 export const GetSaveCampaign = async (req, res) => {
 
   try {
-
-    const { userId } = req.params;
+    const userId = req.user?.id || req.body.userId;
     if (!userId) {
-
       return res.status(400).json({ message: "User Id Required." })
     }
-    const result = await client.query(`SELECT * FROM ins.fn_get_campaignsave($1)`, [userId])
+
+    const {
+      sortby,
+      sortorder,
+      pagenumber,
+      pagesize,
+    } = req.query;
+
+    const result = await client.query(
+      `SELECT * FROM ins.fn_get_campaignsave(
+      $1:: BIGINT,
+      $2:: text,
+      $3:: text,
+      $4:: integer,
+      $5:: integer 
+      )`,
+      [
+        userId || null,
+        sortby || "createddate",
+        sortorder || "DESC",
+        pagenumber || 1,
+        pagesize || 20,
+      ])
 
     if (result.rows.length === 0) {
       return res.status(404).json({ message: 'Campaign not found.' });
     }
 
 
-    const savedcampaign = result.rows[0];
+    const savedcampaign = result.rows[0].fn_get_campaignsave;
 
     return res.status(200).json({ data: savedcampaign, source: 'db' });
 
@@ -351,10 +374,11 @@ export const GetUserCampaignWithDetails = async (req, res) => {
   }
 };
 
-
 //For Browse Campaigns 
 export const browseCampaigns = async (req, res) => {
   try {
+    const userId = req.user?.id || req.body.userId;
+
     const {
       providers,
       contenttypes,
@@ -370,17 +394,19 @@ export const browseCampaigns = async (req, res) => {
 
     const result = await client.query(
       `SELECT * FROM ins.fn_get_campaignbrowse(
-        $1::json,
+        $1:: BIGINT,
         $2::json,
         $3::json,
-        $4::numeric,
+        $4::json,
         $5::numeric,
-        $6::text,
+        $6::numeric,
         $7::text,
-        $8::integer,
-        $9::integer
+        $8::text,
+        $9::integer,
+        $10::integer
       )`,
       [
+        userId || null,
         providers || null,
         contenttypes || null,
         languages || null,
