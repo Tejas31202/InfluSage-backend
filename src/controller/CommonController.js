@@ -121,27 +121,31 @@ export const getProviders = async (req, res) => {
 };
 
 export const getPagination = async (req, res) => {
+
  
   try {
- 
+
     const desktop = await client.query(
       `SELECT ins.fn_get_configvalue($1) AS desktop`,
       ['PaginationPageSizeDesktop']
     )
- 
+
     const mobile = await client.query(
       `SELECT ins.fn_get_configvalue($1) AS mobile`,
       ['PaginationPagesizeMobile']
     )
- 
+
     const paginationData = {
       desktop:desktop.rows[0].desktop,
       mobile:mobile.rows[0].mobile
     }
     res.json(paginationData)
- 
+
   } catch (error) {
     console.error('DB Error:', error);
     res.status(500).json({ error: 'Internal server error' })
   }
+
 }
+
+
