@@ -157,46 +157,95 @@ export async function getGoogleLoginCallback(req, res) {
   }
 }
 
-// export const authGoogle = (req, res, next) => {
-//   // Initiates Google OAuth
-//   const passport = req.app.get("passport");
-//   passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
-// };
-
-// export const authGoogleCallback = (req, res, next) => {
-//   const passport = req.app.get("passport");
-//   passport.authenticate("google", (err, user, info) => {
-//     if (err) return res.status(500).json({ error: err.message });
-//     if (!user) return res.status(401).json({ error: "Google login failed" });
-
-//     req.login(user, (err) => {
-//       if (err) return res.status(500).json({ error: err.message });
-//       // Return JSON with user info and maybe a JWT or session info
-//       res.json({ message: "Google login successful", user });
+// export async function getFacebookLoginPage(req, res) {
+//   try {
+//     const state = randomBytes(16).toString("hex");
+//     const { roleid } = req.query;
+//     const redirectUrl =
+//       `https://www.facebook.com/v10.0/dialog/oauth?` +
+//       `client_id=${process.env.FACEBOOK_APP_ID}` +
+//       `&redirect_uri=http://localhost:3001/auth/facebook/callback` +
+//       `&state=${state}` +
+//       `&scope=email,public_profile`;
+//     res.cookie("facebook_oauth_state", state, {
+//       maxAge: 10 * 60 * 1000, // 10 min
+//       httpOnly: true,
+//       secure: false,
+//       sameSite: "lax",
 //     });
-//   })(req, res, next);
-// };
-// src/controllers/AuthController.js
-
-// Changes For Apple Id Login
-
-// export const loginSuccess = (req, res) => {
-//   if (req.user) {
-//     res.status(200).json({
-//       message: 'Login successful',
-//       user: req.user
+//     res.cookie("selected_role", roleid, {
+//       maxAge: 10 * 60 * 1000,
+//       httpOnly: true,
+//       secure: false,
+//       sameSite: "lax",
 //     });
-//   } else {
-//     res.status(401).json({ message: 'Unauthorized' });
+//     res.redirect(redirectUrl);
+//   } catch (err) {
+//     res.status(500).json({ message: "Server error generating Facebook login" });
 //   }
-// };
+// }
 
-// export const loginFailure = (req, res) => {
-//   res.status(401).json({ message: 'Login failed' });
-// };
+// export async function getFacebookLoginCallback(req, res) {
+//   const { code, state } = req.query;
+//   const storedState = req.cookies["facebook_oauth_state"];
+//   const selectedRole = req.cookies["selected_role"] || 1;
 
-// export const logout = (req, res) => {
-//   req.logout(() => {
-//     res.redirect('/');
-//   });
-// };
+//   if (!code || !state || state !== storedState) {
+//     console.error("[ERROR] Invalid Facebook login attempt");
+//     return res.status(401).json({ message: "Invalid Facebook login attempt" });
+//   }
+
+//   try {
+//     // Exchange code for access token
+//     const tokenRes = await axios.get(
+//       `https://graph.facebook.com/v17.0/oauth/access_token?` +
+//         `client_id=${process.env.FACEBOOK_CLIENT_ID}` +
+//         `&redirect_uri=http://localhost:3001/auth/facebook/callback` +
+//         `&client_secret=${process.env.FACEBOOK_CLIENT_SECRET}` +
+//         `&code=${code}`
+//     );
+
+//     const accessToken = tokenRes.data.access_token;
+
+//     // Fetch user info from Facebook
+//     const userRes = await axios.get(
+//       `https://graph.facebook.com/me?fields=id,first_name,last_name,email&access_token=${accessToken}`
+//     );
+
+//     const fbUser = userRes.data;
+//     console.log("✅ Facebook user data:", fbUser);
+
+//     let user = await getUserByEmail(fbUser.email);
+
+//     if (!user) {
+//       const randomPassword = randomBytes(16).toString("hex");
+//       const hashedPassword = await bcrypt.hash(randomPassword, 10);
+
+//       await createUser({
+//         firstname: fbUser.first_name || "",
+//         lastname: fbUser.last_name || "",
+//         email: fbUser.email,
+//         passwordhash: hashedPassword,
+//         roleId: selectedRole,
+//       });
+
+//       user = await getUserByEmail(fbUser.email);
+//     }
+
+//     // Generate JWT token
+//     const token = generateToken({
+//       id: user.userid,
+//       role: user.roleid,
+//       firstName: user.firstname,
+//       lastName: user.lastname,
+//     });
+
+//     const redirectUrl = `http://localhost:5173/login?token=${token}&userId=${user.userid}&roleId=${user.roleid}&firstName=${user.firstname}&lastName=${user.lastname}`;
+//     console.log(" Redirecting to frontend:", redirectUrl);
+
+//     res.redirect(redirectUrl);
+//   } catch (err) {
+//     console.error("[ERROR] Facebook login callback failed:", err);
+//     return res.status(500).json({ message: "Server error during Facebook login" });
+//   }
+// }

@@ -9,7 +9,7 @@ redisClient.connect().catch(console.error);
 // ---------------- CREATE / UPDATE Campaign Draft ----------------
 export const createMyCampaign = async (req, res) => {
   const userId = req.user?.id || req.body.p_userid;
-  const username=req.user.name
+  const username = req.user.name
 
   if (!userId) {
     return res.status(400).json({ message: "User ID is required" });
@@ -27,13 +27,13 @@ export const createMyCampaign = async (req, res) => {
   const p_vendorinfojson = tryParseJSON(req.body.p_vendorinfojson);
   const p_campaignjson = tryParseJSON(req.body.p_campaignjson);
   const p_contenttypejson = tryParseJSON(req.body.p_contenttypejson);
-  const p_campaigncategoyjson =tryParseJSON(req.body.p_campaigncategoyjson );
+  const p_campaigncategoyjson = tryParseJSON(req.body.p_campaigncategoyjson);
 
   // ---------------- File Handling ----------------
   let p_campaignfilejson = null;
 
   // Photo file (single)
-   if (req.files?.photo && req.files.photo[0]) {
+  if (req.files?.photo && req.files.photo[0]) {
     const file = req.files.photo[0];
     const ext = path.extname(file.originalname);
     const finalName = `${username}_cp_${Date.now()}${ext}`;
@@ -80,14 +80,14 @@ export const createMyCampaign = async (req, res) => {
     //Changes Below For Multiple Files In Edit Options 
 
 
-     // Extract old files array or default to empty array
+    // Extract old files array or default to empty array
     const oldFiles = Array.isArray(existingData.p_campaignfilejson)
       ? existingData.p_campaignfilejson
       : [];
 
-       let newFiles = [];
+    let newFiles = [];
 
-           if (req.files?.Files && req.files.Files.length > 0) {
+    if (req.files?.Files && req.files.Files.length > 0) {
       newFiles = req.files.Files.map((file) => {
         const ext = path.extname(file.originalname);
         const baseName = path.basename(file.originalname, ext);
@@ -103,14 +103,14 @@ export const createMyCampaign = async (req, res) => {
     // Merge old and new files (if any new files exist)
     const p_campaignfilejson = newFiles.length > 0 ? [...oldFiles, ...newFiles] : oldFiles;
 
-      //Changes Below For Multiple Files In Edit Options 
+    //Changes Below For Multiple Files In Edit Options 
 
     const mergedData = {
       p_objectivejson: p_objectivejson || existingData.p_objectivejson || null,
       p_vendorinfojson:
         p_vendorinfojson || existingData.p_vendorinfojson || null,
       p_campaignjson: p_campaignjson || existingData.p_campaignjson || null,
-      p_campaigncategoyjson :p_campaigncategoyjson ||existingData.p_campaigncategoyjson||null,
+      p_campaigncategoyjson: p_campaigncategoyjson || existingData.p_campaigncategoyjson || null,
       p_campaignfilejson:
         p_campaignfilejson || existingData.p_campaignfilejson || null,
       p_contenttypejson:
@@ -131,7 +131,7 @@ export const createMyCampaign = async (req, res) => {
     console.error("❌ createMyCampaign error:", err);
     return res.status(500).json({ status: false, message: err.message });
   }
-};  
+};
 
 // ---------------- FINALIZE Campaign ----------------
 export const finalizeCampaign = async (req, res) => {
@@ -173,7 +173,7 @@ export const finalizeCampaign = async (req, res) => {
         JSON.stringify(campaignData.p_objectivejson || {}),
         JSON.stringify(campaignData.p_vendorinfojson || {}),
         JSON.stringify(campaignData.p_campaignjson || {}),
-        JSON.stringify(campaignData.p_campaigncategoyjson||{}),
+        JSON.stringify(campaignData.p_campaigncategoyjson || {}),
         JSON.stringify(campaignData.p_campaignfilejson || {}),
         JSON.stringify(campaignData.p_contenttypejson || {}),
       ]
@@ -266,6 +266,69 @@ export const getCampaign = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+//..................GET INFLUENCER BROWSE DETAILS...........
+export const getInfluencerBrowseDetails = async (req, res) => {
+
+  try {
+
+    const userId = req.user?.id || req.query.p_userid;
+
+    if (!userId) {
+      return res.status(400).json({ message: "User ID required" })
+    };
+
+    // const redisKey = `getinfluencerbrowsedetails:${userId}`;
+
+    // console.log("Redis Key==>", redisKey);
+
+    // const cachedData = await redisClient.get(redisKey);
+
+    // console.log("CachedData==>", cachedData)
+    // if (cachedData) {
+    //   return res.status(200).json(
+    //     {
+    //       message: "Influencer Browse Details From Redis",
+    //       result: JSON.parse(cachedData),
+    //       source: 'redis',
+    //     })
+    // }
+
+    //Data Given Form DB
+    const result = await client.query(
+      `SELECT * FROM ins.fn_get_influencerbrowsedetails($1::BIGINT)`,
+      [userId]
+    )
+
+    const influencers = result.rows[0]?.fn_get_influencerbrowsedetails;
+
+    //For Chek Data In Influencer
+    // console.log("Influencer data==>",JSON.stringify(influencers))
+
+    //Check For Influencer Data Available Or Not
+    if (!influencers) {
+      return res.status(404).json({ message: "No influencer data found" });
+    }
+    //Store Data In Redis
+    // await redisClient.set(redisKey, JSON.stringify(influencers));
+
+    // await redisClient.setEx(redisKey, 600, JSON.stringify(influencers)); // 10 min cache
+
+    return res.status(200).json({
+      message: "Influencers Browse Details Form DB",
+      result: influencers,
+      source:'db'
+
+    })
+
+  } catch (error) {
+
+    console.log("getInfluencerBrowseDetails error:", error)
+    return res.status(500).json({ message: "Internal server Error" })
+
+  }
+
+}
 
 export const deleteCampaignFile = async (req, res) => {
   try {
