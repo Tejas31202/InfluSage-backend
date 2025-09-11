@@ -63,7 +63,7 @@ export const GetCampaignDetails = async (req, res) => {
     }
 
 
-    const campaignDetails = result.rows[0];
+    const campaignDetails = result.rows[0].fn_get_campaignbrowsedetails;
 
     return res.status(200).json({ data: campaignDetails, source: 'db' });
 
@@ -268,12 +268,16 @@ export const GetSaveCampaign = async (req, res) => {
         pagesize || 20,
       ])
 
+
+
+
     if (result.rows.length === 0) {
       return res.status(404).json({ message: 'Campaign not found.' });
     }
 
 
-    const savedcampaign = result.rows[0].fn_get_campaignsave;
+    const savedcampaign = result.rows[0]?.fn_get_campaignsave;
+
 
     return res.status(200).json({ data: savedcampaign, source: 'db' });
 
@@ -310,9 +314,12 @@ export const GetSingleApplyCampaign = async (req, res) => {
       return res.status(404).json({ message: "No applied campaigns found." });
     }
 
+
+    
+
     // 3️⃣ Just return DB response directly
     return res.status(200).json({
-      data: result.rows,
+      data: result.rows[0]?.fn_get_campaignapplicationdetails,
       source: "db",
     });
   } catch (error) {
@@ -343,7 +350,7 @@ export const GetUserCampaignWithDetails = async (req, res) => {
     );
 
     if (campaignResult.rows.length > 0) {
-      responseData.campaignDetails = campaignResult.rows[0];
+      responseData.campaignDetails = campaignResult.rows[0].fn_get_campaignbrowsedetails;
     }
 
     // 2️⃣ Get applied campaign details (check Redis first)
@@ -359,15 +366,12 @@ export const GetUserCampaignWithDetails = async (req, res) => {
       );
 
       if (appliedResult.rows && appliedResult.rows.length > 0) {
-        responseData.appliedDetails = appliedResult.rows;
+        responseData.appliedDetails = appliedResult.rows[0].fn_get_campaignapplicationdetails;
       }
     }
 
     // 3️⃣ Return combined response
-    return res.status(200).json({
-      status: true,
-      data: responseData,
-    });
+    return res.status(200).json({ data: responseData });
   } catch (error) {
     console.error("❌ Error fetching campaign with details:", error.message);
     return res.status(500).json({ status: false, message: "Internal Server Error" });
