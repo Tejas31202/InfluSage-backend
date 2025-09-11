@@ -6,6 +6,7 @@ import {
   GetLanguages,
   getCategories,
   getProviders,
+  // getPagination
 } from "../controller/CommonController.js";
 
 const routes = express.Router();
@@ -16,6 +17,6 @@ routes.get("/genders", GetGender);
 routes.get("/languages", GetLanguages);
 routes.get("/categories", getCategories);
 routes.get("/providers", getProviders);
-routes.get('/pagination',getPagination);
+// routes.get('/pagination',getPagination);
 
 export default routes;

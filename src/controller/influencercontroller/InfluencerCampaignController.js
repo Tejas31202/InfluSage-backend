@@ -389,6 +389,7 @@ export const browseCampaigns = async (req, res) => {
       sortorder,
       pagenumber,
       pagesize,
+      p_search
     } = req.query;
 
 
@@ -403,7 +404,8 @@ export const browseCampaigns = async (req, res) => {
         $7::text,
         $8::text,
         $9::integer,
-        $10::integer
+        $10::integer,
+        $11::text
       )`,
       [
         userId || null,
@@ -416,6 +418,7 @@ export const browseCampaigns = async (req, res) => {
         sortorder || "DESC",
         pagenumber || 1,
         pagesize || 20,
+        p_search
       ]
     );
 

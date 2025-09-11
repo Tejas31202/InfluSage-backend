@@ -317,7 +317,7 @@ export const getInfluencerBrowseDetails = async (req, res) => {
     return res.status(200).json({
       message: "Influencers Browse Details Form DB",
       result: influencers,
-      source:'db'
+      source: 'db'
 
     })
 
@@ -329,6 +329,79 @@ export const getInfluencerBrowseDetails = async (req, res) => {
   }
 
 }
+
+//..................BROWSE ALL INFLUENCER...............
+export const browseAllInfluencer = async (req, res) => {
+  try {
+
+    const userId = req.user?.id || req.query.p_userid || null;
+
+    //Check For User Id Available OR Not
+    // if (!userId) {
+    //   return res.status(400).json({ message: "User ID is required." });
+    // }
+
+
+    const {
+      p_location = null,
+      p_providers = null,
+      p_influencertiers = null,
+      p_ratings = null,
+      p_genders = null,
+      p_pagenumber = 1,
+      p_pagesize = 20
+
+    } = req.query;
+
+
+
+    const result = await client.query(
+      `SELECT * FROM ins.fn_get_influencerbrowse(
+    $1::BIGINT,
+    $2::TEXT,
+    $3::JSON,
+    $4::JSON,
+    $5::JSON,
+    $6::JSON,
+    $7::INTEGER,
+    $8::INTEGER
+  )`,
+      [
+        userId,
+        p_location,
+        p_providers ? JSON.parse(p_providers) : null,
+        p_influencertiers ? JSON.parse(p_influencertiers) : null,
+        p_ratings ? JSON.parse(p_ratings) : null,
+        p_genders ? JSON.parse(p_genders) : null,
+        p_pagenumber || 1,
+        p_pagesize || 20
+      ]
+    );
+
+
+    const influencers = result.rows;
+
+    //Check For Data
+    console.log("==>", influencers)
+    if (influencers.length === 0) {
+      return res.status(404).json({ message: 'No influencers found.' });
+    }
+
+    return res.status(200).json(
+      {
+        message: "Influencers Get Sucessfully",
+        data: influencers,
+        source: 'db'
+      }
+    )
+
+  } catch (error) {
+    console.log("Failed to Get Influencers sucessfully", error)
+    return res.status(500).json({ message: "Internal Server Error" })
+
+  }
+}
+
 
 export const deleteCampaignFile = async (req, res) => {
   try {
