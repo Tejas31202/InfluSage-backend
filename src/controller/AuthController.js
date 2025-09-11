@@ -90,16 +90,15 @@ export async function getGoogleLoginCallback(req, res) {
 
     // DB check
     let user = await getUserByEmail(data.email);
+    // console.log(user)
 
     if (!user) {
-      // new user hai -> frontend set-password page
-      const redirectUrl = `http://localhost:5173/set-password?email=${encodeURIComponent(
+      const redirectUrl = `http://localhost:5173/roledefault?email=${encodeURIComponent(
         data.email
-      )}&firstName=${encodeURIComponent(
-        data.given_name || ""
-      )}&lastName=${encodeURIComponent(
+      )}&firstName=${encodeURIComponent(data.given_name || "")}&lastName=${encodeURIComponent(
         data.family_name || ""
-      )}&roleId=${selectedRole || 1}`;
+      )}&roleId=${selectedRole || ""}`;
+
       return res.redirect(redirectUrl);
     }
 
@@ -137,11 +136,9 @@ export async function setPasswordAfterGoogleSignup(req, res) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    let existingUser = await getUserByEmail(email);
+    const existingUser = await getUserByEmail(email);
     if (existingUser) {
-      return res
-        .status(400)
-        .json({ message: "User already exists, please login" });
+      return res.status(400).json({ message: "User already exists, please login" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -155,7 +152,7 @@ export async function setPasswordAfterGoogleSignup(req, res) {
     });
 
     const user = await getUserByEmail(email);
-
+    // generate token for newly created user
     const token = generateToken({
       id: user.userid,
       role: user.roleid,
