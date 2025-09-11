@@ -11,6 +11,7 @@ async function getUserByEmail(email) {
     "SELECT * FROM ins.fn_get_loginpassword($1)",
     [email]
   );
+  
   return result.rows[0];
 }
 
@@ -50,7 +51,7 @@ export async function getGoogleLoginPage(req, res) {
       `&scope=openid email profile`;
 
     // role cookie store 
-    res.cookie("selected_role", roleid || 1, {
+    res.cookie("selected_role", roleid, {
       maxAge: 10 * 60 * 1000,
       httpOnly: true,
       secure: false,
@@ -81,44 +82,65 @@ export async function getGoogleLoginCallback(req, res) {
       "http://localhost:3001/auth/google/callback"
     );
 
-    // token exchange
+    // Exchange code for tokens
     const { tokens } = await oauth2Client.getToken(code);
     oauth2Client.setCredentials(tokens);
 
+    // Try getting user info from Google userinfo API
     const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
-    const { data } = await oauth2.userinfo.get();
+    let { data } = await oauth2.userinfo.get();
 
-    // DB check
+    // Fallback: verify id_token to get email if missing
+    if (!data.email && tokens.id_token) {
+      const ticket = await oauth2Client.verifyIdToken({
+        idToken: tokens.id_token,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+      const payload = ticket.getPayload();
+      console.log("✅ Google ID token payload:", payload);
+      data = {
+        ...data,
+        email: payload.email,
+        given_name: payload.given_name,
+        family_name: payload.family_name,
+      };
+      console.log("✅ Fallback user data from ID token:", data);
+    }
+
+    if (!data.email) {
+      console.error("[ERROR] Google login returned no email");
+      return res.status(400).json({ message: "Google login failed: no email found" });
+    }
+
+    // Check if user exists in DB
     let user = await getUserByEmail(data.email);
 
     if (!user) {
-      // new user hai -> frontend set-password page
-      const redirectUrl = `http://localhost:5173/set-password?email=${encodeURIComponent(
+      // New user -> redirect to set-password page
+      const redirectUrl = `http://localhost:5173/setPassword?email=${encodeURIComponent(
         data.email
-      )}&firstName=${encodeURIComponent(
-        data.given_name || ""
-      )}&lastName=${encodeURIComponent(
+      )}&firstName=${encodeURIComponent(data.given_name || "")}&lastName=${encodeURIComponent(
         data.family_name || ""
-      )}&roleId=${selectedRole || 1}`;
+      )}&roleId=${selectedRole }`;
+
       return res.redirect(redirectUrl);
     }
 
-    //  user already exist -> JWT token generate
+    // Existing user -> generate JWT
     const token = generateToken({
       id: user.userid,
       role: user.roleid,
       firstName: user.firstname,
       lastName: user.lastname,
-      email: user.email,
+      email: data.email || user.email,
     });
 
-    const redirectUrl = `http://localhost:5173/login?token=${token}&userId=${
-      user.userid
-    }&roleId=${user.roleid}&firstName=${encodeURIComponent(
-      user.firstname
-    )}&lastName=${encodeURIComponent(user.lastname)}&email=${encodeURIComponent(
-      user.email
-    )}`;
+    // Redirect to frontend with token
+    const redirectUrl = `http://localhost:5173/login?token=${token}&userId=${user.userid}&roleId=${
+      user.roleid
+    }&firstName=${encodeURIComponent(user.firstname)}&lastName=${encodeURIComponent(
+      user.lastname
+    )}&email=${encodeURIComponent(data.email)}`;
 
     res.redirect(redirectUrl);
   } catch (err) {
@@ -128,10 +150,12 @@ export async function getGoogleLoginCallback(req, res) {
 }
 
 
+
 // Set Password After Google Signup
 export async function setPasswordAfterGoogleSignup(req, res) {
   try {
     const { email, firstName, lastName, roleId, password } = req.body;
+    
 
     if (!email || !password || !roleId) {
       return res.status(400).json({ message: "Missing required fields" });
@@ -139,7 +163,7 @@ export async function setPasswordAfterGoogleSignup(req, res) {
 
     let existingUser = await getUserByEmail(email);
     if (existingUser) {
-      return res
+      return res 
         .status(400)
         .json({ message: "User already exists, please login" });
     }
@@ -182,96 +206,100 @@ export async function setPasswordAfterGoogleSignup(req, res) {
   }
 }
 
+// ✅ Facebook OAuth Redirect
+export async function getFacebookLoginPage(req, res) {
+  try {
+    const { roleid } = req.query;
 
-// export async function getFacebookLoginPage(req, res) {
-//   try {
-//     const state = randomBytes(16).toString("hex");
-//     const { roleid } = req.query;
-//     const redirectUrl =
-//       `https://www.facebook.com/v10.0/dialog/oauth?` +
-//       `client_id=${process.env.FACEBOOK_APP_ID}` +
-//       `&redirect_uri=http://localhost:3001/auth/facebook/callback` +
-//       `&state=${state}` +
-//       `&scope=email,public_profile`;
-//     res.cookie("facebook_oauth_state", state, {
-//       maxAge: 10 * 60 * 1000, // 10 min
-//       httpOnly: true,
-//       secure: false,
-//       sameSite: "lax",
-//     });
-//     res.cookie("selected_role", roleid, {
-//       maxAge: 10 * 60 * 1000,
-//       httpOnly: true,
-//       secure: false,
-//       sameSite: "lax",
-//     });
-//     res.redirect(redirectUrl);
-//   } catch (err) {
-//     res.status(500).json({ message: "Server error generating Facebook login" });
-//   }
-// }
+    const redirectUrl =
+      `https://www.facebook.com/v17.0/dialog/oauth?` +
+      `client_id=${process.env.FACEBOOK_CLIENT_ID}` +
+      `&redirect_uri=http://localhost:3001/auth/facebook/callback` +
+      `&scope=email,public_profile`;
 
-// export async function getFacebookLoginCallback(req, res) {
-//   const { code, state } = req.query;
-//   const storedState = req.cookies["facebook_oauth_state"];
-//   const selectedRole = req.cookies["selected_role"] || 1;
+    // role cookie store
+    res.cookie("selected_role", roleid, {
+      maxAge: 10 * 60 * 1000,
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+    });
 
-//   if (!code || !state || state !== storedState) {
-//     console.error("[ERROR] Invalid Facebook login attempt");
-//     return res.status(401).json({ message: "Invalid Facebook login attempt" });
-//   }
+    res.redirect(redirectUrl);
+  } catch (err) {
+    console.error("[ERROR] getFacebookLoginPage:", err);
+    res.status(500).json({ message: "Server error generating Facebook login" });
+  }
+}
 
-//   try {
-//     // Exchange code for access token
-//     const tokenRes = await axios.get(
-//       `https://graph.facebook.com/v17.0/oauth/access_token?` +
-//         `client_id=${process.env.FACEBOOK_CLIENT_ID}` +
-//         `&redirect_uri=http://localhost:3001/auth/facebook/callback` +
-//         `&client_secret=${process.env.FACEBOOK_CLIENT_SECRET}` +
-//         `&code=${code}`
-//     );
+// ✅ Facebook OAuth Callback
+export async function getFacebookLoginCallback(req, res) {
+  const { code } = req.query;
+  const selectedRole = req.cookies["selected_role"];
 
-//     const accessToken = tokenRes.data.access_token;
+  if (!code) {
+    console.error("[ERROR] Invalid Facebook login attempt");
+    return res.status(401).json({ message: "Invalid Facebook login attempt" });
+  }
 
-//     // Fetch user info from Facebook
-//     const userRes = await axios.get(
-//       `https://graph.facebook.com/me?fields=id,first_name,last_name,email&access_token=${accessToken}`
-//     );
+  try {
+    // Exchange code for access token
+    const tokenRes = await axios.get(
+      `https://graph.facebook.com/v17.0/oauth/access_token?` +
+        `client_id=${process.env.FACEBOOK_CLIENT_ID}` +
+        `&redirect_uri=http://localhost:3001/auth/facebook/callback` +
+        `&client_secret=${process.env.FACEBOOK_CLIENT_SECRET}` +
+        `&code=${code}`
+    );
 
-//     const fbUser = userRes.data;
-//     console.log("✅ Facebook user data:", fbUser);
+    const accessToken = tokenRes.data.access_token;
 
-//     let user = await getUserByEmail(fbUser.email);
+    // Fetch user info from Facebook
+    const userRes = await axios.get(
+      `https://graph.facebook.com/me?fields=id,first_name,last_name,email&access_token=${accessToken}`
+    );
 
-//     if (!user) {
-//       const randomPassword = randomBytes(16).toString("hex");
-//       const hashedPassword = await bcrypt.hash(randomPassword, 10);
+    const fbUser = userRes.data;
+    console.log("✅ Facebook user data:", fbUser);
 
-//       await createUser({
-//         firstname: fbUser.first_name || "",
-//         lastname: fbUser.last_name || "",
-//         email: fbUser.email,
-//         passwordhash: hashedPassword,
-//         roleId: selectedRole,
-//       });
+    if (!fbUser.email) {
+      console.error("[ERROR] Facebook login returned no email");
+      return res.status(400).json({ message: "Facebook login failed: no email found" });
+    }
 
-//       user = await getUserByEmail(fbUser.email);
-//     }
+    // Check if user exists
+    let user = await getUserByEmail(fbUser.email);
 
-//     // Generate JWT token
-//     const token = generateToken({
-//       id: user.userid,
-//       role: user.roleid,
-//       firstName: user.firstname,
-//       lastName: user.lastname,
-//     });
+    if (!user) {
+      // New user -> redirect to set-password page
+      const redirectUrl = `http://localhost:5173/setPassword?email=${encodeURIComponent(
+        fbUser.email
+      )}&firstName=${encodeURIComponent(fbUser.first_name || "")}&lastName=${encodeURIComponent(
+        fbUser.last_name || ""
+      )}&roleId=${selectedRole}`;
 
-//     const redirectUrl = `http://localhost:5173/login?token=${token}&userId=${user.userid}&roleId=${user.roleid}&firstName=${user.firstname}&lastName=${user.lastname}`;
-//     console.log(" Redirecting to frontend:", redirectUrl);
+      return res.redirect(redirectUrl);
+    }
 
-//     res.redirect(redirectUrl);
-//   } catch (err) {
-//     console.error("[ERROR] Facebook login callback failed:", err);
-//     return res.status(500).json({ message: "Server error during Facebook login" });
-//   }
-// }
+    // Existing user -> generate token
+    const token = generateToken({
+      id: user.userid,
+      role: user.roleid,
+      firstName: user.firstname,
+      lastName: user.lastname,
+      email: user.email,
+    });
+
+    // Redirect to frontend with token
+    const redirectUrl = `http://localhost:5173/login?token=${token}&userId=${user.userid}&roleId=${
+      user.roleid
+    }&firstName=${encodeURIComponent(user.firstname)}&lastName=${encodeURIComponent(
+      user.lastname
+    )}&email=${encodeURIComponent(user.email)}`;
+
+    res.redirect(redirectUrl);
+  } catch (err) {
+    console.error("[ERROR] Facebook login callback failed:", err);
+    return res.status(500).json({ message: "Server error during Facebook login" });
+  }
+}
