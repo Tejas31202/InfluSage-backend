@@ -11,7 +11,6 @@ async function getUserByEmail(email) {
     "SELECT * FROM ins.fn_get_loginpassword($1)",
     [email]
   );
-  
   return result.rows[0];
 }
 
@@ -51,7 +50,7 @@ export async function getGoogleLoginPage(req, res) {
       `&scope=openid email profile`;
 
     // role cookie store 
-    res.cookie("selected_role", roleid, {
+    res.cookie("selected_role", roleid || 1, {
       maxAge: 10 * 60 * 1000,
       httpOnly: true,
       secure: false,
@@ -82,65 +81,44 @@ export async function getGoogleLoginCallback(req, res) {
       "http://localhost:3001/auth/google/callback"
     );
 
-    // Exchange code for tokens
+    // token exchange
     const { tokens } = await oauth2Client.getToken(code);
     oauth2Client.setCredentials(tokens);
 
-    // Try getting user info from Google userinfo API
     const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
-    let { data } = await oauth2.userinfo.get();
+    const { data } = await oauth2.userinfo.get();
 
-    // Fallback: verify id_token to get email if missing
-    if (!data.email && tokens.id_token) {
-      const ticket = await oauth2Client.verifyIdToken({
-        idToken: tokens.id_token,
-        audience: process.env.GOOGLE_CLIENT_ID,
-      });
-      const payload = ticket.getPayload();
-      console.log("✅ Google ID token payload:", payload);
-      data = {
-        ...data,
-        email: payload.email,
-        given_name: payload.given_name,
-        family_name: payload.family_name,
-      };
-      console.log("✅ Fallback user data from ID token:", data);
-    }
-
-    if (!data.email) {
-      console.error("[ERROR] Google login returned no email");
-      return res.status(400).json({ message: "Google login failed: no email found" });
-    }
-
-    // Check if user exists in DB
+    // DB check
     let user = await getUserByEmail(data.email);
 
     if (!user) {
-      // New user -> redirect to set-password page
-      const redirectUrl = `http://localhost:5173/setPassword?email=${encodeURIComponent(
+      // new user hai -> frontend set-password page
+      const redirectUrl = `http://localhost:5173/roledefault?email=${encodeURIComponent(
         data.email
-      )}&firstName=${encodeURIComponent(data.given_name || "")}&lastName=${encodeURIComponent(
+      )}&roleId=${user.roleid}&firstName=${encodeURIComponent(
+        data.given_name || ""
+      )}&lastName=${encodeURIComponent(
         data.family_name || ""
-      )}&roleId=${selectedRole }`;
-
+      )}`;
       return res.redirect(redirectUrl);
     }
 
-    // Existing user -> generate JWT
+    //  user already exist -> JWT token generate
     const token = generateToken({
       id: user.userid,
       role: user.roleid,
       firstName: user.firstname,
       lastName: user.lastname,
-      email: data.email || user.email,
+      email: user.email,
     });
 
-    // Redirect to frontend with token
-    const redirectUrl = `http://localhost:5173/login?token=${token}&userId=${user.userid}&roleId=${
-      user.roleid
-    }&firstName=${encodeURIComponent(user.firstname)}&lastName=${encodeURIComponent(
-      user.lastname
-    )}&email=${encodeURIComponent(data.email)}`;
+    const redirectUrl = `http://localhost:5173/login?token=${token}&userId=${
+      user.userid
+    }&roleId=${user.roleid}&firstName=${encodeURIComponent(
+      user.firstname
+    )}&lastName=${encodeURIComponent(user.lastname)}&email=${encodeURIComponent(
+      user.email
+    )}`;
 
     res.redirect(redirectUrl);
   } catch (err) {
@@ -149,27 +127,21 @@ export async function getGoogleLoginCallback(req, res) {
   }
 }
 
-
-
 // Set Password After Google Signup
 export async function setPasswordAfterGoogleSignup(req, res) {
   try {
     const { email, firstName, lastName, roleId, password } = req.body;
-    
 
     if (!email || !password || !roleId) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    let existingUser = await getUserByEmail(email);
+    const existingUser = await getUserByEmail(email);
     if (existingUser) {
-      return res 
-        .status(400)
-        .json({ message: "User already exists, please login" });
+      return res.status(400).json({ message: "User already exists, please login" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-
     await createUser({
       firstname: firstName || "",
       lastname: lastName || "",
@@ -179,7 +151,7 @@ export async function setPasswordAfterGoogleSignup(req, res) {
     });
 
     const user = await getUserByEmail(email);
-
+    // generate token for newly created user
     const token = generateToken({
       id: user.userid,
       role: user.roleid,
@@ -206,14 +178,14 @@ export async function setPasswordAfterGoogleSignup(req, res) {
   }
 }
 
-// ✅ Facebook OAuth Redirect
+// Facebook OAuth Redirect
 export async function getFacebookLoginPage(req, res) {
   try {
     const { roleid } = req.query;
 
     const redirectUrl =
       `https://www.facebook.com/v17.0/dialog/oauth?` +
-      `client_id=${process.env.FACEBOOK_CLIENT_ID}` +
+      `client_id=${process.env.FACEBOOK_APP_ID}` +
       `&redirect_uri=http://localhost:3001/auth/facebook/callback` +
       `&scope=email,public_profile`;
 
@@ -232,7 +204,7 @@ export async function getFacebookLoginPage(req, res) {
   }
 }
 
-// ✅ Facebook OAuth Callback
+// Facebook OAuth Callback
 export async function getFacebookLoginCallback(req, res) {
   const { code } = req.query;
   const selectedRole = req.cookies["selected_role"];
@@ -246,9 +218,9 @@ export async function getFacebookLoginCallback(req, res) {
     // Exchange code for access token
     const tokenRes = await axios.get(
       `https://graph.facebook.com/v17.0/oauth/access_token?` +
-        `client_id=${process.env.FACEBOOK_CLIENT_ID}` +
+        `client_id=${process.env.FACEBOOK_APP_ID}` +
         `&redirect_uri=http://localhost:3001/auth/facebook/callback` +
-        `&client_secret=${process.env.FACEBOOK_CLIENT_SECRET}` +
+        `&client_secret=${process.env.FACEBOOK_APP_SECRET}` +
         `&code=${code}`
     );
 
@@ -260,7 +232,7 @@ export async function getFacebookLoginCallback(req, res) {
     );
 
     const fbUser = userRes.data;
-    console.log("✅ Facebook user data:", fbUser);
+    console.log(" Facebook user data:", fbUser);
 
     if (!fbUser.email) {
       console.error("[ERROR] Facebook login returned no email");
