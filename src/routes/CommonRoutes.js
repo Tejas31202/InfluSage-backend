@@ -6,6 +6,7 @@ import {
   GetLanguages,
   getCategories,
   getProviders,
+  getPagination
 } from "../controller/CommonController.js";
 
 const routes = express.Router();
