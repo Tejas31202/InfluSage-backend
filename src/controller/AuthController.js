@@ -3,6 +3,7 @@ import { google } from "googleapis";
 import { generateToken } from "../utils/jwt.js";
 import bcrypt from "bcrypt";
 import dotenv from "dotenv";
+import axios from "axios";
 dotenv.config();
 
 
@@ -204,8 +205,13 @@ export async function getFacebookLoginPage(req, res) {
 
 // Facebook OAuth Callback
 export async function getFacebookLoginCallback(req, res) {
-  const { code } = req.query;
+  const { code , err } = req.query;
   const selectedRole = req.cookies["selected_role"];
+
+   if (err || !code) {
+    console.warn("[INFO] Facebook login canceled or invalid attempt");
+    return res.redirect(`http://localhost:5173/login/`);
+  }
 
   if (!code) {
     console.error("[ERROR] Invalid Facebook login attempt");
@@ -226,7 +232,7 @@ export async function getFacebookLoginCallback(req, res) {
 
     // Fetch user info from Facebook
     const userRes = await axios.get(
-      `https://graph.facebook.com/me?fields=id,first_name,last_name,email&access_token=${accessToken}`
+      `https://graph.facebook.com/me?fields=first_name,last_name,email&access_token=${accessToken}`
     );
 
     const fbUser = userRes.data;
@@ -261,14 +267,17 @@ export async function getFacebookLoginCallback(req, res) {
     });
 
     // Redirect to frontend with token
-    const redirectUrl = `http://localhost:5173/login?token=${token}&userId=${user.userid}&roleId=${user.roleid
-      }&firstName=${encodeURIComponent(user.firstname)}&lastName=${encodeURIComponent(
-        user.lastname
-      )}&email=${encodeURIComponent(user.email)}`;
+
+    const redirectUrl = `http://localhost:5173/login?token=${token}&userId=${user.userid}&roleId=${
+      user.roleid
+    }&firstName=${encodeURIComponent(user.firstname)}&lastName=${encodeURIComponent(
+      user.lastname
+    )}&email=${encodeURIComponent(fbUser.email)}`;
+
 
     res.redirect(redirectUrl);
   } catch (err) {
     console.error("[ERROR] Facebook login callback failed:", err);
-    return res.status(500).json({ message: "Server error during Facebook login" });
+    return res.redirect(`http://localhost:5173/login/`);
   }
 }
