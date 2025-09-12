@@ -1,10 +1,9 @@
-import { client } from '../../config/db.js';
+import { client } from "../../config/db.js";
 
-import redis from 'redis';
+import redis from "redis";
 
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
 redisClient.connect().catch(console.error);
-
 
 // For All Campaign Details
 // export const GetAllCampaign = async (req, res) => {
@@ -47,33 +46,27 @@ redisClient.connect().catch(console.error);
 
 //For Selected Camapign Details
 export const GetCampaignDetails = async (req, res) => {
-
   try {
-
     const { campaignId } = req.params;
 
     const result = await client.query(
-      'select * from ins.fn_get_campaignbrowsedetails($1)',
+      "select * from ins.fn_get_campaignbrowsedetails($1)",
       [campaignId]
     );
 
     //Check From DB Not Found Campaign
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'Campaign not found.' });
+      return res.status(404).json({ message: "Campaign not found." });
     }
-
 
     const campaignDetails = result.rows[0].fn_get_campaignbrowsedetails;
 
-    return res.status(200).json({ data: campaignDetails, source: 'db' });
-
+    return res.status(200).json({ data: campaignDetails, source: "db" });
   } catch (error) {
-
-    console.error('Error fetching campaign details:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
-
+    console.error("Error fetching campaign details:", error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
-}
+};
 
 //For Apply Campaign
 export const ApplyNowCampaign = async (req, res) => {
@@ -88,10 +81,11 @@ export const ApplyNowCampaign = async (req, res) => {
       try {
         applycampaignjson = JSON.parse(req.body.applycampaignjson);
       } catch (err) {
-        return res.status(400).json({ message: "Invalid applycampaignjson format" });
+        return res
+          .status(400)
+          .json({ message: "Invalid applycampaignjson format" });
       }
     }
-    // Handle uploaded portfolio files
     if (req.files && req.files.portfolioFiles) {
       const uploadedFiles = req.files.portfolioFiles.map((file) => {
         // normalize Windows paths -> forward slashes
@@ -103,8 +97,18 @@ export const ApplyNowCampaign = async (req, res) => {
         return { filepath: relativePath };
       });
 
-      // Merge into filepaths array (override or push)
-      applycampaignjson.filepaths = uploadedFiles;
+      // Merge old + new files
+      if (
+        applycampaignjson.filepaths &&
+        Array.isArray(applycampaignjson.filepaths)
+      ) {
+        applycampaignjson.filepaths = [
+          ...applycampaignjson.filepaths,
+          ...uploadedFiles,
+        ];
+      } else {
+        applycampaignjson.filepaths = uploadedFiles;
+      }
     }
     // Save in DB
     const result = await client.query(
@@ -115,13 +119,7 @@ export const ApplyNowCampaign = async (req, res) => {
           $4::boolean,
           $5::text
       )`,
-      [
-        userId,
-        campaignId,
-        JSON.stringify(applycampaignjson),
-        null,
-        null
-      ]
+      [userId, campaignId, JSON.stringify(applycampaignjson), null, null]
     );
 
     const { p_status, p_message } = result.rows[0];
@@ -144,17 +142,16 @@ export const ApplyNowCampaign = async (req, res) => {
 //For Applied Campaign
 export const GetUsersAppliedCampaigns = async (req, res) => {
   try {
-
     const userId = req.user?.id || req.body.userId;
     const {
-      p_sortby = 'createddate',
-      p_sortorder = 'DESC',
+      p_sortby = "createddate",
+      p_sortorder = "DESC",
       p_pagenumber = 1,
       p_pagesize = 20,
       p_search,
     } = {
       ...req.query,
-      ...req.params
+      ...req.params,
     };
     const redisKey = `applyCampaign:${userId}:${p_sortby}:${p_sortorder}:${p_pagenumber}:${p_pagesize}`;
 
@@ -177,12 +174,7 @@ export const GetUsersAppliedCampaigns = async (req, res) => {
       $5::int,
       $6::text)`,
 
-      [userId,
-        p_sortby,
-        p_sortorder,
-        p_pagenumber,
-        p_pagesize,
-        p_search]
+      [userId, p_sortby, p_sortorder, p_pagenumber, p_pagesize, p_search]
     );
 
     //Check Db Return Data OR Not
@@ -203,14 +195,14 @@ export const GetUsersAppliedCampaigns = async (req, res) => {
 
 //For Save Campaign
 export const SaveCampaign = async (req, res) => {
-
   try {
     const userId = req.user?.id || req.body.userId;
     const campaignId = req.params.campaignId;
 
-
     if (!campaignId || !userId) {
-      return res.status(400).json({ message: 'User ID and Campaign ID are required.' });
+      return res
+        .status(400)
+        .json({ message: "User ID and Campaign ID are required." });
     }
 
     //comment (// const CheckCampaign = await client.query(`SELECT * FROM ins.fn_get_campaignsave($1)`, [userid])
@@ -224,37 +216,30 @@ export const SaveCampaign = async (req, res) => {
     //     return res.status(200).json({ message: 'You have already save to this campaign.' });
     // })
 
+    const SaveCampaign = await client.query(
+      `CALL ins.usp_insert_campaignsave($1::bigint,$2::bigint, $3, $4)`,
+      [userId, campaignId, null, null]
+    );
 
-
-    const SaveCampaign = await client.query(`CALL ins.usp_insert_campaignsave($1::bigint,$2::bigint, $3, $4)`, [userId, campaignId, null, null]);
-
-    const { p_message } = SaveCampaign.rows[0]
+    const { p_message } = SaveCampaign.rows[0];
     return res.status(201).json({
-      message: p_message
+      message: p_message,
     });
-
   } catch (error) {
-    console.error('Error saving campaign application:', error);
-    return res.status(500).json({ message: 'Internal Server Error' });
+    console.error("Error saving campaign application:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
-}
+};
 
 //For Get Save Camapign
 export const GetSaveCampaign = async (req, res) => {
-
   try {
     const userId = req.user?.id || req.body.userId;
     if (!userId) {
-      return res.status(400).json({ message: "User Id Required." })
+      return res.status(400).json({ message: "User Id Required." });
     }
 
-    const {
-      sortby,
-      sortorder,
-      pagenumber,
-      pagesize,
-      p_search
-    } = req.query;
+    const { sortby, sortorder, pagenumber, pagesize, p_search } = req.query;
 
     const result = await client.query(
       `SELECT * FROM ins.fn_get_campaignsave(
@@ -271,34 +256,28 @@ export const GetSaveCampaign = async (req, res) => {
         sortorder || "DESC",
         pagenumber || 1,
         pagesize || 20,
-        p_search
-      ])
-
-
-
+        p_search,
+      ]
+    );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'Campaign not found.' });
+      return res.status(404).json({ message: "Campaign not found." });
     }
-
 
     const savedcampaign = result.rows[0]?.fn_get_campaignsave;
 
-
-    return res.status(200).json({ data: savedcampaign, source: 'db' });
-
+    return res.status(200).json({ data: savedcampaign, source: "db" });
   } catch (error) {
-    console.error('Error saving campaign application:', error);
-    return res.status(500).json({ message: 'Internal Server Error' });
+    console.error("Error saving campaign application:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
-
-}
+};
 
 //For Apply Single Campaign
 export const GetSingleApplyCampaign = async (req, res) => {
   try {
     const userId = req.user?.id || req.userId;
-    const { campaignId } = req.params
+    const { campaignId } = req.params;
     const redisKey = `applyCampaign:${userId}:${campaignId}`;
 
     // 1️⃣ Try cache first
@@ -320,9 +299,6 @@ export const GetSingleApplyCampaign = async (req, res) => {
       return res.status(404).json({ message: "No applied campaigns found." });
     }
 
-
-
-
     // 3️⃣ Just return DB response directly
     return res.status(200).json({
       data: result.rows[0]?.fn_get_campaignapplicationdetails,
@@ -341,7 +317,9 @@ export const GetUserCampaignWithDetails = async (req, res) => {
     const { campaignId } = req.params;
 
     if (!userId || !campaignId) {
-      return res.status(400).json({ message: "UserId and CampaignId are required." });
+      return res
+        .status(400)
+        .json({ message: "UserId and CampaignId are required." });
     }
 
     let responseData = {
@@ -356,7 +334,8 @@ export const GetUserCampaignWithDetails = async (req, res) => {
     );
 
     if (campaignResult.rows.length > 0) {
-      responseData.campaignDetails = campaignResult.rows[0].fn_get_campaignbrowsedetails;
+      responseData.campaignDetails =
+        campaignResult.rows[0].fn_get_campaignbrowsedetails;
     }
 
     // 2️⃣ Get applied campaign details (check Redis first)
@@ -372,7 +351,8 @@ export const GetUserCampaignWithDetails = async (req, res) => {
       );
 
       if (appliedResult.rows && appliedResult.rows.length > 0) {
-        responseData.appliedDetails = appliedResult.rows[0].fn_get_campaignapplicationdetails;
+        responseData.appliedDetails =
+          appliedResult.rows[0].fn_get_campaignapplicationdetails;
       }
     }
 
@@ -380,11 +360,13 @@ export const GetUserCampaignWithDetails = async (req, res) => {
     return res.status(200).json({ data: responseData });
   } catch (error) {
     console.error("❌ Error fetching campaign with details:", error.message);
-    return res.status(500).json({ status: false, message: "Internal Server Error" });
+    return res
+      .status(500)
+      .json({ status: false, message: "Internal Server Error" });
   }
 };
 
-//For Browse Campaigns 
+//For Browse Campaigns
 export const browseCampaigns = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
@@ -399,9 +381,8 @@ export const browseCampaigns = async (req, res) => {
       sortorder,
       pagenumber,
       pagesize,
-      p_search
+      p_search,
     } = req.query;
-
 
     const result = await client.query(
       `SELECT * FROM ins.fn_get_campaignbrowse(
@@ -428,7 +409,7 @@ export const browseCampaigns = async (req, res) => {
         sortorder || "DESC",
         pagenumber || 1,
         pagesize || 20,
-        p_search
+        p_search,
       ]
     );
 
@@ -438,6 +419,3 @@ export const browseCampaigns = async (req, res) => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
-
-
-
