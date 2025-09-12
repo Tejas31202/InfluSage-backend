@@ -240,14 +240,14 @@ export async function getFacebookLoginCallback(req, res) {
 
     // Check if user exists
     let user = await getUserByEmail(fbUser.email);
-
+        
     if (!user) {
-      // New user -> redirect to set-password page
-      const redirectUrl = `http://localhost:5173/setPassword?email=${encodeURIComponent(
+      // New user → redirect to role
+      const redirectUrl = `http://localhost:5173/roledefault?email=${encodeURIComponent(
         fbUser.email
       )}&firstName=${encodeURIComponent(fbUser.first_name || "")}&lastName=${encodeURIComponent(
         fbUser.last_name || ""
-      )}&roleId=${selectedRole}`;
+      )}&roleId=${selectedRole || ""}`;
 
       return res.redirect(redirectUrl);
     }
