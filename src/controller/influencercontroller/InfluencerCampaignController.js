@@ -151,6 +151,7 @@ export const GetUsersAppliedCampaigns = async (req, res) => {
       p_sortorder = 'DESC',
       p_pagenumber = 1,
       p_pagesize = 20,
+      p_search,
     } = {
       ...req.query,
       ...req.params
@@ -173,13 +174,15 @@ export const GetUsersAppliedCampaigns = async (req, res) => {
       $2::text,
       $3::text,
       $4::int,
-      $5::int)`,
+      $5::int,
+      $6::text)`,
 
       [userId,
         p_sortby,
         p_sortorder,
         p_pagenumber,
-        p_pagesize]
+        p_pagesize,
+        p_search]
     );
 
     //Check Db Return Data OR Not
@@ -250,6 +253,7 @@ export const GetSaveCampaign = async (req, res) => {
       sortorder,
       pagenumber,
       pagesize,
+      p_search
     } = req.query;
 
     const result = await client.query(
@@ -258,7 +262,8 @@ export const GetSaveCampaign = async (req, res) => {
       $2:: text,
       $3:: text,
       $4:: integer,
-      $5:: integer 
+      $5:: integer,
+      $6:: text 
       )`,
       [
         userId || null,
@@ -266,6 +271,7 @@ export const GetSaveCampaign = async (req, res) => {
         sortorder || "DESC",
         pagenumber || 1,
         pagesize || 20,
+        p_search
       ])
 
 
@@ -315,7 +321,7 @@ export const GetSingleApplyCampaign = async (req, res) => {
     }
 
 
-    
+
 
     // 3️⃣ Just return DB response directly
     return res.status(200).json({
