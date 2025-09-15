@@ -1,11 +1,10 @@
-import { client } from "../config/db.js";
-import { google } from "googleapis";
-import { generateToken } from "../utils/jwt.js";
-import bcrypt from "bcrypt";
-import dotenv from "dotenv";
-import axios from "axios";
+import { client } from '../config/Db.js';
+import { google } from 'googleapis';
+import { generateToken } from '../utils/jwt.js';
+import bcrypt from 'bcrypt';
+import dotenv from 'dotenv';
+import axios from 'axios';
 dotenv.config();
-
 
 async function getUserByEmail(email) {
   const result = await client.query(
@@ -50,7 +49,7 @@ export async function getGoogleLoginPage(req, res) {
       `&response_type=code` +
       `&scope=openid email profile`;
 
-    // role cookie store 
+    // role cookie store
     res.cookie("selected_role", roleid || 1, {
       maxAge: 10 * 60 * 1000,
       httpOnly: true,
@@ -96,9 +95,11 @@ export async function getGoogleLoginCallback(req, res) {
     if (!user) {
       const redirectUrl = `http://localhost:5173/roledefault?email=${encodeURIComponent(
         data.email
-      )}&firstName=${encodeURIComponent(data.given_name || "")}&lastName=${encodeURIComponent(
-        data.family_name || ""
-      )}&roleId=${selectedRole || ""}`;
+      )}&firstName=${encodeURIComponent(
+        data.given_name || ""
+      )}&lastName=${encodeURIComponent(data.family_name || "")}&roleId=${
+        selectedRole || ""
+      }`;
 
       return res.redirect(redirectUrl);
     }
@@ -112,17 +113,20 @@ export async function getGoogleLoginCallback(req, res) {
       email: user.email,
     });
 
-    const redirectUrl = `http://localhost:5173/login?token=${token}&userId=${user.userid
-      }&roleId=${user.roleid}&firstName=${encodeURIComponent(
-        user.firstname
-      )}&lastName=${encodeURIComponent(user.lastname)}&email=${encodeURIComponent(
-        user.email
-      )}`;
+    const redirectUrl = `http://localhost:5173/login?token=${token}&userId=${
+      user.userid
+    }&roleId=${user.roleid}&firstName=${encodeURIComponent(
+      user.firstname
+    )}&lastName=${encodeURIComponent(user.lastname)}&email=${encodeURIComponent(
+      user.email
+    )}`;
 
     res.redirect(redirectUrl);
   } catch (err) {
     console.error("[ERROR] Google login callback failed:", err);
-    return res.status(500).json({ message: "Server error during Google login" });
+    return res
+      .status(500)
+      .json({ message: "Server error during Google login" });
   }
 }
 
@@ -137,7 +141,9 @@ export async function setPasswordAfterGoogleSignup(req, res) {
 
     const existingUser = await getUserByEmail(email);
     if (existingUser) {
-      return res.status(400).json({ message: "User already exists, please login" });
+      return res
+        .status(400)
+        .json({ message: "User already exists, please login" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -173,7 +179,9 @@ export async function setPasswordAfterGoogleSignup(req, res) {
     });
   } catch (err) {
     console.error("[ERROR] setPasswordAfterGoogleSignup failed:", err);
-    return res.status(500).json({ message: "Server error while creating user" });
+    return res
+      .status(500)
+      .json({ message: "Server error while creating user" });
   }
 }
 
@@ -205,10 +213,10 @@ export async function getFacebookLoginPage(req, res) {
 
 // Facebook OAuth Callback
 export async function getFacebookLoginCallback(req, res) {
-  const { code , err } = req.query;
+  const { code, err } = req.query;
   const selectedRole = req.cookies["selected_role"];
 
-   if (err || !code) {
+  if (err || !code) {
     console.warn("[INFO] Facebook login canceled or invalid attempt");
     return res.redirect(`http://localhost:5173/login/`);
   }
@@ -222,10 +230,10 @@ export async function getFacebookLoginCallback(req, res) {
     // Exchange code for access token
     const tokenRes = await axios.get(
       `https://graph.facebook.com/v17.0/oauth/access_token?` +
-      `client_id=${process.env.FACEBOOK_APP_ID}` +
-      `&redirect_uri=http://localhost:3001/auth/facebook/callback` +
-      `&client_secret=${process.env.FACEBOOK_APP_SECRET}` +
-      `&code=${code}`
+        `client_id=${process.env.FACEBOOK_APP_ID}` +
+        `&redirect_uri=http://localhost:3001/auth/facebook/callback` +
+        `&client_secret=${process.env.FACEBOOK_APP_SECRET}` +
+        `&code=${code}`
     );
 
     const accessToken = tokenRes.data.access_token;
@@ -240,7 +248,9 @@ export async function getFacebookLoginCallback(req, res) {
 
     if (!fbUser.email) {
       console.error("[ERROR] Facebook login returned no email");
-      return res.status(400).json({ message: "Facebook login failed: no email found" });
+      return res
+        .status(400)
+        .json({ message: "Facebook login failed: no email found" });
     }
 
     // Check if user exists
@@ -250,9 +260,11 @@ export async function getFacebookLoginCallback(req, res) {
       // New user → redirect to role
       const redirectUrl = `http://localhost:5173/roledefault?email=${encodeURIComponent(
         fbUser.email
-      )}&firstName=${encodeURIComponent(fbUser.first_name || "")}&lastName=${encodeURIComponent(
-        fbUser.last_name || ""
-      )}&roleId=${selectedRole || ""}`;
+      )}&firstName=${encodeURIComponent(
+        fbUser.first_name || ""
+      )}&lastName=${encodeURIComponent(fbUser.last_name || "")}&roleId=${
+        selectedRole || ""
+      }`;
 
       return res.redirect(redirectUrl);
     }
@@ -268,12 +280,13 @@ export async function getFacebookLoginCallback(req, res) {
 
     // Redirect to frontend with token
 
-    const redirectUrl = `http://localhost:5173/login?token=${token}&userId=${user.userid}&roleId=${
-      user.roleid
-    }&firstName=${encodeURIComponent(user.firstname)}&lastName=${encodeURIComponent(
-      user.lastname
-    )}&email=${encodeURIComponent(fbUser.email)}`;
-
+    const redirectUrl = `http://localhost:5173/login?token=${token}&userId=${
+      user.userid
+    }&roleId=${user.roleid}&firstName=${encodeURIComponent(
+      user.firstname
+    )}&lastName=${encodeURIComponent(user.lastname)}&email=${encodeURIComponent(
+      fbUser.email
+    )}`;
 
     res.redirect(redirectUrl);
   } catch (err) {

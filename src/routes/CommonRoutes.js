@@ -1,21 +1,20 @@
-import express from "express";
+import express from 'express';
 import {
   getRoles,
   getContentTypes,
-  GetGender,
-  GetLanguages,
+  getGenders,
+  getLanguages,
   getCategories,
   getProviders,
-} from "../controller/CommonController.js";
+} from '../controller/CommonController.js';
 
 const routes = express.Router();
 
 routes.get("/roles", getRoles);
 routes.get("/content-type", getContentTypes);
-routes.get("/genders", GetGender);
-routes.get("/languages", GetLanguages);
+routes.get("/genders", getGenders);
+routes.get("/languages", getLanguages);
 routes.get("/categories", getCategories);
 routes.get("/providers", getProviders);
-// routes.get('/pagination',getPagination);
 
 export default routes;

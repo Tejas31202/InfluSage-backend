@@ -1,8 +1,9 @@
-import { client } from '../../config/db.js';
-import bcrypt from "bcrypt";
+
+import { client } from '../../config/Db.js';
+import bcrypt from 'bcrypt';
 import crypto from 'crypto';
-import jwt from "jsonwebtoken";
-import sendingMail from "../../utils/MailUtils.js";
+import jwt from 'jsonwebtoken';
+import sendingMail from '../../utils/MailUtils.js';
 import redis from 'redis';
 
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
@@ -12,7 +13,10 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 // Utility: Check if email exists using stored procedure
 async function isEmailExists(email) {
-  const result = await client.query(`CALL ins.usp_is_registered($1::VARCHAR,NULL,NULL)`, [email]);
+  const result = await client.query(
+    `CALL ins.usp_is_registered($1::VARCHAR,NULL,NULL)`,
+    [email]
+  );
   const isUserExists = result.rows[0].p_isregistered;
   return isUserExists;
 }
@@ -26,14 +30,16 @@ function generateOTP() {
 export const requestRegistration = async (req, res) => {
   try {
     // console.log("Setting pendingUser in Redis:", normalizedEmail);
-const keys = await redisClient.keys("*");
-console.log("Redis keys after registration:", keys);
+    const keys = await redisClient.keys("*");
+    console.log("Redis keys after registration:", keys);
 
     const { firstName, lastName, email, roleId, password } = req.body;
     const normalizedEmail = email.toLowerCase();
 
     if (await isEmailExists(normalizedEmail)) {
-      return res.status(400).json({ message: 'User with this email already exists.' });
+      return res
+        .status(400)
+        .json({ message: "User with this email already exists." });
     }
 
     const passwordhash = await bcrypt.hash(password, 10);
@@ -47,27 +53,32 @@ console.log("Redis keys after registration:", keys);
     // Store user data in Redis (5 minutes expiry)
     await redisClient.setEx(
       `pendingUser:${normalizedEmail}`,
-      300, 
-      JSON.stringify({ firstName, lastName, email: normalizedEmail, roleId, passwordhash })
+      300,
+      JSON.stringify({
+        firstName,
+        lastName,
+        email: normalizedEmail,
+        roleId,
+        passwordhash,
+      })
     );
 
     // Store OTP in Redis (2 minutes expiry)
     await redisClient.setEx(`otp:${normalizedEmail}`, 300, otpCode);
 
     // Send OTP email
-    await sendingMail(
-      normalizedEmail,
-      "InflueSage OTP Verification",
-      otpCode
-    );
+    await sendingMail(normalizedEmail, "InflueSage OTP Verification", otpCode);
 
-    res.status(200).json({ message: 'OTP sent to email. Complete verification to register.' });
+    res
+      .status(200)
+      .json({
+        message: "OTP sent to email. Complete verification to register.",
+      });
   } catch (error) {
     console.error("Request Registration Error:", error);
     res.status(500).json({ message: "Error during registration request." });
   }
 };
-
 
 // Step 2: Verify OTP and Register User
 export const verifyOtpAndRegister = async (req, res) => {
@@ -96,10 +107,13 @@ export const verifyOtpAndRegister = async (req, res) => {
     console.log(" pendingUser data from Redis:", userDataStr);
 
     if (!userDataStr) {
-      return res.status(400).json({ message: "No pending registration found." });
+      return res
+        .status(400)
+        .json({ message: "No pending registration found." });
     }
 
-    const { firstName, lastName, roleId, passwordhash } = JSON.parse(userDataStr);
+    const { firstName, lastName, roleId, passwordhash } =
+      JSON.parse(userDataStr);
 
     // Insert user into DB
     const result = await client.query(
@@ -118,10 +132,11 @@ export const verifyOtpAndRegister = async (req, res) => {
     return res.status(p_code).json({ message: p_message });
   } catch (error) {
     console.error(" OTP Verification & Registration Error:", error);
-    res.status(500).json({ message: "Error verifying OTP or registering user." });
+    res
+      .status(500)
+      .json({ message: "Error verifying OTP or registering user." });
   }
 };
-
 
 // This function is used to login a user
 export const loginUser = async (req, res) => {
@@ -135,11 +150,12 @@ export const loginUser = async (req, res) => {
     }
 
     const userPasswordResult = await client.query(
-      'SELECT * FROM ins.fn_get_loginpassword($1::VARCHAR)',
+      "SELECT * FROM ins.fn_get_loginpassword($1::VARCHAR)",
       [email]
     );
 
-    const { passwordhash, roleid, userid, firstname, lastname } = userPasswordResult.rows[0];
+    const { passwordhash, roleid, userid, firstname, lastname } =
+      userPasswordResult.rows[0];
 
     // Compare entered password with hashed password
     const isMatch = await bcrypt.compare(password, passwordhash);
@@ -150,9 +166,14 @@ export const loginUser = async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { id: userid, email: email, role: roleid,name: `${firstname}_${lastname}`},
+      {
+        id: userid,
+        email: email,
+        role: roleid,
+        name: `${firstname}_${lastname}`,
+      },
       JWT_SECRET,
-      { expiresIn: '1h' }
+      { expiresIn: "1h" }
     );
 
     // Success response
@@ -161,12 +182,11 @@ export const loginUser = async (req, res) => {
       token, // ← send to frontend
       id: userid,
       firstName: firstname,
-      lastName : lastname,
+      lastName: lastname,
       name: firstname + " " + lastname,
       email: email,
       role: roleid,
     });
-
   } catch (error) {
     console.error("Login error:", error);
     return res.status(500).json({ message: "Server error during login" });
@@ -185,11 +205,7 @@ export const resendOtp = async (req, res) => {
     console.log("Generated OTP:", otpCode);
 
     // Send Email with OTP
-    await sendingMail(
-      email,
-      "InflueSage OTP Verification - Resend",
-      otpCode
-    );
+    await sendingMail(email, "InflueSage OTP Verification - Resend", otpCode);
 
     // Store OTP in Redis with 120 sec expiry
     await redisClient.setEx(`otp:${email}`, 120, otpCode);
@@ -197,7 +213,7 @@ export const resendOtp = async (req, res) => {
     // Reset pendingUser TTL if user exists
     const userData = await redisClient.get(`pendingUser:${email}`);
     if (userData) {
-      await redisClient.expire(`pendingUser:${email}`, 300); 
+      await redisClient.expire(`pendingUser:${email}`, 300);
       console.log("Pending user TTL reset for:", email);
     }
 
@@ -208,9 +224,8 @@ export const resendOtp = async (req, res) => {
   }
 };
 
-
 // this function is used to reset the password of a user
-export const forgetPassword = async (req, res) => {
+export const forgotPassword = async (req, res) => {
   const { email } = req.body;
 
   try {
@@ -221,13 +236,13 @@ export const forgetPassword = async (req, res) => {
     }
 
     const user = await client.query(
-      'SELECT * FROM ins.fn_get_loginpassword($1::VARCHAR)',
+      "SELECT * FROM ins.fn_get_loginpassword($1::VARCHAR)",
       [email]
     );
 
     const userId = user.rows[0].userid;
 
-    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetToken = crypto.randomBytes(32).toString("hex");
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
     await redisClient.setEx(`reset:${resetToken}`, 300, userId);
@@ -241,8 +256,10 @@ export const forgetPassword = async (req, res) => {
 
     return res.status(200).json({ message: "Reset link sent to email." });
   } catch (error) {
-    console.error('Forget Password Error:', error);
-    return res.status(500).json({ message: "Error initiating password reset." });
+    console.error("Forget Password Error:", error);
+    return res
+      .status(500)
+      .json({ message: "Error initiating password reset." });
   }
 };
 
@@ -252,7 +269,9 @@ export const resetPassword = async (req, res) => {
     // Get email from Redis using token
     const userId = await redisClient.get(`reset:${token}`);
     if (!userId) {
-      return res.status(400).json({ message: "Invalid or expired reset token." });
+      return res
+        .status(400)
+        .json({ message: "Invalid or expired reset token." });
     }
 
     // Hash new password
@@ -273,9 +292,8 @@ export const resetPassword = async (req, res) => {
     } else {
       return res.status(400).json({ message: p_message });
     }
-
   } catch (error) {
-    console.error('Reset Password Error:', error);
+    console.error("Reset Password Error:", error);
     return res.status(500).json({ message: "Error resetting password." });
   }
 };

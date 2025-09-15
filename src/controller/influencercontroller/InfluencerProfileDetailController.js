@@ -1,9 +1,7 @@
-import { Client } from "pg";
-import fs from "fs";
-import path from "path";
-import { client } from "../../config/db.js";
-// import authenticateUser from "../middleware/AuthMiddleware.js";
-import redis from "redis";
+import { client } from '../../config/Db.js';
+import redis from 'redis';
+import path from 'path';
+import fs from 'fs';
 
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
 redisClient.connect().catch(console.error);
@@ -75,7 +73,7 @@ export const completeUserProfile = async (req, res) => {
 
           // Preserve existing filepaths if any
           const existingPaths = Array.isArray(parsedPortfolio.filepaths)
-            ? parsedPortfolio.filepaths.filter(p => p?.filepath)
+            ? parsedPortfolio.filepaths.filter((p) => p?.filepath)
             : [];
 
           // Add new uploaded files
@@ -92,7 +90,6 @@ export const completeUserProfile = async (req, res) => {
       }
     }
 
-    
     // ---------------------------
     // 4 Merge incoming data (safe JSON.parse)
     // ---------------------------
@@ -117,13 +114,6 @@ export const completeUserProfile = async (req, res) => {
       }),
       ...(paymentjson && { paymentjson: safeParse(paymentjson) }),
     };
-
-    // const allPartsPresent =
-    //   mergedData.profilejson &&
-    //   mergedData.socialaccountjson &&
-    //   mergedData.categoriesjson &&
-    //   mergedData.portfoliojson &&
-    //   mergedData.paymentjson;
 
     // ---------------------------
     // 5 Check existing profile from DB
@@ -153,7 +143,7 @@ export const completeUserProfile = async (req, res) => {
             )`,
           [
             userId,
-            JSON.stringify(mergedData.profilejson ),
+            JSON.stringify(mergedData.profilejson),
             JSON.stringify(mergedData.socialaccountjson),
             JSON.stringify(mergedData.categoriesjson),
             JSON.stringify(mergedData.portfoliojson),
@@ -245,7 +235,7 @@ export const completeUserProfile = async (req, res) => {
           ]
         );
         await client.query("COMMIT");
-        await redisClient.del(redisKey);
+        // await redisClient.del(redisKey);
 
         const { p_status, p_message } = result.rows[0] || {};
         if (p_status === true) {
@@ -357,33 +347,6 @@ export const getUserNameByEmail = async (req, res) => {
   }
 };
 
-// export const getCategories = async (req, res) => {
-//   const redisKey = "categories";
-
-//   try {
-//     const cachedData = await redisClient.get(redisKey);
-
-//     if (cachedData) {
-//       return res.status(200).json({
-//         categories: JSON.parse(cachedData),
-//         source: "redis",
-//       });
-//     }
-
-//     const result = await client.query("select * from ins.fn_get_categories();");
-
-//     await redisClient.setEx(redisKey, 300, JSON.stringify(result.rows)); // TTL 5 mins
-
-//     return res.status(200).json({
-//       categories: result.rows,
-//       source: "db",
-//     });
-//   } catch (error) {
-//     console.error("Error fetching categories:", error);
-//     return res.status(500).json({ message: "Failed to fetch categories" });
-//   }
-// };
-
 export const deletePortfolioFile = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
@@ -403,25 +366,20 @@ export const deletePortfolioFile = async (req, res) => {
     if (profileData) {
       profileData = JSON.parse(profileData);
 
-
       if (profileData.portfoliojson) {
         profileData.portfoliojson = profileData.portfoliojson.filter(
           (file) => file.filepath !== filePathToDelete
         );
 
-      
         await redisClient.set(redisKey, JSON.stringify(profileData));
       }
     }
 
     const uploadDir = path.join(process.cwd(), "src", "uploads", "influencer");
 
-    
     const fileName = path.basename(filePathToDelete);
 
- 
     const fullPath = path.join(uploadDir, fileName);
-
 
     if (fs.existsSync(fullPath)) {
       fs.unlinkSync(fullPath);

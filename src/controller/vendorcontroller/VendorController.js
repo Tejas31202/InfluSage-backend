@@ -1,8 +1,8 @@
-import { client } from '../../config/db.js';
-import bcrypt from "bcrypt";
+import { client } from '../../config/Db.js';
+import bcrypt from 'bcrypt';
 import crypto from 'crypto';
-import jwt from "jsonwebtoken";
-import sendingMail from "../../utils/MailUtils.js";
+import jwt from 'jsonwebtoken';
+import sendingMail from '../../utils/MailUtils.js';
 import redis from 'redis';
 
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
@@ -12,7 +12,10 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 // Utility: Check if email exists using stored procedure
 async function isEmailExists(email) {
-  const result = await client.query(`CALL ins.usp_is_registered($1::VARCHAR,NULL,NULL,NULL)`, [email]);
+  const result = await client.query(
+    `CALL ins.usp_is_registered($1::VARCHAR,NULL,NULL,NULL)`,
+    [email]
+  );
   const isUserExists = result.rows[0].p_isregistered;
   return isUserExists;
 }
@@ -27,7 +30,9 @@ export const requestRegistration = async (req, res) => {
   const { firstName, lastName, email, roleId, password } = req.body;
   try {
     if (await isEmailExists(email)) {
-      return res.status(400).json({ message: 'Vendor with this email already exists.' });
+      return res
+        .status(400)
+        .json({ message: "Vendor with this email already exists." });
     }
 
     const passwordhash = await bcrypt.hash(password, 10);
@@ -43,10 +48,14 @@ export const requestRegistration = async (req, res) => {
 
     await sendingMail(email, "InflueSage OTP Verification", otpCode);
 
-    res.status(200).json({ message: 'OTP sent to email. Complete verification to register.' });
+    res
+      .status(200)
+      .json({
+        message: "OTP sent to email. Complete verification to register.",
+      });
   } catch (error) {
-    console.error('Request Registration Error:', error);
-    res.status(500).json({ message: 'Error initiating registration.' });
+    console.error("Request Registration Error:", error);
+    res.status(500).json({ message: "Error initiating registration." });
   }
 };
 
@@ -64,9 +73,12 @@ export const verifyOtpAndRegister = async (req, res) => {
 
     const vendorDataStr = await redisClient.get(`pendingVendor:${email}`);
     if (!vendorDataStr) {
-      return res.status(400).json({ message: "No pending registration found." });
+      return res
+        .status(400)
+        .json({ message: "No pending registration found." });
     }
-    const { firstName, lastName, roleId, passwordhash } = JSON.parse(vendorDataStr);
+    const { firstName, lastName, roleId, passwordhash } =
+      JSON.parse(vendorDataStr);
 
     // Insert vendor into DB
     const result = await client.query(
@@ -82,8 +94,10 @@ export const verifyOtpAndRegister = async (req, res) => {
 
     return res.status(p_code).json({ message: p_message });
   } catch (error) {
-    console.error('OTP Verification & Registration Error:', error);
-    res.status(500).json({ message: "Error verifying OTP or registering vendor." });
+    console.error("OTP Verification & Registration Error:", error);
+    res
+      .status(500)
+      .json({ message: "Error verifying OTP or registering vendor." });
   }
 };
 
@@ -99,11 +113,12 @@ export const loginVendor = async (req, res) => {
     }
 
     const vendorPasswordResult = await client.query(
-      'SELECT * FROM ins.fn_get_loginpassword($1::VARCHAR)',
+      "SELECT * FROM ins.fn_get_loginpassword($1::VARCHAR)",
       [email]
     );
 
-    const { passwordhash, roleid, vendorid, firstname, lastname } = vendorPasswordResult.rows[0];
+    const { passwordhash, roleid, vendorid, firstname, lastname } =
+      vendorPasswordResult.rows[0];
 
     // Compare entered password with hashed password
     const isMatch = await bcrypt.compare(password, passwordhash);
@@ -116,7 +131,7 @@ export const loginVendor = async (req, res) => {
     const token = jwt.sign(
       { id: vendorid, email: email, role: roleid },
       JWT_SECRET,
-      { expiresIn: '1h' }
+      { expiresIn: "1h" }
     );
 
     // Success response
@@ -128,7 +143,6 @@ export const loginVendor = async (req, res) => {
       email: email,
       role: roleid,
     });
-
   } catch (error) {
     console.error("Login error:", error);
     return res.status(500).json({ message: "Server error during login" });
@@ -143,11 +157,7 @@ export const resendOtp = async (req, res) => {
     const otpCode = generateOTP();
 
     // Send Email with OTP
-    await sendingMail(
-      email,
-      "InflueSage OTP Verification - Resend",
-      otpCode
-    );
+    await sendingMail(email, "InflueSage OTP Verification - Resend", otpCode);
 
     // Store OTP in Redis with 120 sec expiry
     await redisClient.setEx(`otp:${email}`, 120, otpCode);
@@ -159,13 +169,13 @@ export const resendOtp = async (req, res) => {
 
     return res.status(200).json({ message: "OTP resent successfully." });
   } catch (error) {
-    console.error('Resend OTP Error:', error);
+    console.error("Resend OTP Error:", error);
     return res.status(500).json({ message: "Error resending OTP." });
   }
 };
 
 // this function is used to reset the password of a vendor
-export const forgetPassword = async (req, res) => {
+export const forgotPassword = async (req, res) => {
   const { email } = req.body;
 
   try {
@@ -176,13 +186,13 @@ export const forgetPassword = async (req, res) => {
     }
 
     const vendor = await client.query(
-      'SELECT * FROM ins.fn_get_loginpassword($1::VARCHAR)',
+      "SELECT * FROM ins.fn_get_loginpassword($1::VARCHAR)",
       [email]
     );
 
     const vendorId = vendor.rows[0].vendorid;
 
-    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetToken = crypto.randomBytes(32).toString("hex");
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
     await redisClient.setEx(`reset:${resetToken}`, 300, vendorId);
@@ -196,8 +206,10 @@ export const forgetPassword = async (req, res) => {
 
     return res.status(200).json({ message: "Reset link sent to email." });
   } catch (error) {
-    console.error('Forget Password Error:', error);
-    return res.status(500).json({ message: "Error initiating password reset." });
+    console.error("Forget Password Error:", error);
+    return res
+      .status(500)
+      .json({ message: "Error initiating password reset." });
   }
 };
 
@@ -207,7 +219,9 @@ export const resetPassword = async (req, res) => {
     // Get email from Redis using token
     const vendorId = await redisClient.get(`reset:${token}`);
     if (!vendorId) {
-      return res.status(400).json({ message: "Invalid or expired reset token." });
+      return res
+        .status(400)
+        .json({ message: "Invalid or expired reset token." });
     }
 
     // Hash new password
@@ -228,9 +242,8 @@ export const resetPassword = async (req, res) => {
     } else {
       return res.status(400).json({ message: p_message });
     }
-
   } catch (error) {
-    console.error('Reset Password Error:', error);
+    console.error("Reset Password Error:", error);
     return res.status(500).json({ message: "Error resetting password." });
   }
 };

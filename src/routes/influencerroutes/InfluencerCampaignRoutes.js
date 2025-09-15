@@ -1,43 +1,63 @@
-import express from 'express'
+import express from 'express';
 
 const routes = express.Router();
 
-// Import Form Campaign Controller
 import {
-  // GetAllCampaign,
-  GetCampaignDetails,
-  ApplyNowCampaign,
-  GetUsersAppliedCampaigns,
-  SaveCampaign,
-  GetSaveCampaign,
-  GetSingleApplyCampaign,
-  GetUserCampaignWithDetails,
-  browseCampaigns
-} from '../../controller/influencercontroller/InfluencerCampaignController.js'
+  getCampaignDetails,
+  applyNowCampaign,
+  getUsersAppliedCampaigns,
+  saveCampaign,
+  getSaveCampaign,
+  getSingleApplyCampaign,
+  getUserCampaignWithDetails,
+  browseCampaigns,
+} from '../../controller/influencercontroller/InfluencerCampaignController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
-import { upload } from "../../middleware/MulterMiddleware.js"
+import { upload } from '../../middleware/MulterMiddleware.js';
 
+routes.get("/campaign-details/:campaignId", getCampaignDetails);
 
+routes.post(
+  "/apply-for-campaign/:campaignId",
+  authenticateUser(["Influencer"]),
+  upload.fields([{ name: "portfolioFiles", maxCount: 5 }]),
+  applyNowCampaign
+);
 
-//Routes For Campaign
-// routes.get("/browse",authenticateUser(), GetAllCampaign);
+routes.get(
+  "/applied-campaigns",
+  authenticateUser(["Influencer"]),
+  getUsersAppliedCampaigns
+);
 
-routes.get("/campaign-details/:campaignId", GetCampaignDetails);
+routes.get(
+  "/signle-applied/:campaignId",
+  authenticateUser(["Influencer"]),
+  getSingleApplyCampaign
+);
 
-routes.post('/apply-for-campaign/:campaignId', authenticateUser(["Influencer"]), upload.fields([
-  { name: "portfolioFiles", maxCount: 5 }
-]), ApplyNowCampaign);
+routes.get(
+  "/browse-all-campaigns/fiterWithSort",
+  authenticateUser(["Influencer"]),
+  browseCampaigns
+);
 
-routes.get('/applied-campaigns', authenticateUser(["Influencer"]), GetUsersAppliedCampaigns);
+routes.post(
+  "/save-campaign/:campaignId",
+  authenticateUser(["Influencer"]),
+  saveCampaign
+);
 
-routes.get("/signle-applied/:campaignId", authenticateUser(["Influencer"]), GetSingleApplyCampaign)
+routes.get(
+  "/saved-campaign",
+  authenticateUser(["Influencer"]),
+  getSaveCampaign
+);
 
-routes.get('/browse-all-campaigns/fiterWithSort', authenticateUser(["Influencer"]), browseCampaigns);
-
-routes.post('/save-campaign/:campaignId', authenticateUser(["Influencer"]), SaveCampaign);
-
-routes.get('/saved-campaign', authenticateUser(["Influencer"]), GetSaveCampaign)
-
-routes.get('/applied-campaign-details/:campaignId', authenticateUser(["Influencer"]), GetUserCampaignWithDetails)
+routes.get(
+  "/applied-campaign-details/:campaignId",
+  authenticateUser(["Influencer"]),
+  getUserCampaignWithDetails
+);
 
 export default routes;

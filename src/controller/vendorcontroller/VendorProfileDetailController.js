@@ -1,37 +1,10 @@
-import { Client } from "pg";
-import { client } from "../../config/db.js";
-import redis from "redis";
-import path from "path";
-import fs from "fs";
+import { client } from '../../config/Db.js';
+import redis from 'redis';
+import path from 'path';
+import fs from 'fs';
 
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
 redisClient.connect().catch(console.error);
-
-// function calculateProfileCompletionSingle(part) {
-//   if (!part || typeof part !== "object") return 0;
-//   const values = Object.values(part);
-//   const total = values.length;
-//   const filled = values.filter(v => v !== null && v !== "" && v !== undefined).length;
-//   if (total === 0) return 0;
-//   return Math.round((filled / total) * 100);
-// }
-
-// function calculateProfileCompletion(partsArray) {
-//   const totalFields = partsArray.reduce((sum, part) => {
-//     const values = Object.values(part || {});
-//     return sum + values.length;
-//   }, 0);
-
-//   const filledFields = partsArray.reduce((sum, part) => {
-//     const values = Object.values(part || {});
-//     const filled = values.filter(v => v !== null && v !== "" && v !== undefined).length;
-//     return sum + filled;
-//   }, 0);
-
-//   if (totalFields === 0) return 0;
-
-//   return Math.round((filledFields / totalFields) * 100);
-// }
 
 const calculateProfileCompletion = (profileParts) => {
   const partsArray = Object.values(profileParts);
@@ -43,35 +16,6 @@ const calculateProfileCompletion = (profileParts) => {
 
   return Math.round((filledSections / totalSections) * 100);
 };
-
-// export const getVendorCategories = async (req, res) => {
-//   const redisKey = "vendor_categories";
-
-//   try {
-//     const cachedData = await redisClient.get(redisKey);
-
-//     if (cachedData) {
-//       return res.status(200).json({
-//         categories: JSON.parse(cachedData),
-//         source: "redis",
-//       });
-//     }
-
-//     const result = await client.query("select * from ins.fn_get_categories();");
-
-//     await redisClient.setEx(redisKey, 300, JSON.stringify(result.rows)); // TTL 5 mins
-
-//     return res.status(200).json({
-//       categories: result.rows,
-//       source: "db",
-//     });
-//   } catch (error) {
-//     console.error("Error fetching vendor categories:", error);
-//     return res
-//       .status(500)
-//       .json({ message: "Failed to fetch vendor categories" });
-//   }
-// };
 
 export const getCompanySizes = async (req, res) => {
   const redisKey = "company_sizes";
@@ -221,14 +165,12 @@ export const getVendorProfile = async (req, res) => {
   }
 };
 
-
 export const completeVendorProfile = async (req, res) => {
   const userId = req.user?.id || req.body.userid;
   const username = req.user.name;
   const redisKey = `vendorprofile:${userId}`;
 
   try {
-
     // ---------------------------
     // 1️⃣ Parse JSON fields from req.body (safe)
     // ---------------------------
@@ -245,7 +187,9 @@ export const completeVendorProfile = async (req, res) => {
 
     if (req.file) {
       const file = req.file;
-      const newFileName = `${username}_up_${Date.now()}${path.extname(file.originalname)}`;
+      const newFileName = `${username}_up_${Date.now()}${path.extname(
+        file.originalname
+      )}`;
       const newPath = path.join("src/uploads/vendor", newFileName);
 
       fs.renameSync(file.path, newPath);
@@ -253,7 +197,6 @@ export const completeVendorProfile = async (req, res) => {
       const photoPath = newPath.replace(/\\/g, "/");
       updatedProfileJson.photopath = photoPath;
     }
-
 
     const safeParse = (data) => {
       try {
@@ -267,17 +210,11 @@ export const completeVendorProfile = async (req, res) => {
       ...(req.body.profilejson && { profilejson: updatedProfileJson }),
       ...(categoriesjson && { categoriesjson: safeParse(categoriesjson) }),
       ...(providersjson && { providersjson: safeParse(providersjson) }),
-      ...(req.body.objectivesjson && { objectivesjson: safeParse(objectivesjson) }),
+      ...(req.body.objectivesjson && {
+        objectivesjson: safeParse(objectivesjson),
+      }),
       ...(paymentjson && { paymentjson: safeParse(paymentjson) }),
     };
-
-
-    // const allPartsPresent =
-    //   mergedData.profilejson &&
-    //   mergedData.categoriesjson &&
-    //   mergedData.providersjson &&
-    //   mergedData.objectivesjson &&
-    //   mergedData.paymentjson;
 
     // ---------------------------
     // 5️⃣ Check existing profile from DB
@@ -288,11 +225,13 @@ export const completeVendorProfile = async (req, res) => {
     );
     const existingUser = dbCheck.rows[0];
 
-
     // ---------------------------
     // 6️⃣ Logic based on existing profile
     // ---------------------------
-    if (existingUser?.p_categories !== null && existingUser?.p_objectives !== null) {
+    if (
+      existingUser?.p_categories !== null &&
+      existingUser?.p_objectives !== null
+    ) {
       // ✅ CASE A: User already has provider  + objectives → update in DB
       try {
         await client.query("BEGIN");
@@ -308,7 +247,7 @@ export const completeVendorProfile = async (req, res) => {
             JSON.stringify(mergedData.objectivesjson),
             JSON.stringify(mergedData.paymentjson),
             null,
-            null
+            null,
           ]
         );
 
@@ -371,7 +310,6 @@ export const completeVendorProfile = async (req, res) => {
 
       // ✅ CASE C: All parts present → insert into DB
       try {
-
         await client.query("BEGIN");
         const result = await client.query(
           `CALL ins.usp_upsert_vendorprofile(
@@ -385,12 +323,12 @@ export const completeVendorProfile = async (req, res) => {
             JSON.stringify(mergedData.objectivesjson),
             JSON.stringify(mergedData.paymentjson),
             null,
-            null
+            null,
           ]
         );
         await client.query("COMMIT");
         const { p_status, p_message } = result.rows[0] || {};
-        
+
         if (p_status === true) {
           await redisClient.del(redisKey);
         }

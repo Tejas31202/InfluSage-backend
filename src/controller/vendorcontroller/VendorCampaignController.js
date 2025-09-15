@@ -1,7 +1,7 @@
-import { client } from "../../config/db.js";
-import redis from "redis";
-import fs from "fs";
-import path from "path";
+import { client } from '../../config/Db.js';
+import redis from 'redis';
+import fs from 'fs';
+import path from 'path';
 
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
 redisClient.connect().catch(console.error);
@@ -9,7 +9,7 @@ redisClient.connect().catch(console.error);
 // ---------------- CREATE / UPDATE Campaign Draft ----------------
 export const createMyCampaign = async (req, res) => {
   const userId = req.user?.id || req.body.p_userid;
-  const username = req.user.name
+  const username = req.user.name;
 
   if (!userId) {
     return res.status(400).json({ message: "User ID is required" });
@@ -53,7 +53,6 @@ export const createMyCampaign = async (req, res) => {
 
   // ---------------- Multiple Campaign Files ----------------
 
-
   //changes before files
 
   // if (req.files?.Files && req.files.Files.length > 0) {
@@ -76,9 +75,7 @@ export const createMyCampaign = async (req, res) => {
     let existingData = await redisClient.get(redisKey);
     existingData = existingData ? JSON.parse(existingData) : {};
 
-
-    //Changes Below For Multiple Files In Edit Options 
-
+    //Changes Below For Multiple Files In Edit Options
 
     // Extract old files array or default to empty array
     const oldFiles = Array.isArray(existingData.p_campaignfilejson)
@@ -92,7 +89,9 @@ export const createMyCampaign = async (req, res) => {
         const ext = path.extname(file.originalname);
         const baseName = path.basename(file.originalname, ext);
         const finalName = `${username}_campaign_${Date.now()}_${baseName}${ext}`;
-        const relativePath = path.join("src/uploads/vendor", finalName).replace(/\\/g, "/");
+        const relativePath = path
+          .join("src/uploads/vendor", finalName)
+          .replace(/\\/g, "/");
 
         fs.renameSync(file.path, relativePath);
 
@@ -101,16 +100,18 @@ export const createMyCampaign = async (req, res) => {
     }
 
     // Merge old and new files (if any new files exist)
-    const p_campaignfilejson = newFiles.length > 0 ? [...oldFiles, ...newFiles] : oldFiles;
+    const p_campaignfilejson =
+      newFiles.length > 0 ? [...oldFiles, ...newFiles] : oldFiles;
 
-    //Changes Below For Multiple Files In Edit Options 
+    //Changes Below For Multiple Files In Edit Options
 
     const mergedData = {
       p_objectivejson: p_objectivejson || existingData.p_objectivejson || null,
       p_vendorinfojson:
         p_vendorinfojson || existingData.p_vendorinfojson || null,
       p_campaignjson: p_campaignjson || existingData.p_campaignjson || null,
-      p_campaigncategoyjson: p_campaigncategoyjson || existingData.p_campaigncategoyjson || null,
+      p_campaigncategoyjson:
+        p_campaigncategoyjson || existingData.p_campaigncategoyjson || null,
       p_campaignfilejson:
         p_campaignfilejson || existingData.p_campaignfilejson || null,
       p_contenttypejson:
@@ -269,14 +270,12 @@ export const getCampaign = async (req, res) => {
 
 //..................GET INFLUENCER BROWSE DETAILS...........
 export const getInfluencerBrowseDetails = async (req, res) => {
-
   try {
-
     const userId = req.user?.id || req.query.p_userid;
 
     if (!userId) {
-      return res.status(400).json({ message: "User ID required" })
-    };
+      return res.status(400).json({ message: "User ID required" });
+    }
 
     // const redisKey = `getinfluencerbrowsedetails:${userId}`;
 
@@ -298,7 +297,7 @@ export const getInfluencerBrowseDetails = async (req, res) => {
     const result = await client.query(
       `SELECT * FROM ins.fn_get_influencerbrowsedetails($1::BIGINT)`,
       [userId]
-    )
+    );
 
     const influencers = result.rows[0]?.fn_get_influencerbrowsedetails;
 
@@ -317,30 +316,23 @@ export const getInfluencerBrowseDetails = async (req, res) => {
     return res.status(200).json({
       message: "Influencers Browse Details Form DB",
       result: influencers,
-      source: 'db'
-
-    })
-
+      source: "db",
+    });
   } catch (error) {
-
-    console.log("getInfluencerBrowseDetails error:", error)
-    return res.status(500).json({ message: "Internal server Error" })
-
+    console.log("getInfluencerBrowseDetails error:", error);
+    return res.status(500).json({ message: "Internal server Error" });
   }
-
-}
+};
 
 //..................BROWSE ALL INFLUENCER...............
 export const browseAllInfluencer = async (req, res) => {
   try {
-
     const userId = req.user?.id || req.query.p_userid || null;
 
     //Check For User Id Available OR Not
     // if (!userId) {
     //   return res.status(400).json({ message: "User ID is required." });
     // }
-
 
     const {
       p_location = null,
@@ -349,11 +341,8 @@ export const browseAllInfluencer = async (req, res) => {
       p_ratings = null,
       p_genders = null,
       p_pagenumber = 1,
-      p_pagesize = 20
-
+      p_pagesize = 20,
     } = req.query;
-
-
 
     const result = await client.query(
       `SELECT * FROM ins.fn_get_influencerbrowse(
@@ -374,34 +363,28 @@ export const browseAllInfluencer = async (req, res) => {
         p_ratings ? JSON.parse(p_ratings) : null,
         p_genders ? JSON.parse(p_genders) : null,
         p_pagenumber || 1,
-        p_pagesize || 20
+        p_pagesize || 20,
       ]
     );
-
 
     const influencers = result.rows;
 
     //Check For Data
-    console.log("==>", influencers)
+    console.log("==>", influencers);
     if (influencers.length === 0) {
-      return res.status(404).json({ message: 'No influencers found.' });
+      return res.status(404).json({ message: "No influencers found." });
     }
 
-    return res.status(200).json(
-      {
-        message: "Influencers Get Sucessfully",
-        data: influencers,
-        source: 'db'
-      }
-    )
-
+    return res.status(200).json({
+      message: "Influencers Get Sucessfully",
+      data: influencers,
+      source: "db",
+    });
   } catch (error) {
-    console.log("Failed to Get Influencers sucessfully", error)
-    return res.status(500).json({ message: "Internal Server Error" })
-
+    console.log("Failed to Get Influencers sucessfully", error);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
-}
-
+};
 
 export const deleteCampaignFile = async (req, res) => {
   try {
@@ -424,9 +407,10 @@ export const deleteCampaignFile = async (req, res) => {
 
       // Remove file from JSON
       if (campaignData.p_campaignfilejson) {
-        campaignData.p_campaignfilejson = campaignData.p_campaignfilejson.filter(
-          (file) => file.filepath !== filePathToDelete
-        );
+        campaignData.p_campaignfilejson =
+          campaignData.p_campaignfilejson.filter(
+            (file) => file.filepath !== filePathToDelete
+          );
 
         // Update Redis
         await redisClient.set(redisKey, JSON.stringify(campaignData));
@@ -450,7 +434,7 @@ export const deleteCampaignFile = async (req, res) => {
   }
 };
 
-export const GetCampaignObjectives = async (req, res) => {
+export const getCampaignObjectives = async (req, res) => {
   try {
     const result = await client.query(
       "SELECT * from ins.fn_get_campaignobjectives()"
@@ -468,23 +452,7 @@ export const GetCampaignObjectives = async (req, res) => {
   }
 };
 
-// export const GetLanguages = async (req, res) => {
-//   try {
-//     const result = await client.query("SELECT * FROM ins.fn_get_languages();");
-
-//     return res.status(200).json({
-//       languages: result.rows,
-//       source: "db",
-//     });
-//   } catch (error) {
-//     console.error("Error fetching languages:", error);
-//     return res.status(500).json({ message: "Failed to fetch languages" });
-//   }
-// };
-
-
-export const GetInfluencerTiers = async (req, res) => {
-
+export const getInfluencerTiers = async (req, res) => {
   try {
     const result = await client.query(
       "SELECT * from ins.fn_get_influencertiers();"
@@ -500,30 +468,9 @@ export const GetInfluencerTiers = async (req, res) => {
       .status(500)
       .json({ message: "Failed to fetch GetCampaignObjectives" });
   }
-}
+};
 
-// export const GetGender=async(req,res)=>{
-
-//   try {
-//     const result = await client.query(
-//       "SELECT * from ins.fn_get_genders();"
-//     );
-
-//     return res.status(200).json({
-//       genders: result.rows,
-//       source: "db",
-//     });
-//   } catch (error) {
-//     console.error("Error fetching GetCampaignObjectives:", error);
-//     return res
-//       .status(500)
-//       .json({ message: "Failed to fetch GetCampaignObjectives" });
-//   }
-// }
-
-
-export const GetProvidorContentTypes = async (req, res) => {
-
+export const getProvidorContentTypes = async (req, res) => {
   try {
     const result = await client.query(
       "SELECT * from ins.fn_get_providercontenttypes();"
@@ -539,27 +486,4 @@ export const GetProvidorContentTypes = async (req, res) => {
       .status(500)
       .json({ message: "Failed to fetch GetCampaignObjectives" });
   }
-}
-
-
-// export const getProviders = async (req, res) => {
-//   try {
-//     // DB function call
-//     const result = await client.query("SELECT * FROM ins.fn_get_providers()");
-
-//     // console.log("providers", result.rows);
-//     const providers = result.rows;
-
-//     res.status(200).json({
-//       status: true,
-//       data: providers,
-//     });
-//   } catch (error) {
-//     console.error("Error fetching providers:", error);
-//     res.status(500).json({
-//       status: false,
-//       message: "Failed to fetch providers",
-//       error: error.message,
-//     })
-//   };
-// };
+};
