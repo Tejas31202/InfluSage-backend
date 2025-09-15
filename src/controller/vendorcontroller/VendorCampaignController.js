@@ -563,7 +563,3 @@ export const getFavouriteInfluencer = async (req, res) => {
 
   }
 }
-
-export const inviteInfluencer = (req,res) =>{
-  
-}
