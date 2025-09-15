@@ -1,4 +1,4 @@
-import { client } from '../../config/Db.js';
+import { client } from '../../config/db.js';
 import redis from 'redis';
 import fs from 'fs';
 import path from 'path';
