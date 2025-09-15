@@ -11,7 +11,9 @@ import {
   // GetGender,
   GetProvidorContentTypes,
   getInfluencerBrowseDetails,
-  browseAllInfluencer
+  browseAllInfluencer,
+  addFavouriteInfluencer,
+  getFavouriteInfluencer
 } from "../../controller/vendorcontroller/VendorCampaignController.js";
 import authenticateUser from "../../middleware/AuthMiddleware.js";
 import { upload } from "../../middleware/CampaignMulterMiddleware.js";
@@ -45,11 +47,17 @@ routes.post(
   finalizeCampaign
 );
 
+
+
 routes.get("/campaign/:campaignId", authenticateUser(["Vendor"]), getCampaign);
 
 routes.get("/influencer/browse",getInfluencerBrowseDetails);
 
 routes .get("/allinfluencer/browse",browseAllInfluencer);
+
+routes.post('/addfavourite/influencer',addFavouriteInfluencer);
+
+routes.get('/getfavourite/influencer',getFavouriteInfluencer);
 
 routes.post(
   "/campaign/delete-file",

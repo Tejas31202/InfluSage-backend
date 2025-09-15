@@ -348,8 +348,10 @@ export const browseAllInfluencer = async (req, res) => {
       p_influencertiers = null,
       p_ratings = null,
       p_genders = null,
+      p_languages = null,
       p_pagenumber = 1,
-      p_pagesize = 20
+      p_pagesize = 20,
+      p_search 
 
     } = req.query;
 
@@ -363,8 +365,10 @@ export const browseAllInfluencer = async (req, res) => {
     $4::JSON,
     $5::JSON,
     $6::JSON,
-    $7::INTEGER,
-    $8::INTEGER
+    $7::JSON,
+    $8::INTEGER,
+    $9::INTEGER,
+    $10::TEXT
   )`,
       [
         userId,
@@ -373,8 +377,10 @@ export const browseAllInfluencer = async (req, res) => {
         p_influencertiers ? JSON.parse(p_influencertiers) : null,
         p_ratings ? JSON.parse(p_ratings) : null,
         p_genders ? JSON.parse(p_genders) : null,
+        p_languages,
         p_pagenumber || 1,
-        p_pagesize || 20
+        p_pagesize || 20,
+        p_search
       ]
     );
 
@@ -541,8 +547,83 @@ export const GetProvidorContentTypes = async (req, res) => {
   }
 }
 
+//................Add Favourite Influencer................
+export const addFavouriteInfluencer = async (req, res) => {
+  const { userId, influencerId } = req.body;
+
+  if (!userId || !influencerId) {
+    return res.status(400).json({
+      status: false,
+      message: "Missing userId or influencerId",
+    });
+  };
+
+  try {
+    const result = await client.query(
+      `CALL ins.usp_insert_influencersave(
+        $1::bigint,
+        $2::bigint,
+        $3::boolean,
+        $4::text
+      )`,
+      [userId, influencerId, null, null]
+    );
+
+    const { p_status, p_message } = result.rows[0];
+
+    return res.status(200).json({
+      status: p_status,
+      message: p_message
+    });
+  } catch (error) {
+    console.error("❌ Error adding favourite influencer:", error);
+    return res.status(500).json({
+      status: p_status,
+      message: p_message
+    });
+  }
+};
+
+//...............Get Favourite Influencer.................
+export const getFavouriteInfluencer = async (req, res) => {
+  const { userId,
+    p_pagenumber,
+    p_pagesize,
+    p_search
+  } = req.query;
+
+  if (!userId) return res.status(400).json("Userid Require");
+
+  try {
+
+    const result = await client.query(
+      `SELECT * FROM ins.fn_get_influencerbrowsedetails($1::BIGINT,$2,$3,$4)`,
+      [userId,
+        p_pagenumber || 1,
+        p_pagesize || 20,
+        p_search
+      ]
+    )
+
+    return res.json(result.rows);
+
+  }
+
+  catch (error) {
+
+    console.log("Error While Favourite Influencer Get", error);
+    return res.status(500).json({ error: "Internal Server Error" });
+
+  }
+}
+
+export const inviteInfluencer = (req,res) =>{
+  
+}
+
 
 // export const getProviders = async (req, res) => {
+
 //   try {
 //     // DB function call
 //     const result = await client.query("SELECT * FROM ins.fn_get_providers()");
