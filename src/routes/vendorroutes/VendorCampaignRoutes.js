@@ -1,35 +1,30 @@
-import express from "express";
+import express from 'express';
 import {
   createMyCampaign,
   getCampaign,
   deleteCampaignFile,
   finalizeCampaign,
-  //  getProviders,
-  GetCampaignObjectives,
-  //  GetLanguages,
-  GetInfluencerTiers,
-  // GetGender,
-  GetProvidorContentTypes,
+  getCampaignObjectives,
+  getInfluencerTiers,
+  getProvidorContentTypes,
   getInfluencerBrowseDetails,
   browseAllInfluencer,
   addFavouriteInfluencer,
   getFavouriteInfluencer
-} from "../../controller/vendorcontroller/VendorCampaignController.js";
-import authenticateUser from "../../middleware/AuthMiddleware.js";
-import { upload } from "../../middleware/CampaignMulterMiddleware.js";
+} from '../../controller/vendorcontroller/VendorCampaignController.js';
+import authenticateUser from '../../middleware/AuthMiddleware.js';
+import { upload } from '../../middleware/CampaignMulterMiddleware.js';
+
 
 const routes = express.Router();
 
-// routes.get("/providers", getProviders); // New route to get providers
+routes.get("/campaign/objectives", getCampaignObjectives);
+
+routes.get("/influencer-type", getInfluencerTiers);
+
+routes.get("/provider-content-type", getProvidorContentTypes);
 
 // Step 1-5 → draft or auto-final if all parts present
-
-routes.get("/campaign/objectives", GetCampaignObjectives);
-// routes.get("/campaign/languages",GetLanguages);
-routes.get("/influencer-type", GetInfluencerTiers);
-// routes.get("/gender",GetGender)
-routes.get("/provider-content-type", GetProvidorContentTypes);
-
 routes.post(
   "/create-campaign",
   authenticateUser(["Vendor"]),
@@ -51,9 +46,9 @@ routes.post(
 
 routes.get("/campaign/:campaignId", authenticateUser(["Vendor"]), getCampaign);
 
-routes.get("/influencer/browse",getInfluencerBrowseDetails);
+routes.get("/influencer/browse", getInfluencerBrowseDetails);
 
-routes .get("/allinfluencer/browse",browseAllInfluencer);
+routes.get("/allinfluencer/browse", browseAllInfluencer);
 
 routes.post('/addfavourite/influencer',addFavouriteInfluencer);
 
@@ -61,7 +56,7 @@ routes.get('/getfavourite/influencer',getFavouriteInfluencer);
 
 routes.post(
   "/campaign/delete-file",
-  authenticateUser(["Vendor"]), // optional role check
+  authenticateUser(["Vendor"]),
   deleteCampaignFile
 );
 

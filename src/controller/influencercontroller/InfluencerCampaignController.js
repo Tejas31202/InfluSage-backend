@@ -1,51 +1,12 @@
-import { client } from "../../config/db.js";
+import { client } from '../../config/Db.js';
 
-import redis from "redis";
+import redis from 'redis';
 
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
 redisClient.connect().catch(console.error);
 
-// For All Campaign Details
-// export const GetAllCampaign = async (req, res) => {
-//   try {
-
-//     // For Converting Data String Into Int Float etc
-//     const p_providerid = req.query.p_providerid ? parseInt(req.query.p_providerid, 10) : null;
-//     const p_contenttype = req.query.p_contenttype ? parseInt(req.query.p_contenttype, 10) : null;
-//     const p_language = req.query.p_language ? parseInt(req.query.p_language, 10) : null;
-//     const p_maxbudget = req.query.p_maxbudget ? parseFloat(req.query.p_maxbudget) : null;
-//     const p_minbudget = req.query.p_minbudget ? parseFloat(req.query.p_minbudget) : null;
-
-//     // console.log('Input params:', { p_providerid, p_contenttype, p_language, p_maxbudget, p_minbudget });
-
-//     //Get Data From DB
-//     const result = await client.query(
-//       `SELECT ins.fn_get_campaignbrowse($1, $2::smallint, $3, $4, $5)`,
-//       [p_providerid, p_contenttype, p_language, p_maxbudget, p_minbudget]
-//     );
-
-//     // console.log('DB result:', result.rows);
-
-//     const data = result.rows[0];
-//     // console.log("===>",data)
-
-//     if (!data) {
-//       return res.status(404).json({ message: 'Campaign not found.' });
-//     }
-
-//     return res.status(200).json({
-//       data,
-//       source: 'db'
-//     });
-
-//   } catch (error) {
-//     console.error('Error fetching Camapign Details:', error);
-//     return res.status(500).json({ message: 'Internal server error' });
-//   }
-// }
-
 //For Selected Camapign Details
-export const GetCampaignDetails = async (req, res) => {
+export const getCampaignDetails = async (req, res) => {
   try {
     const { campaignId } = req.params;
 
@@ -69,7 +30,7 @@ export const GetCampaignDetails = async (req, res) => {
 };
 
 //For Apply Campaign
-export const ApplyNowCampaign = async (req, res) => {
+export const applyNowCampaign = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
     const campaignId = req.params.campaignId;
@@ -140,7 +101,7 @@ export const ApplyNowCampaign = async (req, res) => {
 };
 
 //For Applied Campaign
-export const GetUsersAppliedCampaigns = async (req, res) => {
+export const getUsersAppliedCampaigns = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
     const {
@@ -194,7 +155,7 @@ export const GetUsersAppliedCampaigns = async (req, res) => {
 };
 
 //For Save Campaign
-export const SaveCampaign = async (req, res) => {
+export const saveCampaign = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
     const campaignId = req.params.campaignId;
@@ -204,17 +165,6 @@ export const SaveCampaign = async (req, res) => {
         .status(400)
         .json({ message: "User ID and Campaign ID are required." });
     }
-
-    //comment (// const CheckCampaign = await client.query(`SELECT * FROM ins.fn_get_campaignsave($1)`, [userid])
-
-    // //Check Campaign Available and also Check If Available Campaign Same or Not
-    // const alreadySaved = CheckCampaign.rows.some(
-    //     (row) => row.campaignid === campaignid && row.applied === true
-    // );
-
-    // if (alreadySaved) {
-    //     return res.status(200).json({ message: 'You have already save to this campaign.' });
-    // })
 
     const SaveCampaign = await client.query(
       `CALL ins.usp_insert_campaignsave($1::bigint,$2::bigint, $3, $4)`,
@@ -232,7 +182,7 @@ export const SaveCampaign = async (req, res) => {
 };
 
 //For Get Save Camapign
-export const GetSaveCampaign = async (req, res) => {
+export const getSaveCampaign = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
     if (!userId) {
@@ -274,7 +224,7 @@ export const GetSaveCampaign = async (req, res) => {
 };
 
 //For Apply Single Campaign
-export const GetSingleApplyCampaign = async (req, res) => {
+export const getSingleApplyCampaign = async (req, res) => {
   try {
     const userId = req.user?.id || req.userId;
     const { campaignId } = req.params;
@@ -311,7 +261,7 @@ export const GetSingleApplyCampaign = async (req, res) => {
 };
 
 //For Get user Campign With Details
-export const GetUserCampaignWithDetails = async (req, res) => {
+export const getUserCampaignWithDetails = async (req, res) => {
   try {
     const userId = req.user?.id;
     const { campaignId } = req.params;

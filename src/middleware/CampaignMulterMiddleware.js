@@ -1,6 +1,6 @@
-import multer from "multer";
-import path from "path";
-import fs from "fs";
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -13,7 +13,7 @@ const storage = multer.diskStorage({
     cb(null, dir);
   },
   filename: function (req, file, cb) {
-    const username = req.user?.name || "vendor"; 
+    const username = req.user?.name || "vendor";
     const timestamp = Date.now();
     const ext = path.extname(file.originalname);
 
@@ -27,6 +27,5 @@ const storage = multer.diskStorage({
     cb(null, finalName);
   },
 });
-
 
 export const upload = multer({ storage });

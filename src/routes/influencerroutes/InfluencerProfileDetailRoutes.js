@@ -1,32 +1,37 @@
 import express from 'express';
-import authenticateUser from "../../middleware/AuthMiddleware.js";
+import authenticateUser from '../../middleware/AuthMiddleware.js';
 import {
   completeUserProfile,
   getUserProfile,
   getUserNameByEmail,
-  // getCategories,
-  deletePortfolioFile
+  deletePortfolioFile,
 } from '../../controller/influencercontroller/InfluencerProfileDetailController.js';
-import {upload} from "../../middleware/MulterMiddleware.js"
- 
- 
+import { upload } from '../../middleware/MulterMiddleware.js';
+
 const routes = express.Router();
- 
-// console.log("PDController:", PDController);
-// POST request to complete user profile
-//Changes For Role Based Auth.. =>authenticateUser(['Influencer'])
-routes.post('/complete-profile', authenticateUser(["Influencer"]), upload.fields([
+
+routes.post(
+  "/complete-profile",
+  authenticateUser(["Influencer"]),
+  upload.fields([
     { name: "photo", maxCount: 1 },
-    { name: "portfolioFiles", maxCount: 5}
-  ]),completeUserProfile);
-routes.get('/profile/:userId', authenticateUser(['Influencer']), getUserProfile);
-routes.get('/email/:email', getUserNameByEmail);
-// routes.get('/categories',getCategories);
+    { name: "portfolioFiles", maxCount: 5 },
+  ]),
+  completeUserProfile
+);
+
+routes.get(
+  "/profile/:userId",
+  authenticateUser(["Influencer"]),
+  getUserProfile
+);
+
+routes.get("/email/:email", getUserNameByEmail);
 
 routes.post(
   "/profile/delete-portfolio-file",
-  authenticateUser(["Influencer"]), // optional role check
+  authenticateUser(["Influencer"]),
   deletePortfolioFile
 );
- 
+
 export default routes;

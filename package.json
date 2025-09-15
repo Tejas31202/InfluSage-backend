@@ -7,7 +7,7 @@
   "type": "module",
   "main": "app.js",
   "scripts": {
-    "start": "nodemon app.js"
+    "start": "nodemon App.js"
   },
   "dependencies": {
     "@dotenvx/dotenvx": "^1.48.2",
