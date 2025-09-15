@@ -369,10 +369,7 @@ export const browseAllInfluencer = async (req, res) => {
         p_languages,
         p_pagenumber || 1,
         p_pagesize || 20,
-<<<<<<< HEAD
         p_search
-=======
->>>>>>> b7ba70bdd49a0f001fe19404c9a0dbf48422d5db
       ]
     );
 
