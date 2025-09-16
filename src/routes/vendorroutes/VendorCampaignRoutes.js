@@ -10,7 +10,9 @@ import {
   getInfluencerBrowseDetails,
   browseAllInfluencer,
   addFavouriteInfluencer,
-  getFavouriteInfluencer
+  getFavouriteInfluencer,
+  insertCampaignInvites,
+  inviteInfluencerToCampaigns
 } from '../../controller/vendorcontroller/VendorCampaignController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 import { upload } from '../../middleware/CampaignMulterMiddleware.js';
@@ -42,7 +44,9 @@ routes.post(
   finalizeCampaign
 );
 
+routes.get('/campaign/invite',insertCampaignInvites);
 
+routes.post('/inviteinfluencer/Campaigns',inviteInfluencerToCampaigns);
 
 routes.get("/campaign/:campaignId", authenticateUser(["Vendor"]), getCampaign);
 
