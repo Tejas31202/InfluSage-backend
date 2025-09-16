@@ -1,4 +1,4 @@
-import { client } from '../../config/db.js';
+import { client } from '../../config/Db.js';
 
 import redis from 'redis';
 
@@ -363,7 +363,7 @@ export const browseCampaigns = async (req, res) => {
       ]
     );
 
-    return res.json(result.rows[0]);
+    return res.json(result.rows[0].fn_get_campaignbrowse);
   } catch (error) {
     console.error("Error browsing campaigns:", error.message);
     return res.status(500).json({ error: "Internal Server Error" });
