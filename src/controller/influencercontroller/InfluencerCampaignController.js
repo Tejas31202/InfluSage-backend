@@ -369,3 +369,58 @@ export const browseCampaigns = async (req, res) => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
+export const deleteApplyNowPortfolioFile = async (req, res) => {
+  const userId = req.user?.id || req.body.userId;
+  const {filePath} = req.body;
+  const redisKey = `applyCampaign:${userId}`;
+
+  try {
+    if (!filePath) {
+      return res
+        .status(400)
+        .json({ message: "filePath are required"});
+    }
+
+    // 1) Redis se data fetch
+    let campaignData = await redisClient.get(redisKey);
+    if (campaignData) {
+      campaignData = JSON.parse(campaignData);
+
+      // Remove file from applycampaignjson.filepaths
+      if (campaignData.applycampaignjson?.filepaths) {
+        campaignData.applycampaignjson.filepaths =
+          campaignData.applycampaignjson.filepaths.filter(
+            (file) => file.filepath !== filePath
+          );
+
+        // Update Redis
+        await redisClient.set(redisKey, JSON.stringify(campaignData));
+      }
+    }
+
+    // 2) Delete file from local uploads folder
+    const uploadDir = path.join(process.cwd(), "src", "uploads", "influencer");
+    const fileName = path.basename(filePath);
+    const fullPath = path.join(uploadDir, fileName);
+
+    if (fs.existsSync(fullPath)) {
+      fs.unlinkSync(fullPath);
+      console.log("File deleted from folder:", fullPath);
+     } else {
+      return res.status(404).json({
+        status: false,
+        message: "File not found in folder"
+      });
+    }
+
+    return res.status(200).json({
+      status: true,
+      message: "Portfolio file deleted successfully",
+      portfolioFiles: campaignData?.applycampaignjson?.filepaths || [],
+    });
+  } catch (error) {
+    console.error("deleteApplyNowPortfolioFile error:", error);
+    return res.status(500).json({message: error.message });
+  }
+};

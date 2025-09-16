@@ -11,6 +11,7 @@ import {
   getSingleApplyCampaign,
   getUserCampaignWithDetails,
   browseCampaigns,
+  deleteApplyNowPortfolioFile
 } from '../../controller/influencercontroller/InfluencerCampaignController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 import { upload } from '../../middleware/MulterMiddleware.js';
@@ -59,5 +60,10 @@ routes.get(
   authenticateUser(["Influencer"]),
   getUserCampaignWithDetails
 );
+
+routes.post(
+  "/apply-now/portfoliofile-delete",
+  authenticateUser(["Influencer"]),
+  deleteApplyNowPortfolioFile)
 
 export default routes;
