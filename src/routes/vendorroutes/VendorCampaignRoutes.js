@@ -44,9 +44,9 @@ routes.post(
   finalizeCampaign
 );
 
-routes.get('/campaign/invite',insertCampaignInvites);
+routes.post('/campaign/invite',insertCampaignInvites);
 
-routes.post('/inviteinfluencer/Campaigns',inviteInfluencerToCampaigns);
+routes.get('/inviteinfluencer/Campaigns',inviteInfluencerToCampaigns);
 
 routes.get("/campaign/:campaignId", authenticateUser(["Vendor"]), getCampaign);
 

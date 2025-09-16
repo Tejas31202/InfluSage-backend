@@ -2,6 +2,7 @@ import { client } from '../../config/Db.js';
 import redis from 'redis';
 import fs from 'fs';
 import path from 'path';
+import { clearScreenDown } from 'readline';
 
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
 redisClient.connect().catch(console.error);
@@ -525,12 +526,11 @@ export const addFavouriteInfluencer = async (req, res) => {
   } catch (error) {
     console.error('Error adding favourite influencer:', error);
     return res.status(500).json({
-      status: p_status,
-      message: p_message
+      status: false,
+      message: 'Internal server error'
     });
   }
 };
-
 //...............Get Favourite Influencer.................
 export const getFavouriteInfluencer = async (req, res) => {
   const { userId,
@@ -539,7 +539,7 @@ export const getFavouriteInfluencer = async (req, res) => {
     p_search
   } = req.query;
 
-  if (!userId) return res.status(400).json({message:'Userid Require'});
+  if (!userId) return res.status(400).json({ message: 'Userid Require' });
 
   try {
 
@@ -551,27 +551,20 @@ export const getFavouriteInfluencer = async (req, res) => {
         p_search
       ]
     )
-
-    return res.json(result.rows);
-
+    return res.json({
+      status: true,
+      data: result.rows
+    });
   }
-
   catch (error) {
-
     console.log("Error While Favourite Influencer Get", error);
     return res.status(500).json({ error: "Internal Server Error" });
-
   }
 };
-
-
-
-//THIS TWO FUNCTION PUSH PENDING AND ALSO MODIFICATION REQUIRE.
-
 //...............InviteInfluencerCampaign......................
 export const inviteInfluencerToCampaigns = async (req, res) => {
 
-  const { p_userid, p_influencerid } = req.body;
+  const { p_userid, p_influencerid } = req.query;
 
   if (!p_userid || !p_influencerid) {
     return res.status(400).json({ message: "User Id And Influencer Id require." })
@@ -579,15 +572,15 @@ export const inviteInfluencerToCampaigns = async (req, res) => {
 
   try {
     const result = await client.query(
-      `SELECT * FROM ins.fn_get_campaignlists($1::BIGINT,$2::BIGINT)`,
+      `SELECT * FROM ins.fn_get_vendorcampaignlistforInvitation($1::BIGINT,$2::BIGINT)`,
       [p_userid, p_influencerid]
     )
 
     const campaign = result.rows;
 
     return res.status(200).json({
-      message: 'Available Camapign Fetched Sucessfully',
-      data: { campaign: campaign }
+      message: 'Available Campaigns fetched successfully',
+      data: campaign
     })
   }
   catch (error) {
@@ -597,7 +590,6 @@ export const inviteInfluencerToCampaigns = async (req, res) => {
 
 
 };
-
 //..............InsertCampaignInvites.........................
 export const insertCampaignInvites = async (req, res) => {
 
@@ -616,16 +608,17 @@ export const insertCampaignInvites = async (req, res) => {
 
   }
 
+
   try {
 
     const result = await client.query(
-      `SELECT * FROM fn_get_vendorcampaignlistforInvitation(
+      `CALL ins.usp_insert_campaigninvites(
       $1::bigint,
       $2::json)`,
       [p_influencerid,
         p_campaignidjson ? JSON.stringify(p_campaignidjson) : null,
-        // p_status,
-        // p_message
+       null,
+       null
       ]
     )
 
@@ -638,12 +631,9 @@ export const insertCampaignInvites = async (req, res) => {
 
   }
   catch (error) {
-    console.error('Error Inserting Campaign .', error)
     return res.status(500).json({
-      success: p_status,
-      message: p_message,
-      // success:false,
-      // message:'Internal server Error While Inserting Campaign'
+      success: false,
+      message: 'Internal server error while inserting campaign invites'
     })
 
   }
