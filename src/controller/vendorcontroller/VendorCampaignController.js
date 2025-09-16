@@ -343,7 +343,7 @@ export const browseAllInfluencer = async (req, res) => {
       p_languages = null,
       p_pagenumber = 1,
       p_pagesize = 20,
-      p_search 
+      p_search
     } = req.query;
 
     const result = await client.query(
@@ -523,7 +523,7 @@ export const addFavouriteInfluencer = async (req, res) => {
       message: p_message
     });
   } catch (error) {
-    console.error("❌ Error adding favourite influencer:", error);
+    console.error('Error adding favourite influencer:', error);
     return res.status(500).json({
       status: p_status,
       message: p_message
@@ -539,7 +539,7 @@ export const getFavouriteInfluencer = async (req, res) => {
     p_search
   } = req.query;
 
-  if (!userId) return res.status(400).json("Userid Require");
+  if (!userId) return res.status(400).json({message:'Userid Require'});
 
   try {
 
@@ -562,4 +562,89 @@ export const getFavouriteInfluencer = async (req, res) => {
     return res.status(500).json({ error: "Internal Server Error" });
 
   }
-}
+};
+
+
+
+//THIS TWO FUNCTION PUSH PENDING AND ALSO MODIFICATION REQUIRE.
+
+//...............InviteInfluencerCampaign......................
+export const inviteInfluencerToCampaigns = async (req, res) => {
+
+  const { p_userid, p_influencerid } = req.body;
+
+  if (!p_userid || !p_influencerid) {
+    return res.status(400).json({ message: "User Id And Influencer Id require." })
+  }
+
+  try {
+    const result = await client.query(
+      `SELECT * FROM ins.fn_get_campaignlists($1::BIGINT,$2::BIGINT)`,
+      [p_userid, p_influencerid]
+    )
+
+    const campaign = result.rows;
+
+    return res.status(200).json({
+      message: 'Available Camapign Fetched Sucessfully',
+      data: { campaign: campaign }
+    })
+  }
+  catch (error) {
+
+    return res.status(500).json({ message: 'internal Server error While Fetching Campaign' })
+  }
+
+
+};
+
+//..............InsertCampaignInvites.........................
+export const insertCampaignInvites = async (req, res) => {
+
+  const { p_influencerid, p_campaignidjson } = req.body;
+
+  if (!p_influencerid) {
+    return res.status(400).json({
+      message: 'Influencerid Id Require'
+    })
+  }
+  if (!p_campaignidjson || p_campaignidjson.length === 0) {
+
+    return res.status(400).json({
+      message: 'No Campaign selected. Please Selected One Campaign.'
+    })
+
+  }
+
+  try {
+
+    const result = await client.query(
+      `SELECT * FROM fn_get_vendorcampaignlistforInvitation(
+      $1::bigint,
+      $2::json)`,
+      [p_influencerid,
+        p_campaignidjson ? JSON.stringify(p_campaignidjson) : null,
+        // p_status,
+        // p_message
+      ]
+    )
+
+    const { p_status, p_message } = result.rows[0];
+
+    return res.status(200).json({
+      success: p_status,
+      message: p_message
+    });
+
+  }
+  catch (error) {
+    console.error('Error Inserting Campaign .', error)
+    return res.status(500).json({
+      success: p_status,
+      message: p_message,
+      // success:false,
+      // message:'Internal server Error While Inserting Campaign'
+    })
+
+  }
+};
