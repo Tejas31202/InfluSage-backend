@@ -576,11 +576,24 @@ export const inviteInfluencerToCampaigns = async (req, res) => {
       [p_userid, p_influencerid]
     )
 
-    const campaign = result.rows;
+    const campaign = result.rows[0]?.p_campaigns;
+
+    console.log("==>",campaign)
+    console.log(typeof(campaign))
+
+      if (!campaign) {
+      return res.status(200).json({
+        status: true,
+        message: "No available campaigns found for this influencer.",
+        data: []
+      });
+    }
+
+    const campaigns = typeof campaign === 'string' ? JSON.parse(campaign) : campaign;
 
     return res.status(200).json({
       message: 'Available Campaigns fetched successfully',
-      data: campaign
+      data: campaigns
     })
   }
   catch (error) {
@@ -608,7 +621,6 @@ export const insertCampaignInvites = async (req, res) => {
 
   }
 
-
   try {
 
     const result = await client.query(
@@ -617,8 +629,8 @@ export const insertCampaignInvites = async (req, res) => {
       $2::json)`,
       [p_influencerid,
         p_campaignidjson ? JSON.stringify(p_campaignidjson) : null,
-       null,
-       null
+        null,
+        null
       ]
     )
 
@@ -638,3 +650,54 @@ export const insertCampaignInvites = async (req, res) => {
 
   }
 };
+
+//..............Browse Invite Influencer......................
+export const browseInviteInfluencer = async (req, res) => {
+
+  const {
+
+    p_userid,
+    p_campaignid,
+    p_pagenumber = 1,
+    p_pagesize = 20,
+    p_search
+
+  } = req.query;
+
+  if (!p_userid || !p_campaignid) {
+    return res.status(400).json({
+      message: 'Campaign Id And User Id Require'
+    });
+  }
+
+  try {
+
+    const result = await client.query(
+      `SELECT * FROM ins.fn_get_influencerinvite(
+      $1::bigint,
+      $2::bigint,
+      $3::integer,
+      $4::integer,
+      $5::text)`,
+      [p_userid, p_campaignid, p_pagenumber, p_pagesize, p_search]
+    )
+
+    const data = result.rows[0];
+
+    return res.status(200).json({
+      status: true,
+      totalcount: data.totalcount,
+      records: data.records
+    });
+
+  } catch (error) {
+
+    console.error('Error fetching influencer invites:', error);
+    return res.status(500).json({
+      status: false,
+      message: 'Internal server error while fetching influencer invites'
+    });
+
+  }
+
+}

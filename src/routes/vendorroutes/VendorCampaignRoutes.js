@@ -12,7 +12,8 @@ import {
   addFavouriteInfluencer,
   getFavouriteInfluencer,
   insertCampaignInvites,
-  inviteInfluencerToCampaigns
+  inviteInfluencerToCampaigns,
+  browseInviteInfluencer
 } from '../../controller/vendorcontroller/VendorCampaignController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 import { upload } from '../../middleware/CampaignMulterMiddleware.js';
@@ -53,6 +54,8 @@ routes.get("/campaign/:campaignId", authenticateUser(["Vendor"]), getCampaign);
 routes.get("/influencer/browse", getInfluencerBrowseDetails);
 
 routes.get("/allinfluencer/browse", browseAllInfluencer);
+
+routes.get('/browse/inviteinfluencer',browseInviteInfluencer)
 
 routes.post('/addfavourite/influencer',addFavouriteInfluencer);
 
