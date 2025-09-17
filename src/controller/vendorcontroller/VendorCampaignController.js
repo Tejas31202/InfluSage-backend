@@ -377,7 +377,7 @@ export const browseAllInfluencer = async (req, res) => {
     const influencers = result.rows;
 
     //Check For Data
-    console.log("==>", influencers);
+    // console.log("==>", influencers);
     if (influencers.length === 0) {
       return res.status(404).json({ message: "No influencers found." });
     }
@@ -578,8 +578,8 @@ export const inviteInfluencerToCampaigns = async (req, res) => {
 
     const campaign = result.rows[0]?.p_campaigns;
 
-    console.log("==>",campaign)
-    console.log(typeof(campaign))
+    // console.log("==>",campaign)
+    // console.log(typeof(campaign))
 
       if (!campaign) {
       return res.status(200).json({
