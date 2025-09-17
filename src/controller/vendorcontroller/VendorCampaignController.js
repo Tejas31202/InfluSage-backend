@@ -269,6 +269,130 @@ export const getCampaign = async (req, res) => {
   }
 };
 
+//..................GET INFLUENCER BROWSE DETAILS...........
+export const getInfluencerBrowseDetails = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.query.p_userid;
+
+    if (!userId) {
+      return res.status(400).json({ message: "User ID required" });
+    }
+
+    // const redisKey = `getinfluencerbrowsedetails:${userId}`;
+
+    // console.log("Redis Key==>", redisKey);
+
+    // const cachedData = await redisClient.get(redisKey);
+
+    // console.log("CachedData==>", cachedData)
+    // if (cachedData) {
+    //   return res.status(200).json(
+    //     {
+    //       message: "Influencer Browse Details From Redis",
+    //       result: JSON.parse(cachedData),
+    //       source: 'redis',
+    //     })
+    // }
+
+    //Data Given Form DB
+    const result = await client.query(
+      `SELECT * FROM ins.fn_get_influencerbrowsedetails($1::BIGINT)`,
+      [userId]
+    );
+
+    const influencers = result.rows[0]?.fn_get_influencerbrowsedetails;
+
+    //For Chek Data In Influencer
+    // console.log("Influencer data==>",JSON.stringify(influencers))
+
+    //Check For Influencer Data Available Or Not
+    if (!influencers) {
+      return res.status(404).json({ message: "No influencer data found" });
+    }
+    //Store Data In Redis
+    // await redisClient.set(redisKey, JSON.stringify(influencers));
+
+    // await redisClient.setEx(redisKey, 600, JSON.stringify(influencers)); // 10 min cache
+
+    return res.status(200).json({
+      message: "Influencers Browse Details Form DB",
+      result: influencers,
+      source: "db",
+    });
+  } catch (error) {
+    console.log("getInfluencerBrowseDetails error:", error);
+    return res.status(500).json({ message: "Internal server Error" });
+  }
+};
+
+//..................BROWSE ALL INFLUENCER...............
+export const browseAllInfluencer = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.query.p_userid || null;
+
+    //Check For User Id Available OR Not
+    // if (!userId) {
+    //   return res.status(400).json({ message: "User ID is required." });
+    // }
+
+    const {
+      p_location = null,
+      p_providers = null,
+      p_influencertiers = null,
+      p_ratings = null,
+      p_genders = null,
+      p_languages = null,
+      p_pagenumber = 1,
+      p_pagesize = 20,
+      p_search
+    } = req.query;
+
+    const result = await client.query(
+      `SELECT * FROM ins.fn_get_influencerbrowse(
+    $1::BIGINT,
+    $2::TEXT,
+    $3::JSON,
+    $4::JSON,
+    $5::JSON,
+    $6::JSON,
+    $7::JSON,
+    $8::INTEGER,
+    $9::INTEGER,
+    $10::TEXT
+  )`,
+      [
+        userId,
+        p_location,
+        p_providers ? JSON.parse(p_providers) : null,
+        p_influencertiers ? JSON.parse(p_influencertiers) : null,
+        p_ratings ? JSON.parse(p_ratings) : null,
+        p_genders ? JSON.parse(p_genders) : null,
+        p_languages,
+        p_pagenumber || 1,
+        p_pagesize || 20,
+        p_search
+      ]
+    );
+
+    const influencers = result.rows;
+
+    //Check For Data
+    // console.log("==>", influencers);
+    if (influencers.length === 0) {
+      return res.status(404).json({ message: "No influencers found." });
+    }
+
+    return res.status(200).json({
+      message: "Influencers Get Sucessfully",
+      data: influencers,
+      source: "db",
+    });
+  } catch (error) {
+    console.log("Failed to Get Influencers sucessfully", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
 export const deleteCampaignFile = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
@@ -368,6 +492,173 @@ export const getProvidorContentTypes = async (req, res) => {
     return res
       .status(500)
       .json({ message: "Failed to fetch GetCampaignObjectives" });
+  }
+}
+//................Add Favourite Influencer................
+export const addFavouriteInfluencer = async (req, res) => {
+  const { userId, influencerId } = req.body;
+
+  if (!userId || !influencerId) {
+    return res.status(400).json({
+      status: false,
+      message: "Missing userId or influencerId",
+    });
+  };
+
+  try {
+    const result = await client.query(
+      `CALL ins.usp_insert_influencersave(
+        $1::bigint,
+        $2::bigint,
+        $3::boolean,
+        $4::text
+      )`,
+      [userId, influencerId, null, null]
+    );
+
+    const { p_status, p_message } = result.rows[0];
+
+    return res.status(200).json({
+      status: p_status,
+      message: p_message
+    });
+  } catch (error) {
+    console.error('Error adding favourite influencer:', error);
+    return res.status(500).json({
+      status: false,
+      message: 'Internal server error'
+    });
+  }
+};
+//...............Get Favourite Influencer.................
+export const getFavouriteInfluencer = async (req, res) => {
+  const { userId,
+    p_pagenumber,
+    p_pagesize,
+    p_search
+  } = req.query;
+
+  if (!userId) return res.status(400).json({ message: 'Userid Require' });
+
+  try {
+
+    const result = await client.query(
+      `SELECT * FROM ins.fn_get_influencersave($1::BIGINT,$2,$3,$4)`,
+      [userId,
+        p_pagenumber || 1,
+        p_pagesize || 20,
+        p_search
+      ]
+    )
+    return res.json({
+      status: true,
+      data: result.rows
+    });
+  }
+  catch (error) {
+    console.log("Error While Favourite Influencer Get", error);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+//...............InviteInfluencerCampaign......................
+export const inviteInfluencerToCampaigns = async (req, res) => {
+
+  const { p_userid, p_influencerid } = req.query;
+
+
+  if (!p_userid || !p_influencerid) {
+    return res.status(400).json({ message: "User Id And Influencer Id require." })
+  }
+
+  try {
+    const result = await client.query(
+      `SELECT * FROM ins.fn_get_vendorcampaignlistforInvitation($1::BIGINT,$2::BIGINT,$3::boolean,
+        $4::text)`,
+      [p_userid, p_influencerid,null,null]
+    )
+
+     const { p_status, p_message } = result.rows[0];
+
+
+    // console.log("==>",campaign)
+    // console.log(typeof(campaign))
+
+    // console.log("==>",result.rows[0])
+    // const campaign = result.rows[0]?.p_campaigns;
+    
+
+
+    // console.log("==>",campaign)
+    // console.log(typeof(campaign))
+
+    //   if (!campaign?.[0]) {
+    //   return res.status(200).json({
+    //     status: true,
+    //     message: "No available campaigns found for this influencer.",
+    //     data: []
+    //   });
+    // }
+
+    // const campaigns = typeof campaign === 'string' ? JSON.parse(campaign) : campaign;
+
+    // console.log("==>",campaigns)
+
+     return res.status(200).json({
+      status: p_status,
+      message: p_message
+    });
+  }
+  catch (error) {
+
+    return res.status(500).json({ message: 'internal Server error While Fetching Campaign' })
+  }
+
+
+};
+//..............InsertCampaignInvites.........................
+export const insertCampaignInvites = async (req, res) => {
+  const { p_influencerid, p_campaignidjson } = req.body;
+ 
+  if (!p_influencerid) {
+    return res.status(400).json({
+      message: "Influencerid Id Require",
+    });
+  }
+  if (!p_campaignidjson || p_campaignidjson.length === 0) {
+    return res.status(400).json({
+      message: "No Campaign selected. Please Selected One Campaign.",
+    });
+  }
+ 
+  try {
+    const result = await client.query(
+      `CALL ins.usp_insert_campaigninvites(
+        $1::bigint,
+        $2::json,
+        $3::boolean,
+        $4::text
+       )`,
+      [
+        p_influencerid,
+        p_campaignidjson ? JSON.stringify(p_campaignidjson) : null,
+        null,
+        null,
+      ]
+    );
+ 
+    const { p_status, p_message } = result.rows[0];
+ 
+    if (p_status) {
+      return res.status(200).json({
+        message: p_message,
+        source: "db",
+      });
+    } else {
+      return res.status(400).json({ message: p_message });
+    }
+  } catch (error) {
+    console.log(error);
+   return res.status(500).json({ message:error.message });
   }
 };
 

@@ -31,7 +31,7 @@ export const requestRegistration = async (req, res) => {
   try {
     // console.log("Setting pendingUser in Redis:", normalizedEmail);
     const keys = await redisClient.keys("*");
-    console.log("Redis keys after registration:", keys);
+    // console.log("Redis keys after registration:", keys);
 
     const { firstName, lastName, email, roleId, password } = req.body;
     const normalizedEmail = email.toLowerCase();
@@ -48,7 +48,7 @@ export const requestRegistration = async (req, res) => {
     const otpCode = generateOTP();
 
     // ✅ Ab wahi OTP har jagah use hoga
-    console.log("Generated OTP (for registration):", otpCode);
+    // console.log("Generated OTP (for registration):", otpCode);
 
     // Store user data in Redis (5 minutes expiry)
     await redisClient.setEx(
@@ -87,11 +87,11 @@ export const verifyOtpAndRegister = async (req, res) => {
 
   try {
     // 🔍 Debug logs
-    console.log(" Verifying OTP for:", email);
-    console.log(" OTP received from user:", otp);
+    // console.log(" Verifying OTP for:", email);
+    // console.log(" OTP received from user:", otp);
 
     const storedOtp = await redisClient.get(`otp:${email}`);
-    console.log(" OTP stored in Redis:", storedOtp);
+    // console.log(" OTP stored in Redis:", storedOtp);
 
     if (!storedOtp) {
       return res.status(400).json({ message: "OTP expired or not found." });
@@ -100,11 +100,11 @@ export const verifyOtpAndRegister = async (req, res) => {
       console.log(" OTP mismatch!");
       return res.status(400).json({ message: "Invalid OTP." });
     }
-    console.log(" OTP matched successfully!");
+    // console.log(" OTP matched successfully!");
 
     // Check pending user
     const userDataStr = await redisClient.get(`pendingUser:${email}`);
-    console.log(" pendingUser data from Redis:", userDataStr);
+    // console.log(" pendingUser data from Redis:", userDataStr);
 
     if (!userDataStr) {
       return res
@@ -122,12 +122,12 @@ export const verifyOtpAndRegister = async (req, res) => {
     );
 
     const { p_code, p_message } = result.rows[0];
-    console.log(" DB Response:", { p_code, p_message });
+    // console.log(" DB Response:", { p_code, p_message });
 
     // Clean up Redis
     await redisClient.del(`otp:${email}`);
     await redisClient.del(`pendingUser:${email}`);
-    console.log(" Redis keys deleted for:", email);
+    // console.log(" Redis keys deleted for:", email);
 
     return res.status(p_code).json({ message: p_message });
   } catch (error) {
@@ -202,7 +202,7 @@ export const resendOtp = async (req, res) => {
     const otpCode = generateOTP();
 
     //  Yehi OTP sab jagah use hoga
-    console.log("Generated OTP:", otpCode);
+    // console.log("Generated OTP:", otpCode);
 
     // Send Email with OTP
     await sendingMail(email, "InflueSage OTP Verification - Resend", otpCode);
@@ -214,7 +214,7 @@ export const resendOtp = async (req, res) => {
     const userData = await redisClient.get(`pendingUser:${email}`);
     if (userData) {
       await redisClient.expire(`pendingUser:${email}`, 300);
-      console.log("Pending user TTL reset for:", email);
+      // console.log("Pending user TTL reset for:", email);
     }
 
     return res.status(200).json({ message: "OTP resent successfully." });
