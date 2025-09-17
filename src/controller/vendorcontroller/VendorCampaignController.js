@@ -544,7 +544,7 @@ export const getFavouriteInfluencer = async (req, res) => {
   try {
 
     const result = await client.query(
-      `SELECT * FROM ins.fn_get_influencerbrowsedetails($1::BIGINT,$2,$3,$4)`,
+      `SELECT * FROM ins.fn_get_influencersave($1::BIGINT,$2,$3,$4)`,
       [userId,
         p_pagenumber || 1,
         p_pagesize || 20,
@@ -566,35 +566,48 @@ export const inviteInfluencerToCampaigns = async (req, res) => {
 
   const { p_userid, p_influencerid } = req.query;
 
+
   if (!p_userid || !p_influencerid) {
     return res.status(400).json({ message: "User Id And Influencer Id require." })
   }
 
   try {
     const result = await client.query(
-      `SELECT * FROM ins.fn_get_vendorcampaignlistforInvitation($1::BIGINT,$2::BIGINT)`,
-      [p_userid, p_influencerid]
+      `SELECT * FROM ins.fn_get_vendorcampaignlistforInvitation($1::BIGINT,$2::BIGINT,$3::boolean,
+        $4::text)`,
+      [p_userid, p_influencerid,null,null]
     )
 
-    const campaign = result.rows[0]?.p_campaigns;
+     const { p_status, p_message } = result.rows[0];
+
 
     // console.log("==>",campaign)
     // console.log(typeof(campaign))
 
-      if (!campaign) {
-      return res.status(200).json({
-        status: true,
-        message: "No available campaigns found for this influencer.",
-        data: []
-      });
-    }
+    // console.log("==>",result.rows[0])
+    // const campaign = result.rows[0]?.p_campaigns;
+    
 
-    const campaigns = typeof campaign === 'string' ? JSON.parse(campaign) : campaign;
 
-    return res.status(200).json({
-      message: 'Available Campaigns fetched successfully',
-      data: campaigns
-    })
+    // console.log("==>",campaign)
+    // console.log(typeof(campaign))
+
+    //   if (!campaign?.[0]) {
+    //   return res.status(200).json({
+    //     status: true,
+    //     message: "No available campaigns found for this influencer.",
+    //     data: []
+    //   });
+    // }
+
+    // const campaigns = typeof campaign === 'string' ? JSON.parse(campaign) : campaign;
+
+    // console.log("==>",campaigns)
+
+     return res.status(200).json({
+      status: p_status,
+      message: p_message
+    });
   }
   catch (error) {
 
@@ -605,49 +618,48 @@ export const inviteInfluencerToCampaigns = async (req, res) => {
 };
 //..............InsertCampaignInvites.........................
 export const insertCampaignInvites = async (req, res) => {
-
   const { p_influencerid, p_campaignidjson } = req.body;
-
+ 
   if (!p_influencerid) {
     return res.status(400).json({
-      message: 'Influencerid Id Require'
-    })
+      message: "Influencerid Id Require",
+    });
   }
   if (!p_campaignidjson || p_campaignidjson.length === 0) {
-
     return res.status(400).json({
-      message: 'No Campaign selected. Please Selected One Campaign.'
-    })
-
+      message: "No Campaign selected. Please Selected One Campaign.",
+    });
   }
-
+ 
   try {
-
     const result = await client.query(
       `CALL ins.usp_insert_campaigninvites(
-      $1::bigint,
-      $2::json)`,
-      [p_influencerid,
+        $1::bigint,
+        $2::json,
+        $3::boolean,
+        $4::text
+       )`,
+      [
+        p_influencerid,
         p_campaignidjson ? JSON.stringify(p_campaignidjson) : null,
         null,
-        null
+        null,
       ]
-    )
-
+    );
+ 
     const { p_status, p_message } = result.rows[0];
-
-    return res.status(200).json({
-      success: p_status,
-      message: p_message
-    });
-
-  }
-  catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: 'Internal server error while inserting campaign invites'
-    })
-
+ 
+    if (p_status) {
+      return res.status(200).json({
+        message: p_message,
+        source: "db",
+      });
+    } else {
+      return res.status(400).json({ message: p_message });
+    }
+  } catch (error) {
+    console.log(error);
+   return res.status(500).json({ message:error.message });
   }
 };
 
