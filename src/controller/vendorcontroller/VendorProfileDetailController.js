@@ -167,7 +167,25 @@ export const getVendorProfile = async (req, res) => {
 
 export const completeVendorProfile = async (req, res) => {
   const userId = req.user?.id || req.body.userid;
-  const username = req.user.name;
+  let username = "user";
+ 
+// Prefer JWT payload (if available)
+if (req.user?.firstName || req.user?.lastName) {
+  username = `${req.user.firstName || ""}_${req.user.lastName || ""}`.trim();
+}
+ 
+// Otherwise fallback to body fields (if sent from frontend)
+else if (req.body?.firstName || req.body?.lastName) {
+  username = `${req.body.firstName || ""}_${req.body.lastName || ""}`.trim();
+}
+ 
+// If still missing, fetch from DB
+else {
+  const dbUser = await client.query("SELECT firstname, lastname FROM ins.users WHERE id=$1", [userId]);
+  if (dbUser.rows[0]) {
+    username = `${dbUser.rows[0].firstname || ""}_${dbUser.rows[0].lastname || ""}`.trim() || "user";
+  }
+}
   const redisKey = `vendorprofile:${userId}`;
 
   try {

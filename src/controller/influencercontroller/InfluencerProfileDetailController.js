@@ -21,7 +21,26 @@ const calculateProfileCompletion = (profileParts) => {
 export const completeUserProfile = async (req, res) => {
   const userId = req.user?.id || req.body?.userId;
   // console.log("userId===>", userId);
-  const username = req.user?.name || "user";
+  let username = "user";
+ 
+// Prefer JWT payload (if available)
+if (req.user?.firstName || req.user?.lastName) {
+  username = `${req.user.firstName || ""}_${req.user.lastName || ""}`.trim();
+}
+ 
+// Otherwise fallback to body fields (if sent from frontend)
+else if (req.body?.firstName || req.body?.lastName) {
+  username = `${req.body.firstName || ""}_${req.body.lastName || ""}`.trim();
+}
+ 
+// If still missing, fetch from DB
+else {
+  const dbUser = await client.query("SELECT firstname, lastname FROM ins.users WHERE id=$1", [userId]);
+  if (dbUser.rows[0]) {
+    username = `${dbUser.rows[0].firstname || ""}_${dbUser.rows[0].lastname || ""}`.trim() || "user";
+  }
+}
+ 
   const redisKey = `profile:${userId}`;
 
   try {
@@ -62,33 +81,37 @@ export const completeUserProfile = async (req, res) => {
     // ---------------------------
     // 3 Handle portfolio uploads
     // ---------------------------
-    if (req.files?.portfolioFiles) {
-      const portfolioPaths = req.files.portfolioFiles.map(
-        (f) => `src/uploads/influencer/${f.filename}`
-      );
+   if (req.files?.portfolioFiles) {
+  const portfolioPaths = req.files.portfolioFiles.map((file) => {
+    const newFileName = `${username}_portfolio_${Date.now()}${path.extname(file.originalname)}`;
+    const newPath = path.join("src/uploads/influencer", newFileName);
+    fs.renameSync(file.path, newPath);
+    return `src/uploads/influencer/${newFileName}`;
+  });
 
-      if (portfoliojson) {
-        try {
-          const parsedPortfolio = JSON.parse(portfoliojson);
+  if (portfoliojson) {
+    try {
+      const parsedPortfolio = JSON.parse(portfoliojson);
 
-          // Preserve existing filepaths if any
-          const existingPaths = Array.isArray(parsedPortfolio.filepaths)
-            ? parsedPortfolio.filepaths.filter((p) => p?.filepath)
-            : [];
+      // Preserve existing filepaths if any
+      const existingPaths = Array.isArray(parsedPortfolio.filepaths)
+        ? parsedPortfolio.filepaths.filter((p) => p?.filepath)
+        : [];
 
-          // Add new uploaded files
-          const newPaths = portfolioPaths.map((p) => ({
-            filepath: p,
-          }));
+      // Add new uploaded files
+      const newPaths = portfolioPaths.map((p) => ({
+        filepath: p,
+      }));
 
-          parsedPortfolio.filepaths = [...existingPaths, ...newPaths];
+      parsedPortfolio.filepaths = [...existingPaths, ...newPaths];
 
-          req.body.portfoliojson = JSON.stringify(parsedPortfolio);
-        } catch (err) {
-          console.error("Invalid portfoliojson:", err.message);
-        }
-      }
+      req.body.portfoliojson = JSON.stringify(parsedPortfolio);
+    } catch (err) {
+      console.error("Invalid portfoliojson:", err.message);
     }
+  }
+}
+
 
     // ---------------------------
     // 4 Merge incoming data (safe JSON.parse)
