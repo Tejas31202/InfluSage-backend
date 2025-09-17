@@ -12,22 +12,18 @@ import authenticateUser from '../../middleware/AuthMiddleware.js';
 
 const routes = express.Router();
 
-routes.get('/influencer/browse', getInfluencerBrowseDetails);
+routes.get('/influencer/browse',authenticateUser(["Vendor"]), getInfluencerBrowseDetails);
 
-routes.get('/allinfluencer/browse', browseAllInfluencer);
+routes.get('/allinfluencer/browse',authenticateUser(["Vendor"]),browseAllInfluencer);
 
-routes.post('/addfavourite/influencer',addFavouriteInfluencer);
+routes.post('/addfavourite/influencer',authenticateUser(["Vendor"]),addFavouriteInfluencer);
 
-routes.get('/getfavourite/influencer',getFavouriteInfluencer);
+routes.get('/getfavourite/influencer',authenticateUser(["Vendor"]),getFavouriteInfluencer);
 
-routes.post('/campaign/invite',insertCampaignInvites);
+routes.post('/campaign/invite',authenticateUser(["Vendor"]),insertCampaignInvites);
 
-routes.get('/inviteinfluencer/Campaigns',inviteInfluencerToCampaigns);
+routes.get('/inviteinfluencer/Campaigns',authenticateUser(["Vendor"]),inviteInfluencerToCampaigns);
 
-routes.get('/browse/inviteinfluencer',browseInviteInfluencer)
-
-
-
-
+routes.get('/browse/inviteinfluencer',authenticateUser(["Vendor"]),browseInviteInfluencer)
 
 export default routes;

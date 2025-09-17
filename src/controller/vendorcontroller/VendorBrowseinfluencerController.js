@@ -8,16 +8,16 @@ redisClient.connect().catch(console.error);
 //..................GET INFLUENCER BROWSE DETAILS...........
 export const getInfluencerBrowseDetails = async (req, res) => {
   try {
-    const userId = req.user?.id || req.query.p_userid;
+    const p_influencerid = req.user?.id || req.query.p_influencerid;
 
-    if (!userId) {
-      return res.status(400).json({ message: "User ID required" });
+    if (!p_influencerid) {
+      return res.status(400).json({ message: "Influencer ID required" });
     }
 
     //Data Given Form DB
     const result = await client.query(
       `SELECT * FROM ins.fn_get_influencerbrowsedetails($1::BIGINT)`,
-      [userId]
+      [p_influencerid]
     );
 
     const influencers = result.rows[0]?.fn_get_influencerbrowsedetails;
@@ -90,10 +90,13 @@ export const browseAllInfluencer = async (req, res) => {
       ]
     );
 
-    const influencers = result.rows;
+    // const influencers = result.rows;
+
+    influencers = result.rows[0].fn_get_influencerbrowse;
 
     //Check For Data
     console.log("==>", influencers);
+
     if (influencers.length === 0) {
       return res.status(404).json({ message: "No influencers found." });
     }
@@ -110,8 +113,7 @@ export const browseAllInfluencer = async (req, res) => {
 };
 //................Add Favourite Influencer................
 export const addFavouriteInfluencer = async (req, res) => {
-  const {p_userId, p_influencerId} = req.body;
-  console.log("user", p_userId,p_influencerId)
+  const { p_userId, p_influencerId } = req.body;
 
   if (!p_userId || !p_influencerId) {
     return res.status(400).json({
@@ -165,9 +167,12 @@ export const getFavouriteInfluencer = async (req, res) => {
         p_search
       ]
     )
+
+    const influencers = result.rows[0]?.fn_get_influencersave;
+
     return res.json({
       status: true,
-      data: result.rows
+      data: influencers
     });
   }
   catch (error) {
@@ -181,7 +186,7 @@ export const inviteInfluencerToCampaigns = async (req, res) => {
   const { p_userid, p_influencerid } = req.query;
 
   if (!p_userid || !p_influencerid) {
-    return res.status(400).json({ message: "User Id And Influencer Id require." })
+    return res.status(400).json({ message: 'User Id And Influencer Id require.' })
   }
 
   try {
@@ -192,11 +197,13 @@ export const inviteInfluencerToCampaigns = async (req, res) => {
 
     const campaigns = result.rows;
 
-    console.log("==>",campaigns)
+    console.log("==>", campaigns)
 
-     const { p_status, p_message } = result.rows[0];
+    //  const { p_status, p_message } = result.rows[0];
 
-     return res.status(200).json({
+    const { p_status, p_message } = result.rows[0]?.fn_get_vendorcampaignlistforinvitation || {};
+
+    return res.status(200).json({
       status: p_status,
       message: p_message
     });
@@ -211,7 +218,7 @@ export const inviteInfluencerToCampaigns = async (req, res) => {
 //..............InsertCampaignInvites........................
 export const insertCampaignInvites = async (req, res) => {
   const { p_influencerid, p_campaignidjson } = req.body;
- 
+
   if (!p_influencerid) {
     return res.status(400).json({
       message: "Influencerid Id Require",
@@ -222,7 +229,7 @@ export const insertCampaignInvites = async (req, res) => {
       message: "No Campaign selected. Please Selected One Campaign.",
     });
   }
- 
+
   try {
     const result = await client.query(
       `CALL ins.usp_insert_campaigninvites(
@@ -238,9 +245,9 @@ export const insertCampaignInvites = async (req, res) => {
         null,
       ]
     );
- 
+
     const { p_status, p_message } = result.rows[0];
- 
+
     if (p_status) {
       return res.status(200).json({
         message: p_message,
@@ -251,7 +258,7 @@ export const insertCampaignInvites = async (req, res) => {
     }
   } catch (error) {
     console.log(error);
-   return res.status(500).json({ message:error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 //..............Browse Invite Influencer......................
