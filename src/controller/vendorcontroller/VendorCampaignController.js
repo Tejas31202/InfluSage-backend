@@ -295,6 +295,7 @@ export const getInfluencerBrowseDetails = async (req, res) => {
     // }
 
     //Data Given Form DB
+
     const result = await client.query(
       `SELECT * FROM ins.fn_get_influencerbrowsedetails($1::BIGINT)`,
       [userId]
@@ -574,10 +575,10 @@ export const inviteInfluencerToCampaigns = async (req, res) => {
     const result = await client.query(
       `SELECT * FROM ins.fn_get_vendorcampaignlistforInvitation($1::BIGINT,$2::BIGINT,$3::boolean,
         $4::text)`,
-      [p_userid, p_influencerid,null,null]
+      [p_userid, p_influencerid, null, null]
     )
 
-     const { p_status, p_message } = result.rows[0];
+    const { p_status, p_message } = result.rows[0];
 
 
     // console.log("==>",campaign)
@@ -585,7 +586,7 @@ export const inviteInfluencerToCampaigns = async (req, res) => {
 
     // console.log("==>",result.rows[0])
     // const campaign = result.rows[0]?.p_campaigns;
-    
+
 
 
     // console.log("==>",campaign)
@@ -603,7 +604,7 @@ export const inviteInfluencerToCampaigns = async (req, res) => {
 
     // console.log("==>",campaigns)
 
-     return res.status(200).json({
+    return res.status(200).json({
       status: p_status,
       message: p_message
     });
@@ -618,7 +619,7 @@ export const inviteInfluencerToCampaigns = async (req, res) => {
 //..............InsertCampaignInvites.........................
 export const insertCampaignInvites = async (req, res) => {
   const { p_influencerid, p_campaignidjson } = req.body;
- 
+
   if (!p_influencerid) {
     return res.status(400).json({
       message: "Influencerid Id Require",
@@ -629,7 +630,7 @@ export const insertCampaignInvites = async (req, res) => {
       message: "No Campaign selected. Please Selected One Campaign.",
     });
   }
- 
+
   try {
     const result = await client.query(
       `CALL ins.usp_insert_campaigninvites(
@@ -645,9 +646,9 @@ export const insertCampaignInvites = async (req, res) => {
         null,
       ]
     );
- 
+
     const { p_status, p_message } = result.rows[0];
- 
+
     if (p_status) {
       return res.status(200).json({
         message: p_message,
@@ -658,7 +659,7 @@ export const insertCampaignInvites = async (req, res) => {
     }
   } catch (error) {
     console.log(error);
-   return res.status(500).json({ message:error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
