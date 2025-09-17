@@ -11,7 +11,8 @@ import VendorRoutes from './src/routes/vendorroutes/VendorRoute.js';
 import VendorProfileDetailRoutes from './src/routes/vendorroutes/VendorProfileDetailRoutes.js';
 import VendorCampaignRoutes from './src/routes/vendorroutes/VendorCampaignRoutes.js';
 import InfluencerCampaignRoutes from './src/routes/influencerroutes/InfluencerCampaignRoutes.js';
-import VendorInfluencerBrowseRoutes from './src/routes/vendorroutes/VendorInfluencerBrowseRoutes.js'
+import VendorInfluencerBrowseRoutes from './src/routes/vendorroutes/VendorInfluencerBrowseRoutes.js';
+import VendorOffersRoutes from './src/routes/vendorroutes/VendorOffersRoutes.js';
 import CommonRoutes from './src/routes/CommonRoutes.js';
 
 dotenv.config();
@@ -45,6 +46,7 @@ app.use("/vendor", VendorRoutes);
 app.use("/vendor", VendorProfileDetailRoutes);
 app.use("/vendor", VendorCampaignRoutes);
 app.use("/vendor",VendorInfluencerBrowseRoutes);
+app.use("/vendor",VendorOffersRoutes);
 
 const PORT = process.env.BACKEND_PORT || 3001;
 
