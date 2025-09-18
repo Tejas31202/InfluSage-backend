@@ -37,6 +37,7 @@
     "passport-mock-strategy": "^2.0.0",
     "pg": "^8.16.3",
     "razorpay": "^2.9.6",
-    "redis": "^5.6.1"
+    "redis": "^5.6.1",
+    "socket.io": "^4.8.1"
   }
 }

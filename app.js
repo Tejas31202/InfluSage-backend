@@ -14,6 +14,8 @@ import InfluencerCampaignRoutes from './src/routes/influencerroutes/InfluencerCa
 import VendorInfluencerBrowseRoutes from './src/routes/vendorroutes/VendorInfluencerBrowseRoutes.js';
 import VendorOffersRoutes from './src/routes/vendorroutes/VendorOffersRoutes.js';
 import CommonRoutes from './src/routes/CommonRoutes.js';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 
 dotenv.config();
 
@@ -50,6 +52,35 @@ app.use("/vendor",VendorOffersRoutes);
 
 const PORT = process.env.BACKEND_PORT || 3001;
 
-app.listen(PORT, () => {
-  console.log("server started on", PORT);
+// --------------------
+// Create HTTP server & attach Socket.IO
+// --------------------
+const server = createServer(app);
+
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+});
+
+// Socket.IO connection
+io.on("connection", (socket) => {
+  console.log("🔗 User connected:", socket.id);
+
+  // Listen for messages
+  socket.on("sendMessage", (msg) => {
+    console.log("Message received:", msg);
+    io.emit("receiveMessage", msg); // broadcast to all clients
+  });
+
+  socket.on("disconnect", () => {
+    console.log("❌ User disconnected:", socket.id);
+  });
+});
+
+// Start server using HTTP server
+server.listen(PORT, () => {
+  console.log("Server started on port", PORT);
 });
