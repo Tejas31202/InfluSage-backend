@@ -180,40 +180,32 @@ export const getFavouriteInfluencer = async (req, res) => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
-//...............InviteInfluencerCampaign......................testing pending
+//...............InviteInfluencerCampaign.................
 export const inviteInfluencerToCampaigns = async (req, res) => {
-
-  const { p_userid, p_influencerid } = req.query;
-
-  if (!p_userid || !p_influencerid) {
-    return res.status(400).json({ message: 'User Id And Influencer Id require.' })
+  const userId=req.user?.id||req.query.body.userId;
+  const  {p_influencerid } = req.query;
+ 
+  if (!p_influencerid) {
+    return res.status(400).json({ message: 'Influencer Id require.' })
   }
-
+ 
   try {
     const result = await client.query(
       `SELECT * FROM ins.fn_get_vendorcampaignlistforInvitation($1::BIGINT,$2::BIGINT)`,
-      [p_userid, p_influencerid]
+      [p_influencerid,userId]
     )
-
-    const campaigns = result.rows;
-
-    console.log("==>", campaigns)
-
-    //  const { p_status, p_message } = result.rows[0];
-
-    const { p_status, p_message } = result.rows[0]?.fn_get_vendorcampaignlistforinvitation || {};
-
+ 
+    const campaigns = result.rows[0].p_campaigns;
+ 
     return res.status(200).json({
-      status: p_status,
-      message: p_message
+      data:campaigns,
+      source:"db"
     });
   }
   catch (error) {
-
+    console.error("Error While Fetching Campaign",error);
     return res.status(500).json({ message: 'internal Server error While Fetching Campaign' })
   }
-
-
 };
 //..............InsertCampaignInvites........................
 export const insertCampaignInvites = async (req, res) => {
