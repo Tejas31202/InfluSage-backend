@@ -182,7 +182,7 @@ export const getFavouriteInfluencer = async (req, res) => {
 };
 //...............InviteInfluencerCampaign.................
 export const inviteInfluencerToCampaigns = async (req, res) => {
-  const userId=req.user?.id||req.query.body.userId;
+  const userId=req.user?.id||req.body.userId;
   const  {p_influencerid } = req.query;
  
   if (!p_influencerid) {
