@@ -408,7 +408,10 @@ export const deletePortfolioFile = async (req, res) => {
       fs.unlinkSync(fullPath);
       console.log(" File deleted from folder:", fullPath);
     } else {
-      console.log(" File not found in folder:", fullPath);
+      return res.status(404).json({
+        status: false,
+        message: "File not found in folder"
+      });
     }
 
     return res.status(200).json({

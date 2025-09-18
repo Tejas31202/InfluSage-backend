@@ -429,6 +429,11 @@ export const deleteCampaignFile = async (req, res) => {
     const fullPath = path.resolve(filePathToDelete);
     if (fs.existsSync(fullPath)) {
       fs.unlinkSync(fullPath);
+    }else{
+      return res.status(404).json({
+        status: false,
+        message: "File not found in folder"
+      });
     }
 
     return res.status(200).json({

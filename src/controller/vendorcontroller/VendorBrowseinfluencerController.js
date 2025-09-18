@@ -7,7 +7,7 @@ redisClient.connect().catch(console.error);
 //..................GET INFLUENCER BROWSE DETAILS...........
 export const getInfluencerBrowseDetails = async (req, res) => {
   try {
-    const p_influencerid = req.user?.id || req.query.p_influencerid;
+    const p_influencerid = req.body.p_influencerid;
 
     if (!p_influencerid) {
       return res.status(400).json({ message: "Influencer ID required" });
@@ -20,15 +20,6 @@ export const getInfluencerBrowseDetails = async (req, res) => {
     );
 
     const influencers = result.rows[0]?.fn_get_influencerbrowsedetails;
-
-    //Check For Influencer Data Available Or Not
-    if (!influencers) {
-      return res.status(404).json({ message: "No influencer data found" });
-    }
-    //Store Data In Redis
-    // await redisClient.set(redisKey, JSON.stringify(influencers));
-
-    // await redisClient.setEx(redisKey, 600, JSON.stringify(influencers)); // 10 min cache
 
     return res.status(200).json({
       message: "Influencers Browse Details Form DB",
@@ -61,6 +52,7 @@ export const browseAllInfluencer = async (req, res) => {
       p_pagesize = 20,
       p_search,
     } = req.query;
+    console.log(req.query)
 
     const result = await client.query(
       `SELECT * FROM ins.fn_get_influencerbrowse(
@@ -88,7 +80,16 @@ export const browseAllInfluencer = async (req, res) => {
         p_search,
       ]
     );
-
+    console.log(userId,
+        p_location,
+        p_providers ? JSON.parse(p_providers) : null,
+        p_influencertiers ? JSON.parse(p_influencertiers) : null,
+        p_ratings ? JSON.parse(p_ratings) : null,
+        p_genders ? JSON.parse(p_genders) : null,
+        p_languages,
+        p_pagenumber || 1,
+        p_pagesize || 20,
+        p_search,)
     // const influencers = result.rows;
 
     const influencers = result.rows[0].fn_get_influencerbrowse;

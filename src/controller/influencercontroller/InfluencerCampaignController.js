@@ -1,6 +1,8 @@
 import { client } from '../../config/Db.js';
 
 import redis from 'redis';
+import path from 'path';
+import fs from 'fs';
 
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
 redisClient.connect().catch(console.error);
