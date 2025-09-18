@@ -46,73 +46,29 @@ export const getOffersForCampaign = async (req, res) => {
 };
 
 export const getViewAllOffersForSingleCampaign = async (req, res) => {
-  const userId = req.user?.id || req.body.userId;
+  // const userId = req.user?.id || req.body.userId;
   const campaignId = req.params.campaignId;
-  const {
-    sortby,
-    sortorder,
-    pagenumber,
-    pagesize,
-    p_search,
-    p_category,
-    status,
-    minbudget,
-    maxbudget,
-    fromdate,
-    todate,
-  } = req.query;
+  const { pagenumber, pagesize, p_search } = req.query;
   try {
-    // const result = await client.query(
-      //   `SELECT * from ins.fn_get_campaignoffer(
-      //  $1:: BIGINT,
-      //   $2:: text,
-      //   $3:: text,
-      //   $4:: integer,
-      //   $5:: integer,
-      //   $6:: text
-      //   )`,
-    //   [
-    //     userId,
-    //     campaignId,
-    //     sortby || "startdate",
-    //     sortorder || "DESC",
-    //     pagenumber || 1,
-    //     pagesize || 20,
-    //     p_search || null,
-    //     p_category,
-    //     status,
-    //     minbudget,
-    //     maxbudget,
-    //     fromdate,
-    //     todate,
-    //   ]
-    // );
-    const result = [
-      {
-        offerId: 101,
-        influencerId: 201,
-        influencerName: "John Doe",
-        budget: 5000,
-        status: "Pending",
-        submittedAt: "2025-09-17T10:30:00Z",
-      },
-      {
-        offerId: 102,
-        influencerId: 202,
-        influencerName: "Jane Smith",
-        budget: 7500,
-        status: "Accepted",
-        submittedAt: "2025-09-16T15:00:00Z",
-      }]
-    //Check Db Return Data OR Not
-    // if (!result.rows) {
-    //   return res.status(404).json({ message: "campaign offer not found." });
-    // }
+    const result = await client.query(
+      `select * from ins.fn_get_appliedcampaignapplications(
+       $1:: BIGINT,
+        $2:: integer,
+        $3:: integer,
+        $4:: text
+        )`,
+      [campaignId, pagenumber || 1, pagesize || 20, p_search || null]
+    );
 
-    // const offers = result.rows[0];
+    //Check Db Return Data OR Not
+    if (!result.rows) {
+      return res.status(404).json({ message: "campaign offer not found." });
+    }
+
+    const offers = result.rows[0].fn_get_appliedcampaignapplications;
     //Return Data From Db
     return res.status(200).json({
-      data: result,
+      data: offers,
       source: "db",
     });
   } catch (error) {
