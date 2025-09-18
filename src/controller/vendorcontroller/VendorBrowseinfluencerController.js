@@ -34,7 +34,7 @@ export const getInfluencerBrowseDetails = async (req, res) => {
 //..................BROWSE ALL INFLUENCER...............
 export const browseAllInfluencer = async (req, res) => {
   try {
-    const userId = req.user?.id || req.query.p_userid || null;
+    const userId = req.user?.id || req.body.p_userid ;
 
     //Check For User Id Available OR Not
     // if (!userId) {
@@ -42,18 +42,17 @@ export const browseAllInfluencer = async (req, res) => {
     // }
 
     const {
-      p_location = null,
-      p_providers = null,
-      p_influencertiers = null,
-      p_ratings = null,
-      p_genders = null,
-      p_languages = null,
-      p_pagenumber = 1,
-      p_pagesize = 20,
-      p_search,
+      p_location,
+      p_providers,
+      p_influencertiers,
+      p_ratings ,
+      p_genders,
+      p_languages,
+      p_pagenumber,
+      p_pagesize,
+      p_search
     } = req.query;
-    console.log(req.query)
-
+  
     const result = await client.query(
       `SELECT * FROM ins.fn_get_influencerbrowse(
     $1::BIGINT,
@@ -69,29 +68,19 @@ export const browseAllInfluencer = async (req, res) => {
   )`,
       [
         userId,
-        p_location,
-        p_providers ? JSON.parse(p_providers) : null,
-        p_influencertiers ? JSON.parse(p_influencertiers) : null,
-        p_ratings ? JSON.parse(p_ratings) : null,
-        p_genders ? JSON.parse(p_genders) : null,
-        p_languages,
+        p_location||null,
+        p_providers||null,
+        p_influencertiers||null,
+        p_ratings||null ,
+        p_genders||null ,
+        p_languages||null,
         p_pagenumber || 1,
         p_pagesize || 20,
-        p_search,
+        p_search||null,
       ]
     );
-    console.log(userId,
-        p_location,
-        p_providers ? JSON.parse(p_providers) : null,
-        p_influencertiers ? JSON.parse(p_influencertiers) : null,
-        p_ratings ? JSON.parse(p_ratings) : null,
-        p_genders ? JSON.parse(p_genders) : null,
-        p_languages,
-        p_pagenumber || 1,
-        p_pagesize || 20,
-        p_search,)
-    // const influencers = result.rows;
 
+    
     const influencers = result.rows[0].fn_get_influencerbrowse;
 
     //Check For Data
@@ -232,9 +221,11 @@ export const insertCampaignInvites = async (req, res) => {
     const { p_status, p_message } = result.rows[0];
 
     if (p_status) {
-      return res.status(200).json({message: p_message,p_status,source: "db"});
+      return res
+        .status(200)
+        .json({ message: p_message, p_status, source: "db" });
     } else {
-      return res.status(400).json({ message: p_message,p_status });
+      return res.status(400).json({ message: p_message, p_status });
     }
   } catch (error) {
     console.log(error);
