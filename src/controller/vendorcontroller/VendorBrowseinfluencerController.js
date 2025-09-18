@@ -1,6 +1,5 @@
-import { client } from '../../config/Db.js';
-import redis from 'redis';
-
+import { client } from "../../config/Db.js";
+import redis from "redis";
 
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
 redisClient.connect().catch(console.error);
@@ -60,7 +59,7 @@ export const browseAllInfluencer = async (req, res) => {
       p_languages = null,
       p_pagenumber = 1,
       p_pagesize = 20,
-      p_search
+      p_search,
     } = req.query;
 
     const result = await client.query(
@@ -86,7 +85,7 @@ export const browseAllInfluencer = async (req, res) => {
         p_languages,
         p_pagenumber || 1,
         p_pagesize || 20,
-        p_search
+        p_search,
       ]
     );
 
@@ -95,7 +94,7 @@ export const browseAllInfluencer = async (req, res) => {
     const influencers = result.rows[0].fn_get_influencerbrowse;
 
     //Check For Data
-    console.log("==>", influencers);
+    // console.log("==>", influencers);
 
     if (influencers.length === 0) {
       return res.status(404).json({ message: "No influencers found." });
@@ -120,7 +119,7 @@ export const addFavouriteInfluencer = async (req, res) => {
       status: false,
       message: "Missing userId or influencerId",
     });
-  };
+  }
 
   try {
     const result = await client.query(
@@ -137,74 +136,65 @@ export const addFavouriteInfluencer = async (req, res) => {
 
     return res.status(200).json({
       status: p_status,
-      message: p_message
+      message: p_message,
     });
   } catch (error) {
-    console.error('Error adding favourite influencer:', error);
+    console.error("Error adding favourite influencer:", error);
     return res.status(500).json({
       status: false,
-      message: 'Internal server error'
+      message: "Internal server error",
     });
   }
 };
 //...............Get Favourite Influencer.................
 export const getFavouriteInfluencer = async (req, res) => {
-  const { userId,
-    p_pagenumber,
-    p_pagesize,
-    p_search
-  } = req.query;
+  const { userId, p_pagenumber, p_pagesize, p_search } = req.query;
 
-  if (!userId) return res.status(400).json({ message: 'Userid Require' });
+  if (!userId) return res.status(400).json({ message: "Userid Require" });
 
   try {
-
     const result = await client.query(
       `SELECT * FROM ins.fn_get_influencersave($1::BIGINT,$2,$3,$4)`,
-      [userId,
-        p_pagenumber || 1,
-        p_pagesize || 20,
-        p_search
-      ]
-    )
+      [userId, p_pagenumber || 1, p_pagesize || 20, p_search]
+    );
 
     const influencers = result.rows[0]?.fn_get_influencersave;
 
     return res.json({
       status: true,
-      data: influencers
+      data: influencers,
     });
-  }
-  catch (error) {
+  } catch (error) {
     console.log("Error While Favourite Influencer Get", error);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
 //...............InviteInfluencerCampaign.................
 export const inviteInfluencerToCampaigns = async (req, res) => {
-  const userId=req.user?.id||req.body.userId;
-  const  {p_influencerid } = req.query;
- 
+  const userId = req.user?.id || req.body.userId;
+  const { p_influencerid } = req.query;
+
   if (!p_influencerid) {
-    return res.status(400).json({ message: 'Influencer Id require.' })
+    return res.status(400).json({ message: "Influencer Id require." });
   }
- 
+
   try {
     const result = await client.query(
       `SELECT * FROM ins.fn_get_vendorcampaignlistforInvitation($1::BIGINT,$2::BIGINT)`,
-      [p_influencerid,userId]
-    )
- 
+      [p_influencerid, userId]
+    );
+
     const campaigns = result.rows[0].p_campaigns;
- 
+
     return res.status(200).json({
-      data:campaigns,
-      source:"db"
+      data: campaigns,
+      source: "db",
     });
-  }
-  catch (error) {
-    console.error("Error While Fetching Campaign",error);
-    return res.status(500).json({ message: 'internal Server error While Fetching Campaign' })
+  } catch (error) {
+    console.error("Error While Fetching Campaign", error);
+    return res
+      .status(500)
+      .json({ message: "internal Server error While Fetching Campaign" });
   }
 };
 //..............InsertCampaignInvites........................
@@ -255,51 +245,27 @@ export const insertCampaignInvites = async (req, res) => {
 };
 //..............Browse Invite Influencer......................
 export const browseInviteInfluencer = async (req, res) => {
-
-  const {
-
-    p_userid,
-    p_campaignid,
-    p_pagenumber = 1,
-    p_pagesize = 20,
-    p_search
-
-  } = req.query;
-
-  if (!p_userid || !p_campaignid) {
-    return res.status(400).json({
-      message: 'Campaign Id And User Id Require'
-    });
-  }
+  const userId = req.user?.id || req.body.userId;
+  const { p_pagenumber, p_pagesize, p_search } = req.query;
 
   try {
-
     const result = await client.query(
       `SELECT * FROM ins.fn_get_influencerinvite(
       $1::bigint,
-      $2::bigint,
+      $2::integer,
       $3::integer,
-      $4::integer,
-      $5::text)`,
-      [p_userid, p_campaignid, p_pagenumber, p_pagesize, p_search]
-    )
+      $4::text)`,
+      [userId, p_pagenumber || 1, p_pagesize || 20, p_search || null]
+    );
 
-    const data = result.rows[0]?.fn_get_influencerinvite;
+    const influencer = result.rows[0]?.fn_get_influencerinvite;
 
     return res.status(200).json({
-      status: true,
-      totalcount: data.totalcount,
-      records: data.records
+      data: influencer,
+      source: "db",
     });
-
   } catch (error) {
-
-    console.error('Error fetching influencer invites:', error);
-    return res.status(500).json({
-      status: false,
-      message: 'Internal server error while fetching influencer invites'
-    });
-
+    console.error("Error fetching influencer invites:", error);
+    return res.status(500).json({ message: error.message });
   }
-
 };
