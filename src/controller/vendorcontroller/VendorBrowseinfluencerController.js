@@ -92,7 +92,7 @@ export const browseAllInfluencer = async (req, res) => {
 
     // const influencers = result.rows;
 
-    influencers = result.rows[0].fn_get_influencerbrowse;
+    const influencers = result.rows[0].fn_get_influencerbrowse;
 
     //Check For Data
     console.log("==>", influencers);
