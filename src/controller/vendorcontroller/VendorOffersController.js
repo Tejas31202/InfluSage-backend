@@ -76,3 +76,31 @@ export const getViewAllOffersForSingleCampaign = async (req, res) => {
     return res.status(500).json({ msg: error.msg });
   }
 };
+
+
+
+export const applicationStatus = async (req, res) => {
+  const { p_applicationid, p_statusname } = req.body;
+  try {
+    const result = await client.query(
+      `CALL ins.usp_update_applicationstatus
+       $1::BIGINT,
+        $2::VARCHAR,
+        $3::BOOLEAN,
+        $4::text
+        )`,
+      [p_applicationid, p_statusname, null, null]
+    );
+    const { p_status, p_message } = result.rows[0];
+    if (p_status) {
+      return res
+        .status(200)
+        .json({ message: p_message, p_status, source: "db" });
+    } else {
+      return res.status(400).json({ message: p_message, p_status });
+    }
+  } catch (error) {
+    console.error("Error fetching view campaigns offers:", error.message);
+    return res.status(500).json({ msg: error.msg });
+  }
+};
