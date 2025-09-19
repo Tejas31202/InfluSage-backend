@@ -26,7 +26,7 @@ export const getRoles = async (req, res) => {
 export const getContentTypes = async (req, res) => {
   try {
     const result = await client.query(
-      "SELECT ins.fn_get_contenttypes();"
+      "SELECT * from ins.fn_get_contenttypes();"
     );
 
     return res.status(200).json({
