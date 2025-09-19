@@ -12,7 +12,7 @@ import authenticateUser from '../../middleware/AuthMiddleware.js';
 
 const routes = express.Router();
 
-routes.get('/influencer/browse',authenticateUser(["Vendor"]), getInfluencerBrowseDetails);
+routes.get('/influencer-detail/:influencerId',authenticateUser(["Vendor"]), getInfluencerBrowseDetails);
 
 routes.get('/allinfluencer/browse',authenticateUser(["Vendor"]),browseAllInfluencer);
 

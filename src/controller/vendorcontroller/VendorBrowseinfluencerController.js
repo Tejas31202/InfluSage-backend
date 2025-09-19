@@ -7,23 +7,23 @@ redisClient.connect().catch(console.error);
 //..................GET INFLUENCER BROWSE DETAILS...........
 export const getInfluencerBrowseDetails = async (req, res) => {
   try {
-    const p_influencerid = req.body.p_influencerid;
+    const influencerId = req.params.influencerId;
 
-    if (!p_influencerid) {
+    if (!influencerId) {
       return res.status(400).json({ message: "Influencer ID required" });
     }
 
     //Data Given Form DB
     const result = await client.query(
       `SELECT * FROM ins.fn_get_influencerbrowsedetails($1::BIGINT)`,
-      [p_influencerid]
+      [influencerId]
     );
 
-    const influencers = result.rows[0]?.fn_get_influencerbrowsedetails;
+    const influencer = result.rows[0]?.fn_get_influencerbrowsedetails;
 
     return res.status(200).json({
       message: "Influencers Browse Details Form DB",
-      result: influencers,
+      result:influencer,
       source: "db",
     });
   } catch (error) {
