@@ -16,6 +16,7 @@ import VendorOffersRoutes from './src/routes/vendorroutes/VendorOffersRoutes.js'
 import CommonRoutes from './src/routes/CommonRoutes.js';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import ChatRoutes from './src/routes/ChatRoutes.js';
 
 dotenv.config();
 
@@ -49,6 +50,7 @@ app.use("/vendor", VendorProfileDetailRoutes);
 app.use("/vendor", VendorCampaignRoutes);
 app.use("/vendor",VendorInfluencerBrowseRoutes);
 app.use("/vendor",VendorOffersRoutes);
+app.use("/chat", ChatRoutes);
 
 const PORT = process.env.BACKEND_PORT || 3001;
 
@@ -56,6 +58,7 @@ const PORT = process.env.BACKEND_PORT || 3001;
 // Create HTTP server & attach Socket.IO
 // --------------------
 const server = createServer(app);
+const onlineUsers = new Map();
 
 const io = new Server(server, {
   cors: {
@@ -69,14 +72,19 @@ const io = new Server(server, {
 io.on("connection", (socket) => {
   console.log("🔗 User connected:", socket.id);
 
-  // Listen for messages
-  socket.on("sendMessage", (msg) => {
-    console.log("Message received:", msg);
-    io.emit("receiveMessage", msg); // broadcast to all clients
+   socket.on("register", (userId) => {
+    onlineUsers.set(userId, socket.id);
+    console.log(`User ${userId} registered with socket ${socket.id}`);
   });
 
-  socket.on("disconnect", () => {
-    console.log("❌ User disconnected:", socket.id);
+ socket.on("disconnect", () => {
+    for (let [userId, sId] of onlineUsers.entries()) {
+      if (sId === socket.id) {
+        onlineUsers.delete(userId);
+        console.log(`User ${userId} disconnected`);
+        break;
+      }
+    }
   });
 });
 
