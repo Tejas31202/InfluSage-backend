@@ -131,7 +131,21 @@ export const getOfferDetails = async (req, res) => {
       return res.status(404).json({ message: "offer detail not found." });
     }
 
-    const offer = result.rows[0].fn_get_offerdetails;
+    const offerRaw = result.rows[0].fn_get_offerdetails;
+
+    let offer = null;
+
+    // Parse JSON safely
+    try {
+      const parsed = typeof offerRaw === "string" ? JSON.parse(offerRaw) : offerRaw;
+
+      // ✅ If array → take first object
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        offer = parsed[0];
+      } 
+    } catch (err) {
+      console.error("Failed to parse offer details:", err.message);
+    }
 
     return res.status(200).json({
       data: offer,
