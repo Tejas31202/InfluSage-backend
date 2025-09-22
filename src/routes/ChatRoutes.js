@@ -1,27 +1,33 @@
 import express from "express";
 import {
+  resolveUsername,
   createConversation,
   startConversation,
+  insertMessage,
   sendMessage,
   getMessages,
   deleteMessage,
 
-} from "../controller/ChatConversation.js";
+} from "../controller/ChatConversationController.js";
+import { upload } from "../middleware/ChatMulterMiddleware.js";
+import authenticateUser from "../middleware/AuthMiddleware.js";
 
-const router = express.Router();
+const routes = express.Router();
 
 // Create a new conversation
 
-router.post("/startconversation", startConversation);
-router.post("/conversation", createConversation);
+routes.post("/startconversation", startConversation);
+routes.post("/insertmessage", authenticateUser(["Influencer", "Vendor"]),resolveUsername,upload.array("files", 1), insertMessage);
+
+routes.post("/conversation", createConversation);
 
 // Send a message
-router.post("/message", sendMessage);
+routes.post("/message", sendMessage);
 
 // Get all messages for a conversation
-router.get("/messages", getMessages);
+routes.get("/messages", getMessages);
 
 // Delete a message
-router.delete("/message", deleteMessage);
+routes.delete("/message", deleteMessage);
 
-export default router;
+export default routes;

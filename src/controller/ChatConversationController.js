@@ -1,6 +1,41 @@
 // src/services/chatService.js
 import { client } from "../config/Db.js";
 
+export const resolveUsername = async (req, res, next) => {
+  const userId = req.user?.id || req.body?.userId;
+  let username = "user";
+
+  try {
+    // Prefer JWT payload
+    if (req.user?.firstName || req.user?.lastName) {
+      username = `${req.user.firstName || ""}_${req.user.lastName || ""}`.trim();
+    }
+    // Fallback to request body
+    else if (req.body?.firstName || req.body?.lastName) {
+      username = `${req.body.firstName || ""}_${req.body.lastName || ""}`.trim();
+    }
+    // Fallback to DB
+    else if (userId) {
+      const dbUser = await client.query(
+        "SELECT firstname, lastname FROM ins.users WHERE id=$1",
+        [userId]
+      );
+      if (dbUser.rows[0]) {
+        username =
+          `${dbUser.rows[0].firstname || ""}_${dbUser.rows[0].lastname || ""}`.trim() ||
+          "user";
+      }
+    }
+
+    req.username = username || "user";
+    next();
+  } catch (err) {
+    console.error("Error resolving username:", err);
+    req.username = "user";
+    next();
+  }
+};
+
 //..................CREATE CONVERSATION.................
 export const createConversation = async (req, res) => {
   try {
@@ -85,6 +120,65 @@ export const startConversation = async (req, res) => {
   }
 };
 
+
+
+export const insertMessage = async (req, res) => {
+  const { p_conversationid, p_roleid, p_messages } = req.body || {};
+
+  // Multiple file paths
+  let p_filepaths = null;
+  if (req.files && req.files.length > 0) {
+    p_filepaths = req.files
+      .map((file) => file.path.replace(/\\/g, "/"))
+      .join(",");
+  } else if (req.body.p_filepath) {
+    p_filepaths = req.body.p_filepath;
+  }
+
+  if (!p_conversationid || !p_roleid) {
+    return res
+      .status(400)
+      .json({ message: "Action, conversationId, and roleId are required" });
+  }
+
+  try {
+    const result = await client.query(
+      `CALL ins.usp_insert_message(
+        $1::bigint, 
+        $2::smallint, 
+        $3::text, 
+        $4::text, 
+        $5::boolean, 
+        $6::text
+      )`,
+      [
+        p_conversationid,
+        p_roleid,
+        p_messages || null,
+        p_filepaths || null,
+        null,
+        null,
+      ]
+    );
+
+    const { p_status, p_message } = result.rows[0] || {};
+
+    if (p_status) {
+      return res.status(200).json({
+        message: p_message,
+        p_status,
+        filePaths: p_filepaths ? p_filepaths.split(",") : [],
+      });
+    } else {
+      return res.status(400).json({ message: p_message, p_status });
+    }
+  } catch (error) {
+    console.error("Failed to upsert message:", error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+ 
 
 //..................SEND MESSAGE.................
 export const sendMessage = async (req, res) => {
