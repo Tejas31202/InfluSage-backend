@@ -46,6 +46,46 @@ export const createConversation = async (req, res) => {
   }
 };
 
+export const startConversation = async (req, res) => {
+  const { p_campaignapplicationid} = req.body;
+
+  if (!p_campaignapplicationid ) {
+    return res.status(400).json({
+      message: "campaignapplicationid  Id Require",
+    });
+  }
+  
+
+  try {
+    const result = await client.query(
+      `call ins.usp_upsert_conversation(
+        $1::bigint,
+        $2::boolean,
+        $3::text
+       )`,
+      [
+        p_campaignapplicationid,
+        null,
+        null,
+      ]
+    );
+
+    const { p_status, p_message } = result.rows[0];
+
+    if (p_status) {
+      return res
+        .status(200)
+        .json({ message: p_message, p_status, source: "db" });
+    } else {
+      return res.status(400).json({ message: p_message, p_status });
+    }
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+
 //..................SEND MESSAGE.................
 export const sendMessage = async (req, res) => {
   try {
