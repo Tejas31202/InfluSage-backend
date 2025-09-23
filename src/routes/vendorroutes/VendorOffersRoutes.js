@@ -4,6 +4,7 @@ import {
   getViewAllOffersForSingleCampaign,
   updateApplicationStatus,
   getOfferDetails,
+  getCampaignDetail
 } from '../../controller/vendorcontroller/VendorOffersController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 
@@ -25,5 +26,11 @@ routes.get(
   authenticateUser(["Vendor"]),
   getOfferDetails
 );
+
+routes.get("/campaign-detail/:campaignId",
+  authenticateUser(["Vendor"]),
+  getCampaignDetail
+);
+  
 
 export default routes;

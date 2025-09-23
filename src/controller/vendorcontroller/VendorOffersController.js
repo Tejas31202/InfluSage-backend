@@ -1,5 +1,5 @@
-import { client } from '../../config/Db.js';
-import redis from 'redis';
+import { client } from "../../config/Db.js";
+import redis from "redis";
 
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
 redisClient.connect().catch(console.error);
@@ -57,12 +57,7 @@ export const getViewAllOffersForSingleCampaign = async (req, res) => {
         $3:: integer,
         $4:: text
         )`,
-      [
-        campaignId,
-        pagenumber || 1,
-        pagesize || 20, 
-        p_search || null
-      ]
+      [campaignId, pagenumber || 1, pagesize || 20, p_search || null]
     );
 
     //Check Db Return Data OR Not
@@ -99,12 +94,7 @@ export const updateApplicationStatus = async (req, res) => {
         $3::boolean,
         $4::text
         )`,
-      [
-        p_applicationid, 
-        p_statusname, 
-        null, 
-        null
-      ]
+      [p_applicationid, p_statusname, null, null]
     );
     const { p_status, p_message } = result.rows[0];
 
@@ -131,21 +121,7 @@ export const getOfferDetails = async (req, res) => {
       return res.status(404).json({ message: "offer detail not found." });
     }
 
-    const offerRaw = result.rows[0].fn_get_offerdetails;
-
-    let offer = null;
-
-    // Parse JSON safely
-    try {
-      const parsed = typeof offerRaw === "string" ? JSON.parse(offerRaw) : offerRaw;
-
-      // ✅ If array → take first object
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        offer = parsed[0];
-      } 
-    } catch (err) {
-      console.error("Failed to parse offer details:", err.message);
-    }
+    const offer = result.rows[0].fn_get_offerdetails[0];
 
     return res.status(200).json({
       data: offer,
@@ -153,6 +129,37 @@ export const getOfferDetails = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in get offer detail :", error.message);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+export const getCampaignDetail = async (req, res) => {
+  const userId = req.user?.id || req.body.userId;
+ 
+  const campaignId = req.params.campaignId;
+  try {
+    const result = await client.query(
+      `SELECT * FROM ins.fn_get_campaigndetailsjson(
+        $1:: bigint,
+        $2:: bigint
+      )`,
+      [userId, campaignId]
+    );
+
+    //Check Db Return Data OR Not
+    if (!result.rows) {
+      return res.status(404).json({ message: "campaign offer not found." });
+    }
+
+    const campaign = result.rows[0];
+    
+    //Return Data From Db
+    return res.status(200).json({
+      data: campaign,
+      source: "db",
+    });
+  } catch (error) {
+    console.error("Error get campaign detail error:", error.message);
     return res.status(500).json({ message: error.message });
   }
 };

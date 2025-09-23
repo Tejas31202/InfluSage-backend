@@ -19,7 +19,7 @@ export const getInfluencerBrowseDetails = async (req, res) => {
       [influencerId]
     );
 
-    const influencer = result.rows[0]?.fn_get_influencerbrowsedetails;
+    const influencer = result.rows[0]?.fn_get_influencerbrowsedetails[0];
 
     return res.status(200).json({
       message: "Influencers Browse Details Form DB",
