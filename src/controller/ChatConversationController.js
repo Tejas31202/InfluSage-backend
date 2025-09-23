@@ -1,5 +1,7 @@
 // src/services/chatService.js
 import { client } from '../config/Db.js';
+import authenticateUser from '../middleware/AuthMiddleware.js';
+
 
 export const resolveUsername = async (req, res, next) => {
   const userId = req.user?.id || req.body?.userId;
@@ -177,6 +179,124 @@ export const insertMessage = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
+
+/**
+ * Get Conversations (Full)
+ */
+export const getConversationsdetails = async (req, res) => {
+  try {
+    const p_userid = req.user?.id; // token se user id
+    const { p_search = "" } = req.query || {};
+
+    if (!p_userid) {
+      return res.status(400).json({ message: "User ID is required." });
+    }
+
+    const result = await client.query(
+      `SELECT * FROM ins.fn_get_conversationdetails($1::BIGINT, $2::TEXT)`,
+      [p_userid, p_search]
+    );
+
+    if (!result?.rows?.length || !result.rows[0]?.fn_get_conversationdetails) {
+      return res.status(404).json({ message: "No conversations found" });
+    }
+
+    const conversations = result.rows[0].fn_get_conversationdetails;
+
+    return res.status(200).json({
+      message: "Conversations fetched successfully",
+      data: conversations,
+    });
+  } catch (error) {
+    console.error("Error fetching conversations:", error);
+    return res.status(500).json({
+      message: "Failed to get conversations",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Get Campaigns only
+ */
+export const getCampaigns = async (req, res) => {
+  try {
+    const p_userid = req.user?.id;
+    const { p_search = "" } = req.query || {};
+
+    if (!p_userid) {
+      return res.status(400).json({ message: "User ID is required." });
+    }
+
+    const result = await client.query(
+      `SELECT * FROM ins.fn_get_conversationdetails($1::BIGINT, $2::TEXT)`,
+      [p_userid, p_search]
+    );
+
+    if (!result?.rows?.length || !result.rows[0]?.fn_get_conversationdetails) {
+      return res.status(404).json({ message: "No campaigns found" });
+    }
+
+    const campaigns = result.rows[0].fn_get_conversationdetails.map((row) => ({
+      campaignid: row.campaignid,
+      campaignname: row.campaignname,
+      campaignphoto: row.campaignphoto,
+    }));
+
+    return res.status(200).json({
+      message: "Campaigns fetched successfully",
+      data: campaigns,
+    });
+  } catch (error) {
+    console.error("Error fetching campaigns:", error);
+    return res.status(500).json({
+      message: "Failed to get campaigns",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Get Influencers only
+ */
+export const getInfluencers = async (req, res) => {
+  try {
+    const p_userid = req.user?.id;
+    const { p_search = "" } = req.query || {};
+
+    if (!p_userid) {
+      return res.status(400).json({ message: "User ID is required." });
+    }
+
+    const result = await client.query(
+      `SELECT * FROM ins.fn_get_conversationdetails($1::BIGINT, $2::TEXT)`,
+      [p_userid, p_search]
+    );
+
+    if (!result?.rows?.length || !result.rows[0]?.fn_get_conversationdetails) {
+      return res.status(404).json({ message: "No influencers found" });
+    }
+
+    // saare campaigns ke influencers ko ek array me merge karo
+    const influencers = result.rows[0].fn_get_conversationdetails.flatMap(
+      (row) => row.influencers || []
+    );
+
+    return res.status(200).json({
+      message: "Influencers fetched successfully",
+      data: influencers,
+    });
+  } catch (error) {
+    console.error("Error fetching influencers:", error);
+    return res.status(500).json({
+      message: "Failed to get influencers",
+      error: error.message,
+    });
+  }
+};
+
+
+
 
  
 

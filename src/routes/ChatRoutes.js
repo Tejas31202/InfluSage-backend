@@ -4,6 +4,9 @@ import {
   createConversation,
   startConversation,
   insertMessage,
+  getConversationsdetails,
+  getCampaigns,
+  getInfluencers,
   sendMessage,
   getMessages,
   deleteMessage,
@@ -18,7 +21,9 @@ const routes = express.Router();
 
 routes.post("/startconversation", startConversation);
 routes.post("/insertmessage", authenticateUser(["Influencer", "Vendor"]),resolveUsername,upload.array("files", 1), insertMessage);
-
+routes.get("/conversationsdetails", authenticateUser(["Influencer", "Vendor"]), getConversationsdetails);
+routes.get("/campaigns", authenticateUser(["Influencer", "Vendor"]), getCampaigns);
+routes.get("/influencers", authenticateUser(["Influencer","Vendor"]), getInfluencers);
 routes.post("/conversation", createConversation);
 
 // Send a message
