@@ -6,24 +6,52 @@ import {
   getFavouriteInfluencer,
   insertCampaignInvites,
   inviteInfluencerToCampaigns,
-  browseInviteInfluencer
+  browseInviteInfluencer,
 } from '../../controller/vendorcontroller/VendorBrowseinfluencerController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 
 const routes = express.Router();
 
-routes.get('/influencer-detail/:influencerId',authenticateUser(["Vendor"]), getInfluencerBrowseDetails);
+routes.get(
+  "/influencer-detail/:influencerId",
+  authenticateUser(["Vendor"]),
+  getInfluencerBrowseDetails
+);
 
-routes.get('/allinfluencer/browse',authenticateUser(["Vendor"]),browseAllInfluencer);
+routes.get(
+  "/allinfluencer/browse",
+  authenticateUser(["Vendor"]),
+  browseAllInfluencer
+);
 
-routes.post('/addfavourite/influencer',authenticateUser(["Vendor"]),addFavouriteInfluencer);
+routes.post(
+  "/addfavourite/influencer",
+  authenticateUser(["Vendor"]),
+  addFavouriteInfluencer
+);
 
-routes.get('/getfavourite/influencer',authenticateUser(["Vendor"]),getFavouriteInfluencer);
+routes.get(
+  "/getfavourite/influencer",
+  authenticateUser(["Vendor"]),
+  getFavouriteInfluencer
+);
 
-routes.post('/campaign/invite',authenticateUser(["Vendor"]),insertCampaignInvites);
+routes.post(
+  "/campaign/invite",
+  authenticateUser(["Vendor"]),
+  insertCampaignInvites
+);
 
-routes.get('/inviteinfluencer/Campaigns',authenticateUser(["Vendor"]),inviteInfluencerToCampaigns);
+routes.get(
+  "/inviteinfluencer/Campaigns",
+  authenticateUser(["Vendor"]),
+  inviteInfluencerToCampaigns
+);
 
-routes.get('/browse/inviteinfluencer',authenticateUser(["Vendor"]),browseInviteInfluencer)
+routes.get(
+  "/browse/inviteinfluencer",
+  authenticateUser(["Vendor"]),
+  browseInviteInfluencer
+);
 
 export default routes;

@@ -1,4 +1,4 @@
-import express from "express";
+import express from 'express';
 import {
   loginVendor,
   requestRegistration,
@@ -6,7 +6,7 @@ import {
   resendOtp,
   forgotPassword,
   resetPassword,
-} from "../../controller/vendorcontroller/VendorController.js";
+} from '../../controller/vendorcontroller/VendorController.js';
 
 const routes = express.Router();
 

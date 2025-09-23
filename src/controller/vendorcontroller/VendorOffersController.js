@@ -1,5 +1,5 @@
-import { client } from "../../config/Db.js";
-import redis from "redis";
+import { client } from '../../config/Db.js';
+import redis from 'redis';
 
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
 redisClient.connect().catch(console.error);
@@ -152,7 +152,7 @@ export const getCampaignDetail = async (req, res) => {
     }
 
     const campaign = result.rows[0];
-    
+
     //Return Data From Db
     return res.status(200).json({
       data: campaign,

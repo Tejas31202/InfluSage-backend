@@ -1,4 +1,4 @@
-import express from "express";
+import express from 'express';
 import {
   resolveUsername,
   createConversation,
@@ -8,9 +8,9 @@ import {
   getMessages,
   deleteMessage,
 
-} from "../controller/ChatConversationController.js";
-import { upload } from "../middleware/ChatMulterMiddleware.js";
-import authenticateUser from "../middleware/AuthMiddleware.js";
+} from '../controller/ChatConversationController.js';
+import { upload } from '../middleware/ChatMulterMiddleware.js';
+import authenticateUser from '../middleware/AuthMiddleware.js';
 
 const routes = express.Router();
 

@@ -1,5 +1,5 @@
 // src/services/chatService.js
-import { client } from "../config/Db.js";
+import { client } from '../config/Db.js';
 
 export const resolveUsername = async (req, res, next) => {
   const userId = req.user?.id || req.body?.userId;
