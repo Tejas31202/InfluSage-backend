@@ -62,7 +62,7 @@ export const getMyAllCampaign = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching campaigns offers:', error);
-    return res.status(500).json({ msg: error.msg });
+    return res.status(500).json({ message: error.message });
 
   }
 
@@ -85,10 +85,7 @@ export const getCampaignStatus = async(req,res) =>{
     });
 
   }catch(error){
-
     console.error('Error in get status :',error);
-    return res.status(500).json({message:'error in get status',error});
-
+    return res.status(500).json({message:error.message});
   }
-
 };

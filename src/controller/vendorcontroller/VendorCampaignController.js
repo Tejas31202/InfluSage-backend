@@ -218,7 +218,7 @@ export const getCampaign = async (req, res) => {
       redisKey = `getCampaign:${userId}:${campaignId}`;
     }
 
-    console.log("👉 Redis Key:", redisKey);
+    // console.log("👉 Redis Key:", redisKey);
 
     // Check Redis
     const cachedData = await redisClient.get(redisKey);
