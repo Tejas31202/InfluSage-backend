@@ -1,6 +1,5 @@
-// src/services/chatService.js
 import { client } from '../config/Db.js';
-import authenticateUser from '../middleware/AuthMiddleware.js';
+// import authenticateUser from '../middleware/AuthMiddleware.js';
 
 
 export const resolveUsername = async (req, res, next) => {
@@ -35,51 +34,6 @@ export const resolveUsername = async (req, res, next) => {
     console.error("Error resolving username:", err);
     req.username = "user";
     next();
-  }
-};
-
-//..................CREATE CONVERSATION.................
-export const createConversation = async (req, res) => {
-  try {
-    const {
-      p_senderid,
-      p_senderrole,
-      p_receiverid,
-      p_receiverrole,
-      p_message,
-    } = req.body;
-
-    if (!p_senderid || !p_receiverid) {
-      return res
-        .status(400)
-        .json({ message: "Sender and Receiver ID are required." });
-    }
-
-    const result = await client.query(  
-      `SELECT * FROM ins.fn_create_conversation(
-        $1::BIGINT,
-        $2::VARCHAR,
-        $3::BIGINT,
-        $4::VARCHAR,
-        $5::TEXT
-      )`,
-      [p_senderid, p_senderrole, p_receiverid, p_receiverrole, p_message]
-    );
-
-    return res.status(200).json({
-      message: "Conversation created successfully",
-      data: result.rows[0].fn_create_conversation,
-      source: "db",
-    });
-  } catch (error) {
-    console.error("Failed to create conversation", error);
-
-    // If SP throws restriction error
-    if (error.message.includes("Influencer cannot message")) {
-      return res.status(403).json({ message: error.message });
-    }
-
-    return res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
@@ -180,9 +134,8 @@ export const insertMessage = async (req, res) => {
   }
 };
 
-/**
- * Get Conversations (Full)
- */
+
+//Get Conversations (Full)
 export const getConversationsdetails = async (req, res) => {
   try {
     const p_userid = req.user?.id; // token se user id
@@ -216,9 +169,7 @@ export const getConversationsdetails = async (req, res) => {
   }
 };
 
-/**
- * Get Campaigns only
- */
+// Get Campaigns only
 export const getCampaigns = async (req, res) => {
   try {
     const p_userid = req.user?.id;
@@ -256,9 +207,8 @@ export const getCampaigns = async (req, res) => {
   }
 };
 
-/**
- * Get Influencers only
- */
+
+// Get Influencers only
 export const getInfluencers = async (req, res) => {
   try {
     const p_userid = req.user?.id;
@@ -296,65 +246,68 @@ export const getInfluencers = async (req, res) => {
 };
 
 
-
-
- 
-
-//..................SEND MESSAGE.................
-export const sendMessage = async (req, res) => {
+export const getVendors = async (req, res) => {
   try {
-    const { p_conversationid, p_senderid, p_message, p_type } = req.body;
-
-    if (!p_conversationid || !p_senderid || !p_message) {
-      return res
-        .status(400)
-        .json({
-          message: "Conversation ID, Sender ID, and Message are required.",
-        });
+    const p_userid = req.user?.id;
+    const { p_search = "" } = req.query || {};
+    if (!p_userid) {
+      return res.status(400).json({ message: "User ID is required." });
     }
-
     const result = await client.query(
-      `SELECT * FROM ins.fn_send_message(
-        $1::BIGINT,
-        $2::BIGINT,
-        $3::TEXT,
-        $4::VARCHAR
-      )`,
-      [p_conversationid, p_senderid, p_message, p_type || "text"]
+      `SELECT * FROM ins.fn_get_conversationdetails($1::BIGINT, $2::TEXT)`,
+      [p_userid, p_search]
     );
-
-    const message = result.rows[0].fn_send_message;
-
-    if (!message) {
-      return res.status(400).json({ message: "Message could not be sent." });
+    if (!result?.rows?.length || !result.rows[0]?.fn_get_conversationdetails) {
+      return res.status(404).json({ message: "No vendors found" });
     }
-
+    // saare campaigns ke vendors ko ek array me merge karo
+    const vendors = result.rows[0].fn_get_conversationdetails.flatMap(
+      (row) => row.vendors || []
+    );
     return res.status(200).json({
-      message: "Message sent successfully",
-      data: message,
-      source: "db",
+      message: "Vendors fetched successfully",
+      data: vendors,
     });
   } catch (error) {
-    console.log("Failed to send message", error);
-    return res.status(500).json({ message: "Internal Server Error" });
+    console.error("Error fetching vendors:", error);
+    return res.status(500).json({
+      message: "Failed to get vendors",
+      error: error.message,
+    });
   }
 };
 
-//..................GET MESSAGES.................
+
 export const getMessages = async (req, res) => {
   try {
-    const { p_conversationid } = req.query;
+    const { p_conversationid, p_roleid, p_limit, p_offset } = req.query;
 
     if (!p_conversationid) {
       return res.status(400).json({ message: "Conversation ID is required." });
     }
 
+    // Parse limit and offset, but allow null
+    const limit = p_limit !== undefined && p_limit !== "" ? parseInt(p_limit, 20) : null;
+    const offset = p_offset !== undefined && p_offset !== "" ? parseInt(p_offset, 0) : null;
+
+    if (isNaN(limit) && limit !== null) {
+      return res.status(400).json({ message: "Invalid limit value" });
+    }
+    if (isNaN(offset) && offset !== null) {
+      return res.status(400).json({ message: "Invalid offset value" });
+    }
+
     const result = await client.query(
-      `SELECT * FROM ins.fn_get_messages($1::BIGINT)`,
-      [p_conversationid]
+      `SELECT * FROM ins.fn_get_messages(
+        $1::BIGINT,
+        $2::SMALLINT,
+        $3::INTEGER,
+        $4::INTEGER
+      )`,
+      [p_conversationid, p_roleid, limit, offset]
     );
 
-    const messages = result.rows[0].fn_get_messages;
+    const messages = result.rows[0]?.fn_get_messages;
 
     if (!messages || messages.length === 0) {
       return res.status(404).json({ message: "No messages found." });
@@ -372,35 +325,35 @@ export const getMessages = async (req, res) => {
 };
 
 //..................DELETE MESSAGE.................
-export const deleteMessage = async (req, res) => {
-  try {
-    const { p_messageid, p_userid } = req.body;
+// export const deleteMessage = async (req, res) => {
+//   try {
+//     const { p_messageid, p_userid } = req.body;
 
-    if (!p_messageid || !p_userid) {
-      return res
-        .status(400)
-        .json({ message: "Message ID and User ID are required." });
-    }
+//     if (!p_messageid || !p_userid) {
+//       return res
+//         .status(400)
+//         .json({ message: "Message ID and User ID are required." });
+//     }
 
-    const result = await client.query(
-      `SELECT * FROM ins.fn_delete_message($1::BIGINT, $2::BIGINT)`,
-      [p_messageid, p_userid]
-    );
+//     const result = await client.query(
+//       `SELECT * FROM ins.fn_delete_message($1::BIGINT, $2::BIGINT)`,
+//       [p_messageid, p_userid]
+//     );
 
-    const response = result.rows[0].fn_delete_message;
+//     const response = result.rows[0].fn_delete_message;
 
-    if (!response) {
-      return res.status(400).json({ message: "Message could not be deleted." });
-    }
+//     if (!response) {
+//       return res.status(400).json({ message: "Message could not be deleted." });
+//     }
 
-    return res.status(200).json({
-      message: "Message deleted successfully",
-      data: response,
-      source: "db",
-    });
-  } catch (error) {
-    console.log("Failed to delete message", error);
-    return res.status(500).json({ message: "Internal Server Error" });
-  }
-};
+//     return res.status(200).json({
+//       message: "Message deleted successfully",
+//       data: response,
+//       source: "db",
+//     });
+//   } catch (error) {
+//     console.log("Failed to delete message", error);
+//     return res.status(500).json({ message: "Internal Server Error" });
+//   }
+// };
 
