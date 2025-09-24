@@ -7,6 +7,7 @@ redisClient.connect().catch(console.error);
 //..................GET INFLUENCER BROWSE DETAILS...........
 export const getInfluencerBrowseDetails = async (req, res) => {
   try {
+    const userId=req.user?.id||req.body.userId
     const influencerId = req.params.influencerId;
 
     if (!influencerId) {
@@ -15,8 +16,8 @@ export const getInfluencerBrowseDetails = async (req, res) => {
 
     //Data Given Form DB
     const result = await client.query(
-      `SELECT * FROM ins.fn_get_influencerbrowsedetails($1::BIGINT)`,
-      [influencerId]
+      `SELECT * FROM ins.fn_get_influencerbrowsedetails($1::bigint,$2::bigint);`,
+      [userId,influencerId]
     );
 
     const influencer = result.rows[0]?.fn_get_influencerbrowsedetails[0];
