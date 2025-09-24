@@ -1,15 +1,14 @@
 import express from 'express';
 import {
   resolveUsername,
-  createConversation,
   startConversation,
   insertMessage,
   getConversationsdetails,
   getCampaigns,
   getInfluencers,
-  sendMessage,
+  getVendors,
   getMessages,
-  deleteMessage,
+  // deleteMessage,
 
 } from '../controller/ChatConversationController.js';
 import { upload } from '../middleware/ChatMulterMiddleware.js';
@@ -19,20 +18,19 @@ const routes = express.Router();
 
 // Create a new conversation
 
-routes.post("/startconversation", startConversation);
+routes.post("/startconversation", authenticateUser(["Vendor"]), startConversation);
 routes.post("/insertmessage", authenticateUser(["Influencer", "Vendor"]),resolveUsername,upload.array("files", 1), insertMessage);
 routes.get("/conversationsdetails", authenticateUser(["Influencer", "Vendor"]), getConversationsdetails);
-routes.get("/campaigns", authenticateUser(["Influencer", "Vendor"]), getCampaigns);
-routes.get("/influencers", authenticateUser(["Influencer","Vendor"]), getInfluencers);
-routes.post("/conversation", createConversation);
+routes.get("/conversationsdetails/campaigns", authenticateUser(["Influencer", "Vendor"]), getCampaigns);
+routes.get("/conversationsdetails/influencers", authenticateUser(["Influencer","Vendor"]), getInfluencers);
+routes.get("/conversationsdetails/vendors", authenticateUser(["Influencer","Vendor"]), getVendors);
 
-// Send a message
-routes.post("/message", sendMessage);
+
 
 // Get all messages for a conversation
 routes.get("/messages", getMessages);
 
 // Delete a message
-routes.delete("/message", deleteMessage);
+// routes.delete("/message", deleteMessage);
 
 export default routes;
