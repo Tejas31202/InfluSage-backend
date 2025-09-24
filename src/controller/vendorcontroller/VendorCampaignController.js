@@ -10,7 +10,25 @@ redisClient.connect().catch(console.error);
 // ---------------- CREATE / UPDATE Campaign Draft ----------------
 export const createMyCampaign = async (req, res) => {
   const userId = req.user?.id || req.body.p_userid;
-  const username = req.user.name;
+  let username = "user";
+
+  // Prefer JWT payload (if available)
+    if (req.user?.firstName || req.user?.lastName) {
+      username = `${req.user.firstName || ""}_${req.user.lastName || ""}`.trim();
+    }
+ 
+    // Otherwise fallback to body fields (if sent from frontend)
+    else if (req.body?.firstName || req.body?.lastName) {
+      username = `${req.body.firstName || ""}_${req.body.lastName || ""}`.trim();
+    }
+ 
+    // If still missing, fetch from DB
+    else {
+      const dbUser = await client.query("SELECT firstname, lastname FROM ins.users WHERE id=$1", [userId]);
+      if (dbUser.rows[0]) {
+        username = `${dbUser.rows[0].firstname || ""}_${dbUser.rows[0].lastname || ""}`.trim() || "user";
+      }
+    }
 
   if (!userId) {
     return res.status(400).json({ message: "User ID is required" });
@@ -51,25 +69,6 @@ export const createMyCampaign = async (req, res) => {
     // rename file from multer temp name → our format
     fs.renameSync(file.path, relativePath);
   }
-
-  // ---------------- Multiple Campaign Files ----------------
-
-  //changes before files
-
-  // if (req.files?.Files && req.files.Files.length > 0) {
-  //   p_campaignfilejson = req.files.Files.map((file) => {
-  //     const ext = path.extname(file.originalname);
-  //     const finalName = `${username}_campaign_${Date.now()}${ext}`;
-
-  //     const relativePath = path
-  //       .join("src/uploads/vendor", finalName)
-  //       .replace(/\\/g, "/");
-
-  //     fs.renameSync(file.path, relativePath);
-
-  //     return { filepath: relativePath };
-  //   });
-  // }
   const redisKey = `getCampaign:${userId}`;
 
   try {
@@ -86,10 +85,9 @@ export const createMyCampaign = async (req, res) => {
     let newFiles = [];
 
     if (req.files?.Files && req.files.Files.length > 0) {
-      newFiles = req.files.Files.map((file) => {
+      newFiles = req.files.Files.map((file,index) => {
         const ext = path.extname(file.originalname);
-        const baseName = path.basename(file.originalname, ext);
-        const finalName = `${username}_campaign_${Date.now()}_${baseName}${ext}`;
+        const finalName = `${username}_campaign_${Date.now()}_${index}${ext}`;
         const relativePath = path
           .join("src/uploads/vendor", finalName)
           .replace(/\\/g, "/");

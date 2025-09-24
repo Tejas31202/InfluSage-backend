@@ -82,8 +82,8 @@ else {
     // 3 Handle portfolio uploads
     // ---------------------------
    if (req.files?.portfolioFiles) {
-  const portfolioPaths = req.files.portfolioFiles.map((file) => {
-    const newFileName = `${username}_portfolio_${Date.now()}${path.extname(file.originalname)}`;
+    const portfolioPaths = req.files.portfolioFiles.map((file,index) => {
+    const newFileName = `${username}_portfolio_${Date.now()}_${index}${path.extname(file.originalname)}`;
     const newPath = path.join("src/uploads/influencer", newFileName);
     fs.renameSync(file.path, newPath);
     return `src/uploads/influencer/${newFileName}`;
