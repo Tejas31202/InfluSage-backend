@@ -68,24 +68,65 @@ export const getMyAllCampaign = async (req, res) => {
 
 };
 
-export const getCampaignStatus = async(req,res) =>{
-  try{
+export const getCampaignStatus = async (req, res) => {
+  try {
 
     const result = await client.query(`SELECT * FROM ins.fn_get_mycampaignstatus()`);
 
-    if(!result){
-      return res.status(400).json({message:'No Status Available.'})
+    if (!result) {
+      return res.status(400).json({ message: 'No Status Available.' })
     }
 
     const status = result.rows;
 
-     return res.status(200).json({
-      message:'sucessfuly get status',
-      data:status
+    return res.status(200).json({
+      message: 'sucessfuly get status',
+      data: status
     });
 
-  }catch(error){
-    console.error('Error in get status :',error);
-    return res.status(500).json({message:error.message});
+  } catch (error) {
+    console.error('Error in get status :', error);
+    return res.status(500).json({ message: error.message });
   }
 };
+
+export const getSingleCampaign = async (req, res) => {
+
+  const p_campaign = req.query.p_campaign;
+
+  try {
+
+    if (!p_campaign) {
+      return res.status(400).json({ message: 'Campaign ID Is Require' })
+    }
+
+    const result = await client.query(
+      `SELECT * FROM ins.fn_get_mycampaigndetails($1::BIGINT)`,
+      [p_campaign]
+    )
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Campaign not found' });
+    }
+
+    console.log(result)
+
+    const singleCampaign = result.rows[0];
+
+    console.log(singleCampaign)
+
+    return res.status(200).json({
+      message: 'Single Campaign Get Sucessfully',
+      data: singleCampaign,
+      source: 'db'
+    });
+
+
+
+  } catch (error) {
+    console.log('Error Getting Campaign', error);
+    return res.status(500).json({ message: 'Internal server error', error });
+  }
+
+
+
+}
