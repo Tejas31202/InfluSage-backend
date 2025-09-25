@@ -357,3 +357,35 @@ export const getMessages = async (req, res) => {
 //   }
 // };
 
+export const updateUndoMessage = async (req, res) => {
+  try {
+    const { p_messageid, p_roleid, p_action  } = req.body;
+    if (!p_messageid || !p_roleid || !p_action) {
+      return res
+        .status(400)
+        .json({ message: "Message ID, Role ID, and Action are required." });
+    }
+    const result = await client.query(
+      `CALL ins.usp_update_undomessage(
+        $1::BIGINT,
+        $2::SMALLINT,
+        $3::TEXT,
+        $4::BOOLEAN,
+        $5::VARCHAR
+      )`,
+      [p_messageid, p_roleid, p_action, null, null]
+    );
+    const { p_status, p_message } = result.rows[0] || {};
+    if (p_status) {
+      return res.status(200).json({
+        message: p_message,
+        p_status,
+      });
+    } else {
+      return res.status(400).json({ message: p_message, p_status });
+    }
+  } catch (error) {
+    console.error("Failed to update message:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
