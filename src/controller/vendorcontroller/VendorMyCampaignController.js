@@ -108,9 +108,8 @@ export const getSingleCampaign = async (req, res) => {
       return res.status(404).json({ message: 'Campaign not found' });
     }
 
-    console.log(result)
 
-    const singleCampaign = result.rows[0];
+    const singleCampaign = result.rows[0]?.fn_get_mycampaigndetails[0];
 
     console.log(singleCampaign)
 

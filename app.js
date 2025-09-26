@@ -17,7 +17,8 @@ import CommonRoutes from './src/routes/CommonRoutes.js';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import ChatRoutes from './src/routes/ChatRoutes.js';
-import VendorMyCampaignRoutes from './src/routes/vendorroutes/VendorMyCampaignRoutes.js'
+import VendorMyCampaignRoutes from './src/routes/vendorroutes/VendorMyCampaignRoutes.js';
+import InfluencerMyCampaignRoutes from './src/routes/influencerroutes/InfluencerMyCampaignRoutes.js';
 
 dotenv.config();
 
@@ -46,12 +47,13 @@ app.use("/", CommonRoutes);
 app.use("/user", InfluencerRoutes);
 app.use("/user", InfluencerProfileDetailRoutes);
 app.use("/user", InfluencerCampaignRoutes);
+app.use("/user",InfluencerMyCampaignRoutes);
 app.use("/vendor", VendorRoutes);
 app.use("/vendor", VendorProfileDetailRoutes);
 app.use("/vendor", VendorCampaignRoutes);
 app.use("/vendor",VendorBrowseInfluencerRoutes);
 app.use("/vendor",VendorOffersRoutes);
-app.use("/vendor",VendorMyCampaignRoutes)
+app.use("/vendor",VendorMyCampaignRoutes);
 app.use("/chat", ChatRoutes);
 
 const PORT = process.env.BACKEND_PORT || 3001;
