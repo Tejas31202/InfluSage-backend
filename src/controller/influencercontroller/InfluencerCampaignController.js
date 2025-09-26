@@ -372,6 +372,42 @@ export const browseCampaigns = async (req, res) => {
   }
 };
 
+export const withdrawApplication = async (req, res) => {
+  const { p_applicationid, p_statusname } = req.body || {};
+
+  if (!p_applicationid, !p_statusname) {
+    return res
+      .status(400)
+      .json({ error: "Required field: p_applicationid." });
+  }
+
+  try {
+    const p_statusname  = "Withdrawn";
+
+    const result = await client.query(
+      `CALL ins.usp_update_applicationstatus(
+        $1::bigint,
+        $2::varchar,
+        $3::boolean,
+        $4::text
+      )`,
+      [p_applicationid, p_statusname , null, null]
+    );
+
+    const { p_status, p_message } = result.rows[0];
+
+    if (p_status) {
+      return res.status(200).json({ message: p_message, source: "db" });
+    } else {
+      return res.status(400).json({ message: p_message, p_status });
+    }
+  } catch (error) {
+    console.error("Error in withdraw application:", error.message);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+
 export const deleteApplyNowPortfolioFile = async (req, res) => {
   const userId = req.user?.id || req.body.userId;
   const {filePath} = req.body;

@@ -10,6 +10,7 @@ import {
   getSaveCampaign,
   getSingleApplyCampaign,
   getUserCampaignWithDetails,
+  withdrawApplication,
   browseCampaigns,
   deleteApplyNowPortfolioFile
 } from '../../controller/influencercontroller/InfluencerCampaignController.js';
@@ -41,6 +42,11 @@ routes.get(
   "/browse-all-campaigns/fiterWithSort",
   authenticateUser(["Influencer"]),
   browseCampaigns
+);
+
+routes.post(
+  "/withdraw-application",
+  withdrawApplication
 );
 
 routes.post(
