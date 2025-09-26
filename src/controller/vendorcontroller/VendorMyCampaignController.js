@@ -1,5 +1,7 @@
 import { client } from '../../config/Db.js';
 
+
+//...............Get All Campaign......................
 export const getMyAllCampaign = async (req, res) => {
   try {
     const p_userid = req.user?.id || req.body.p_userid;
@@ -67,7 +69,7 @@ export const getMyAllCampaign = async (req, res) => {
   }
 
 };
-
+//.............Get Campaign Status....................
 export const getCampaignStatus = async (req, res) => {
   try {
 
@@ -89,29 +91,26 @@ export const getCampaignStatus = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
-
+//..............Get SingleCampaign.....................
 export const getSingleCampaign = async (req, res) => {
 
-  const p_campaign = req.query.p_campaign;
+  const p_campaignid = req.params.p_campaign;
 
   try {
 
-    if (!p_campaign) {
+    if (!p_campaignid) {
       return res.status(400).json({ message: 'Campaign ID Is Require' })
     }
 
     const result = await client.query(
       `SELECT * FROM ins.fn_get_mycampaigndetails($1::BIGINT)`,
-      [p_campaign]
+      [p_campaignid]
     )
     if (result.rows.length === 0) {
       return res.status(404).json({ message: 'Campaign not found' });
     }
 
-
     const singleCampaign = result.rows[0]?.fn_get_mycampaigndetails[0];
-
-    console.log(singleCampaign)
 
     return res.status(200).json({
       message: 'Single Campaign Get Sucessfully',
@@ -119,13 +118,8 @@ export const getSingleCampaign = async (req, res) => {
       source: 'db'
     });
 
-
-
   } catch (error) {
     console.log('Error Getting Campaign', error);
     return res.status(500).json({ message: 'Internal server error', error });
   }
-
-
-
 }

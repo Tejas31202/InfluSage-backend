@@ -5,8 +5,6 @@ export const getClientsList = async (req, res) => {
 
     const p_userid = req.user?.id;
 
-    console.log("==>", p_userid)
-
     try {
 
         if (!p_userid) {
@@ -23,8 +21,6 @@ export const getClientsList = async (req, res) => {
         }
 
         const clientList = result.rows[0].fn_get_clients[0];
-
-        console.log("==>", clientList);
 
         return res.status(200).json({
             message: 'clientList Fetched Successfully',
@@ -120,12 +116,9 @@ export const getInfluencerMyCampaign = async (req, res) => {
 //.............Get SingleInfluencer Campaign.........................
 export const getInfluencerMyCampaignDetails = async (req, res) => {
 
-    const p_userid = req.user?.id;
-    // const p_campaignid = req.params;
-    console.log(p_userid)
-    const p_campaignid  = req.query.p_campaignid;
-    console.log(p_campaignid)
+    const p_userid = req.user?.id || req.body.p_userid;
 
+    const p_campaignid = req.params.p_campaignid;
     try {
 
         if (!p_userid || !p_campaignid) {
@@ -145,8 +138,6 @@ export const getInfluencerMyCampaignDetails = async (req, res) => {
         }
 
         const influencerCampaign = result.rows[0].fn_get_influencermycampaigndetails[0];
-
-        console.log(influencerCampaign)
 
         return res.status(200).json
             ({

@@ -10,6 +10,6 @@ const routes = express.Router();
 
 routes.get('/clientlist',authenticateUser(["Influencer"]),getClientsList);
 routes.get('/influencermycampaign',authenticateUser(["Influencer"]),getInfluencerMyCampaign);
-routes.get('/singleinfluencermycampaign',authenticateUser(["Influencer"]),getInfluencerMyCampaignDetails)
+routes.get('/singleinfluencermycampaign/:p_campaignid',authenticateUser(["Influencer"]),getInfluencerMyCampaignDetails)
 
 export default routes;
