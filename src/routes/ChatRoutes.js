@@ -20,7 +20,7 @@ const routes = express.Router();
 // Create a new conversation
 
 routes.post("/startconversation", authenticateUser(["Vendor"]), startConversation);
-routes.post("/insertmessage", authenticateUser(["Influencer", "Vendor"]),resolveUsername,upload.array("files", 1), insertMessage);
+routes.post("/insertmessage", authenticateUser(["Influencer", "Vendor"]),resolveUsername,upload.array("file", 1), insertMessage);
 routes.get("/conversationsdetails", authenticateUser(["Influencer", "Vendor"]), getConversationsdetails);
 routes.get("/conversationsdetails/campaigns", authenticateUser(["Influencer", "Vendor"]), getCampaigns);
 routes.get("/conversationsdetails/influencers", authenticateUser(["Influencer","Vendor"]), getInfluencers);
