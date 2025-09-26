@@ -15,6 +15,6 @@ routes.get('/campaignstatus',getCampaignStatus);
 
 routes.get('/allcampaign',authenticateUser(["Vendor"]),getMyAllCampaign);
 
-routes.get('/singlecampaign/:p_campaign', getSingleCampaign);
+routes.get('/singlecampaign/:p_campaignid', getSingleCampaign);
 
 export default routes;

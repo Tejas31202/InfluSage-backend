@@ -94,7 +94,7 @@ export const getCampaignStatus = async (req, res) => {
 //..............Get SingleCampaign.....................
 export const getSingleCampaign = async (req, res) => {
 
-  const p_campaignid = req.params.p_campaign;
+  const p_campaignid = req.params.p_campaignid;
 
   try {
 
