@@ -376,10 +376,10 @@ export const browseCampaigns = async (req, res) => {
 export const withdrawApplication = async (req, res) => {
   const { p_applicationid, p_statusname } = req.body || {};
 
-  if (!p_applicationid, !p_statusname) {
+  if (!p_applicationid || !p_statusname) {
     return res
       .status(400)
-      .json({ error: "Required field: p_applicationid." });
+      .json({ error: "Required field: p_applicationid, p_statusname" });
   }
 
   try {
