@@ -46,6 +46,7 @@ routes.get(
 
 routes.post(
   "/withdraw-application",
+  authenticateUser(["Influencer"]),
   withdrawApplication
 );
 
