@@ -47,13 +47,13 @@ app.use("/", CommonRoutes);
 app.use("/user", InfluencerRoutes);
 app.use("/user", InfluencerProfileDetailRoutes);
 app.use("/user", InfluencerCampaignRoutes);
-app.use("/user",InfluencerMyCampaignRoutes);
+app.use("/user", InfluencerMyCampaignRoutes);
 app.use("/vendor", VendorRoutes);
 app.use("/vendor", VendorProfileDetailRoutes);
 app.use("/vendor", VendorCampaignRoutes);
-app.use("/vendor",VendorBrowseInfluencerRoutes);
-app.use("/vendor",VendorOffersRoutes);
-app.use("/vendor",VendorMyCampaignRoutes);
+app.use("/vendor", VendorBrowseInfluencerRoutes);
+app.use("/vendor", VendorOffersRoutes);
+app.use("/vendor", VendorMyCampaignRoutes);
 app.use("/chat", ChatRoutes);
 
 const PORT = process.env.BACKEND_PORT || 3001;
@@ -72,25 +72,56 @@ const io = new Server(server, {
   },
 });
 
-// Socket.IO connection
+
 io.on("connection", (socket) => {
   console.log("🔗 User connected:", socket.id);
 
-   socket.on("register", (userId) => {
+  // User registers
+  socket.on("register", (userId) => {
     onlineUsers.set(userId, socket.id);
-    console.log(`User ${userId} registered with socket ${socket.id}`);
+    socket.userId = userId;
+
+    // Notify all other users
+    socket.broadcast.emit("user-online", { userId });
+
+    // Send current online users to this socket
+    socket.emit("online-users", { userIds: [...onlineUsers.keys()] });
+
+    console.log(`User ${userId} registered`);
   });
 
- socket.on("disconnect", () => {
-    for (let [userId, sId] of onlineUsers.entries()) {
-      if (sId === socket.id) {
-        onlineUsers.delete(userId);
-        console.log(`User ${userId} disconnected`);
-        break;
-      }
+  // Join room (conversation)
+  socket.on("joinRoom", (conversationId) => {
+    socket.join(conversationId);
+    console.log(`Socket ${socket.id} joined room ${conversationId}`);
+  });
+
+  socket.on("leaveRoom", (conversationId) => {
+    socket.leave(conversationId);
+    console.log(`Socket ${socket.id} left room ${conversationId}`);
+  });
+
+  // Message sent
+  socket.on("sendMessage", (message) => {
+    const { conversationId } = message;
+    console.log(`Message received for room ${conversationId}`);
+    socket.to(conversationId).emit("receiveMessage", message);
+  });
+
+  // Disconnect
+  socket.on("disconnect", () => {
+    const userId = socket.userId;
+    if (userId) {
+      onlineUsers.delete(userId);
+      socket.broadcast.emit("user-offline", {
+        userId,
+        lastSeen: new Date(),
+      });
+      console.log(`User ${userId} disconnected`);
     }
   });
 });
+
 
 // Start server using HTTP server
 server.listen(PORT, () => {
