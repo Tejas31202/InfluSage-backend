@@ -79,7 +79,7 @@ export const startConversation = async (req, res) => {
 
 
 export const insertMessage = async (req, res) => {
-  const { p_conversationid, p_roleid, p_messages } = req.body || {};
+  const { p_conversationid, p_roleid, p_messages, p_replyid  } = req.body || {};
 
   // Multiple file paths
   let p_filepaths = null;
@@ -102,10 +102,12 @@ export const insertMessage = async (req, res) => {
       `CALL ins.usp_insert_message(
         $1::bigint, 
         $2::smallint, 
-        $3::text, 
+        $3::text,
         $4::text, 
         $5::boolean, 
-        $6::text
+        $6::text,
+        $7::bigint
+        
       )`,
       [
         p_conversationid,
@@ -114,6 +116,7 @@ export const insertMessage = async (req, res) => {
         p_filepaths || null,
         null,
         null,
+        p_replyid || null,
       ]
     );
 
