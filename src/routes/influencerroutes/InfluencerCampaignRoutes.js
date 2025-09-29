@@ -17,7 +17,7 @@ import {
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 import { upload } from '../../middleware/MulterMiddleware.js';
 
-routes.get("/campaign-details/:campaignId", getCampaignDetails);
+routes.get("/campaign-details/:campaignId",authenticateUser(["Influencer"]) ,getCampaignDetails);
 
 routes.post(
   "/apply-for-campaign/:campaignId",

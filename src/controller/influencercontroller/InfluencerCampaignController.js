@@ -10,11 +10,12 @@ redisClient.connect().catch(console.error);
 //For Selected Camapign Details
 export const getCampaignDetails = async (req, res) => {
   try {
+    const userId=req.user?.id||req.body.userId;
     const { campaignId } = req.params;
 
     const result = await client.query(
-      "select * from ins.fn_get_campaignbrowsedetails($1)",
-      [campaignId]
+      "select * from ins.fn_get_campaignbrowsedetails($1::bigint,$2::bigint)",
+      [userId,campaignId]
     );
 
     //Check From DB Not Found Campaign
@@ -281,8 +282,8 @@ export const getUserCampaignWithDetails = async (req, res) => {
 
     // 1️⃣ Get campaign details (from DB)
     const campaignResult = await client.query(
-      "SELECT * FROM ins.fn_get_campaignbrowsedetails($1)",
-      [campaignId]
+      "select * from ins.fn_get_campaignbrowsedetails($1::bigint,$2::bigint)",
+      [userId,campaignId]
     );
 
     if (campaignResult.rows.length > 0) {
@@ -351,7 +352,7 @@ export const browseCampaigns = async (req, res) => {
         $11::text
       )`,
       [
-        userId || null,
+        userId,
         providers || null,
         contenttypes || null,
         languages || null,
