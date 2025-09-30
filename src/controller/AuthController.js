@@ -1,6 +1,6 @@
 import { client } from '../config/Db.js';
 import { google } from 'googleapis';
-import { generateToken } from '../utils/jwt.js';
+import { generateToken } from '../utils/Jwt.js';
 import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
 import axios from 'axios';
