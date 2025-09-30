@@ -123,3 +123,82 @@ export const getSingleCampaign = async (req, res) => {
     return res.status(500).json({ message: 'Internal server error', error });
   }
 }
+
+
+export const getCancleReasonList = async (req, res) => {
+  try {
+    const result = await client.query(
+      `select * from ins.fn_get_campaigncancelreason();`
+    );
+
+    const reasons = result.rows;
+
+    return res.status(200).json({
+      message: "Fetch cancellation reason list",
+      data: reasons,
+      source: "db",
+    });
+  } catch (error) {
+    console.error("Error getCancleReasonList : ", error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+
+export const insertCampiginCancleApplication = async (req, res) => {
+  const userId = req.user?.id || req.body.userId;
+  const { p_campaignid, p_objectiveid } = req.body||{};
+
+  if(! p_campaignid || !p_objectiveid){
+    res.status(400).json({message:"required fields are :  p_campaignid and  p_objectiveid"})
+  }
+  try {
+    const result = await client.query(
+      `CALL ins.usp_upsert_campaigncacelreason(
+      $1::bigint, 
+      $2::bigint, 
+      $3::smallint, 
+      $4::boolean, 
+      $5::varchar
+    );`,
+      [userId, p_campaignid, p_objectiveid, null, null]
+    );
+
+    const { p_status, p_message } = result.rows[0];
+    
+    if (p_status) {
+      return res
+        .status(200)
+        .json({ message: p_message,source: "db" });
+    } else {
+      return res.status(400).json({ message: p_message, p_status });
+    }
+  } catch (error) {
+    console.error("error in cancle campaigin application :", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const pausedCampaignApplication = async (req, res) => {
+  const p_campaignid = req.params.p_campaignid;
+  try {
+    const result = await client.query(
+      `CALL ins.usp_update_changecampaignstatus(
+      $1::bigint,
+      $2::boolean,
+      $3::varchar
+    )`,
+      [p_campaignid, null, null]
+    );
+
+    const { p_status, p_message } = result.rows[0];
+    if (p_status) {
+      return res.status(200).json({ message: p_message, source: "db" });
+    } else {
+      return res.status(400).json({ message: p_message, p_status });
+    }
+  } catch (error) {
+    console.error("Error in Paused Campaign Application:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
