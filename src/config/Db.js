@@ -11,7 +11,7 @@ export const client = new Client({
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DATABASE, // Make sure this is in your .env
-    sl: true, // for cloud DBs
+    ssl: true, // for cloud DBs
 });
  
 client.connect()
