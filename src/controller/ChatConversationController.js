@@ -79,7 +79,7 @@ export const startConversation = async (req, res) => {
 
 
 export const insertMessage = async (req, res) => {
-  const { p_conversationid, p_roleid, p_messages, p_messageid  } = req.body || {};
+  const { p_conversationid, p_roleid, p_messages, p_replyid, p_messageid  } = req.body || {};
 
   // Multiple file paths
   let p_filepaths = null;
@@ -116,6 +116,7 @@ export const insertMessage = async (req, res) => {
         p_filepaths || null,
         null,
         null,
+        p_replyid || null,
         p_messageid  || null,
       ]
     );
@@ -394,49 +395,26 @@ export const updateUndoMessage = async (req, res) => {
 };
 
 export const unreadMessageList = async (req, res) => {
-
   const userId = req.user?.id || req.body.userId;
-
-
-
   try {
-
     if (!userId) {
-
       res.json({ message: "please enter userId" });
-
     }
-
     const result = await client.query(
-
       `SELECT * FROM ins.fn_get_unreadmessagelist($1::bigint);`,
-
       [userId]
 
     );
-
-   
-
-    const lists=result.rows[0].fn_get_unreadmessagelist;
-
-
+    const lists = result.rows[0].fn_get_unreadmessagelist;
 
     return res.status(200).json({
-
       message: "Unread message list fetched successfully",
-
       data: lists,
-
       source: "db",
-
     });
 
   } catch (error) {
-
     console.error("Failed to update message:", error);
-
     return res.status(500).json({ message: error.message });
-
   }
-
 };
