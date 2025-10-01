@@ -79,9 +79,9 @@ export const startConversation = async (req, res) => {
 
 
 export const insertMessage = async (req, res) => {
-  const { p_conversationid, p_roleid, p_messages, p_replyid, p_messageid   } = req.body || {};
+  const { p_conversationid, p_roleid, p_messages, p_replyid  } = req.body || {};
 
-   // Multiple file paths
+  // Multiple file paths
   let p_filepaths = null;
   if (req.files && req.files.length > 0) {
     p_filepaths = req.files
@@ -99,17 +99,15 @@ export const insertMessage = async (req, res) => {
 
   try {
     const result = await client.query(
-      `CALL ins.usp_upsert_message(
+      `CALL ins.usp_insert_message(
         $1::bigint, 
         $2::smallint, 
         $3::text,
         $4::text, 
         $5::boolean, 
         $6::text,
-        $7::bigint,
-        $8::bigint
+        $7::bigint
         
-
       )`,
       [
         p_conversationid,
@@ -119,7 +117,6 @@ export const insertMessage = async (req, res) => {
         null,
         null,
         p_replyid || null,
-        p_messageid  || null,
       ]
     );
 
@@ -394,4 +391,52 @@ export const updateUndoMessage = async (req, res) => {
     console.error("Failed to update message:", error);
     return res.status(500).json({ message: "Internal Server Error" });
   }
+};
+
+export const unreadMessageList = async (req, res) => {
+
+  const userId = req.user?.id || req.body.userId;
+
+
+
+  try {
+
+    if (!userId) {
+
+      res.json({ message: "please enter userId" });
+
+    }
+
+    const result = await client.query(
+
+      `SELECT * FROM ins.fn_get_unreadmessagelist($1::bigint);`,
+
+      [userId]
+
+    );
+
+   
+
+    const lists=result.rows[0].fn_get_unreadmessagelist;
+
+
+
+    return res.status(200).json({
+
+      message: "Unread message list fetched successfully",
+
+      data: lists,
+
+      source: "db",
+
+    });
+
+  } catch (error) {
+
+    console.error("Failed to update message:", error);
+
+    return res.status(500).json({ message: error.message });
+
+  }
+
 };

@@ -9,6 +9,7 @@ import {
   getVendors,
   getMessages,
   updateUndoMessage,
+  unreadMessageList
   // deleteMessage,
 
 } from '../controller/ChatConversationController.js';
@@ -26,6 +27,7 @@ routes.get("/conversationsdetails/campaigns", authenticateUser(["Influencer", "V
 routes.get("/conversationsdetails/influencers", authenticateUser(["Influencer","Vendor"]), getInfluencers);
 routes.get("/conversationsdetails/vendors", authenticateUser(["Influencer","Vendor"]), getVendors);
 routes.put("/undodeletemessage", authenticateUser(["Influencer", "Vendor"]), updateUndoMessage);
+routes.get("/unread-messages",authenticateUser(["Influencer", "Vendor"]),unreadMessageList);
 
 
 
