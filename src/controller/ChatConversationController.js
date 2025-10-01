@@ -108,6 +108,7 @@ export const insertMessage = async (req, res) => {
         $6::text,
         $7::bigint,
         $8::bigint
+        
       )`,
       [
         p_conversationid,
