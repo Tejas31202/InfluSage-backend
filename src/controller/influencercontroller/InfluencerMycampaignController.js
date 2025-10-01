@@ -81,7 +81,7 @@ export const getInfluencerMyCampaign = async (req, res) => {
         p_minbudget || null,
         p_startdate || null,
         p_enddate || null,
-        p_sortby || null,
+        p_sortby || "createddate",
         p_sortorder || "DESC",
         p_pagenumber || 1,
         p_pagesize || 20,
