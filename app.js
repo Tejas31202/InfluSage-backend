@@ -72,7 +72,6 @@ const io = new Server(server, {
   },
 });
 
-
 io.on("connection", (socket) => {
   console.log("🔗 User connected:", socket.id);
 
@@ -99,6 +98,17 @@ io.on("connection", (socket) => {
   socket.on("leaveRoom", (conversationId) => {
     socket.leave(conversationId);
     console.log(`Socket ${socket.id} left room ${conversationId}`);
+  });
+
+  socket.on("deleteMessage", ({ messageId, conversationId }) => {
+    io.to(conversationId).emit("deleteMessage", messageId);
+    console.log(`Message ${messageId} marked as deleted in room ${conversationId}`);
+  });
+
+  // Undo delete broadcast
+  socket.on("undoDeleteMessage", ({ messageId, conversationId }) => {
+    io.to(conversationId).emit("undoDeleteMessage", messageId);
+    console.log(`Message ${messageId} restored in room ${conversationId}`);
   });
 
   // Message sent
