@@ -130,6 +130,15 @@ io.on("connection", (socket) => {
       console.log(`User ${userId} disconnected`);
     }
   });
+
+  socket.on("messageRead", async ({ messageId, conversationId, role }) => {
+    io.to(`conversation_${conversationId}`).emit("updateMessageStatus", {
+      messageId,
+      readbyvendor: role === 1 ? true : undefined,
+      readbyinfluencer: role === 2 ? true : undefined,
+    });
+});
+
 });
 
 
