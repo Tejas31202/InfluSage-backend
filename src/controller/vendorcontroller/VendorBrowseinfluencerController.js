@@ -205,7 +205,7 @@ export const insertCampaignInvites = async (req, res) => {
 
   try {
     const result = await client.query(
-      `CALL ins.usp_insert_campaigninvites(
+      `CALL ins.usp_upsert_campaigninvites(
         $1::bigint,
         $2::json,
         $3::boolean,
