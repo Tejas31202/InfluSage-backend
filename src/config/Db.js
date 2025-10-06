@@ -5,18 +5,17 @@ import redis from "redis";
 dotenv.config();
  
 // ---------- PostgreSQL Client Setup ----------
-export const client = new Client({
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DATABASE, // Make sure this is in your .env
-  
+
+const client = new Client({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,  // Required for Render and AWS RDS
+  },
 });
  
 client.connect()
   .then(() => console.log("✅ Connected to PostgreSQL"))
-  .catch((err) => console.error("❌ PostgreSQL connection error:", err));
+  .catch(err => console.error("❌ PostgreSQL connection error:", err));
  
 // ---------- Redis Client Setup ----------
 export const redisClient = redis.createClient({
