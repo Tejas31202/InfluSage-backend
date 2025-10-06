@@ -131,12 +131,23 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("messageRead", async ({ messageId, conversationId, role }) => {
-    io.to(`conversation_${conversationId}`).emit("updateMessageStatus", {
-      messageId,
-      readbyvendor: role === 1 ? true : undefined,
-      readbyinfluencer: role === 2 ? true : undefined,
-    });
+ socket.on("messageRead", async ({ messageId, conversationId, role }) => {
+  io.to(conversationId).emit("updateMessageStatus", {
+    messageId,
+    readbyvendor: role === 1 ? true : undefined,
+    readbyinfluencer: role === 2 ? true : undefined,
+  });
+  console.log(`📩 Message ${messageId} read event sent to room ${conversationId}`);
+});
+
+// Edit message
+socket.on("editMessage", ({ id, content, file, conversationId, replyId }) => {
+  if (!id || !conversationId) {
+    console.log("⚠️ Missing id or conversationId in editMessage", { id, conversationId });
+    return;
+  }
+  io.to(conversationId).emit("editMessage", { id, content, file, replyId });
+  console.log(`Message ${id} edited in room ${conversationId}`);
 });
 
 });
