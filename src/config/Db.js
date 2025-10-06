@@ -6,7 +6,7 @@ dotenv.config();
  
 // ---------- PostgreSQL Client Setup ----------
 
-const client = new Client({
+export const client = new Client({
   connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false,  // Required for Render and AWS RDS
