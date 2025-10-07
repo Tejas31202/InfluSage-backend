@@ -143,6 +143,18 @@ io.on("connection", (socket) => {
     });
   });
 
+
+
+// Edit message
+socket.on("editMessage", ({ id, content, file, conversationId, replyId }) => {
+  if (!id || !conversationId) {
+    console.log("⚠️ Missing id or conversationId in editMessage", { id, conversationId });
+    return;
+  }
+  io.to(conversationId).emit("editMessage", { id, content, file, replyId });
+  console.log(`Message ${id} edited in room ${conversationId}`);
+});
+
 });
 
 
