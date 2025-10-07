@@ -1,11 +1,12 @@
 import { client } from '../../config/Db.js';
-import redis from 'redis';
+import { redisClient } from '../../config/redis.js';
+// import redis from 'redis';
 import fs from 'fs';
 import path from 'path';
 import { clearScreenDown } from 'readline';
 
-const redisClient = redis.createClient({ url: process.env.REDIS_URL });
-redisClient.connect().catch(console.error);
+// const redisClient = redis.createClient({ url: process.env.REDIS_URL });
+// redisClient.connect().catch(console.error);
 
 // ---------------- CREATE / UPDATE Campaign Draft ----------------
 export const createMyCampaign = async (req, res) => {
