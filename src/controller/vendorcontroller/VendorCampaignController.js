@@ -119,7 +119,7 @@ export const createMyCampaign = async (req, res) => {
     };
 
     await redisClient.set(redisKey, JSON.stringify(mergedData));
-    // console.log("===>",mergedData)
+    //console.log("===>",mergedData)
 
     return res.status(200).json({
       status: true,
@@ -144,7 +144,6 @@ export const finalizeCampaign = async (req, res) => {
 
     const redisKey = `getCampaign:${userId}`;
     const cachedData = await redisClient.get(redisKey);
-
     if (!cachedData) {
       return res
         .status(404)
@@ -178,6 +177,7 @@ export const finalizeCampaign = async (req, res) => {
         JSON.stringify(campaignData.p_contenttypejson || {}),
       ]
     );
+   
     await client.query("COMMIT");
 
     const { p_status, p_message } = result.rows[0] || {};
@@ -209,32 +209,19 @@ export const getCampaign = async (req, res) => {
 
     if (!userId) return res.status(400).json({ message: "User ID required" });
 
-    let redisKey;
+    // If draft (campaignId "01"), try Redis cache
     if (campaignId === "01") {
-      // Draft mode → Redis key without campaignId
-      redisKey = `getCampaign:${userId}`;
-    } else {
-      // Actual campaign → Redis key with campaignId
-      redisKey = `getCampaign:${userId}:${campaignId}`;
-    }
+      const redisKey = `getCampaign:${userId}`;
+      const cachedData = await redisClient.get(redisKey);
+      if (cachedData) {
+        return res.status(200).json({
+          message: "Draft campaign data from Redis",
+          campaignParts: JSON.parse(cachedData),
+          source: "redis",
+        });
+      }
 
-    // console.log("👉 Redis Key:", redisKey);
-
-    // Check Redis
-    const cachedData = await redisClient.get(redisKey);
-    if (cachedData) {
-      return res.status(200).json({
-        message:
-          campaignId === "01"
-            ? "Draft campaign data from Redis"
-            : "Campaign data from Redis",
-        campaignParts: JSON.parse(cachedData),
-        source: "redis",
-      });
-    }
-
-    // Draft not found → return empty
-    if (campaignId === "01") {
+      // Draft not found → return empty
       return res.status(200).json({
         message: "No draft found",
         campaignParts: {},
@@ -242,7 +229,7 @@ export const getCampaign = async (req, res) => {
       });
     }
 
-    // Fetch actual campaign from DB
+    // For any other campaignId → fetch directly from DB
     const result = await client.query(
       `SELECT * FROM ins.fn_get_campaigndetailsjson($1::BIGINT,$2::BIGINT)`,
       [userId, campaignId]
@@ -253,8 +240,6 @@ export const getCampaign = async (req, res) => {
     }
 
     const fullData = result.rows[0];
-    // Cache in Redis 120s
-    await redisClient.setEx(redisKey, 120, JSON.stringify(fullData));
 
     return res.status(200).json({
       message: "Campaign data from DB",
@@ -375,3 +360,184 @@ export const getProvidorContentTypes = async (req, res) => {
   }
 }
 
+
+export const editCampaign = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.body.userId;
+    const campaignId = req.params.campaignId;
+
+     let username = "user";
+
+  // Prefer JWT payload (if available)
+    if (req.user?.firstName || req.user?.lastName) {
+      username = `${req.user.firstName || ""}_${req.user.lastName || ""}`.trim();
+    }
+ 
+    // Otherwise fallback to body fields (if sent from frontend)
+    else if (req.body?.firstName || req.body?.lastName) {
+      username = `${req.body.firstName || ""}_${req.body.lastName || ""}`.trim();
+    }
+ 
+    // If still missing, fetch from DB
+    else {
+      const dbUser = await client.query("SELECT firstname, lastname FROM ins.users WHERE id=$1", [userId]);
+      if (dbUser.rows[0]) {
+        username = `${dbUser.rows[0].firstname || ""}_${dbUser.rows[0].lastname || ""}`.trim() || "user";
+      }
+    }
+
+
+    if (!userId || !campaignId) {
+      return res.status(400).json({ message: "User ID and Campaign ID are required" });
+    }
+
+    const parseIfJson = (data) => {
+      if (!data) return {};
+      if (typeof data === "string") {
+        try { return JSON.parse(data); } 
+        catch { return {}; }
+      }
+      return data;
+    };
+
+    const wrapArray = (data) => {
+      if (!data) return [];
+      if (Array.isArray(data)) return data;
+      return [data];
+    };
+
+    const cleanArray = (arr) => {
+      if (!arr || !Array.isArray(arr)) return [];
+      return arr.filter(item => item && Object.keys(item).length);
+    };
+
+    // Parse and wrap JSON
+    const p_objectivejson = parseIfJson(req.body.p_objectivejson);
+    const p_vendorinfojson = parseIfJson(req.body.p_vendorinfojson);
+    const p_campaignjson = parseIfJson(req.body.p_campaignjson); 
+    const p_campaigncategoyjson = cleanArray(wrapArray(parseIfJson(req.body.p_campaigncategoyjson)));
+    const p_contenttypejson = cleanArray(wrapArray(parseIfJson(req.body.p_contenttypejson)));
+
+    // Get existing campaign data
+    const existingDataResult = await client.query(
+      `SELECT * FROM ins.fn_get_campaigndetailsjson($1::BIGINT, $2::BIGINT)`,
+      [userId, campaignId]
+    );
+
+    if (!existingDataResult.rows.length) {
+      return res.status(404).json({ message: "Campaign not found" });
+    }
+
+    const campaignData = existingDataResult.rows[0];
+
+    // console.log("-indb--",campaignData)
+
+    // ---------------- Handle uploaded files ----------------
+    const oldFiles = Array.isArray(campaignData.p_campaignfilejson)
+      ? campaignData.p_campaignfilejson
+      : [];
+
+    let newFiles = [];
+    if (req.files?.Files && req.files.Files.length > 0) {
+      newFiles = req.files.Files.map((file, index) => {
+        const ext = path.extname(file.originalname);
+        const finalName = `${username}_campaign_${Date.now()}_${index}${ext}`;
+        const relativePath = path.join("src/uploads/vendor", finalName).replace(/\\/g, "/");
+
+        fs.renameSync(file.path, relativePath);
+        return { filepath: relativePath };
+      });
+    }
+
+    // Merge old + new files
+    const finalCampaignFiles = newFiles.length > 0 ? [...oldFiles, ...newFiles] : oldFiles;
+
+     // ---------------- Handle campaign photo replacement ----------------
+    if (req.files?.photo && req.files.photo[0]) {
+      const file = req.files.photo[0];
+      const ext = path.extname(file.originalname);
+      const finalName = `${username}_cp_${Date.now()}${ext}`;
+      const relativePath = path.join("src/uploads/vendor", finalName).replace(/\\/g, "/");
+
+      // ✅ Delete old photo if it exists
+      if (campaignData.p_campaignjson?.photopath && fs.existsSync(campaignData.p_campaignjson.photopath)) {
+        try {
+          fs.unlinkSync(campaignData.p_campaignjson.photopath);
+          // console.log("🗑️ Old photo deleted:", campaignData.p_campaignjson.photopath);
+        } catch (err) {
+          console.warn("⚠️ Could not delete old photo:", err.message);
+        }
+      }
+
+      // ✅ Move new photo to uploads folder
+      fs.renameSync(file.path, relativePath);
+
+      // ✅ Update JSON with new photo path
+      if (campaignData.p_campaignjson) {
+        campaignData.p_campaignjson.photopath = relativePath;
+      } else {
+        campaignData.p_campaignjson = { photopath: relativePath };
+      }
+      // console.log("🆕 New photo uploaded:", relativePath);
+    }
+
+    // ---------------- Merge other JSONs ----------------
+    const mergeObjects = (oldObj, newObj) => {
+      if (!newObj || Object.keys(newObj).length === 0) return oldObj || {};
+      return { ...oldObj, ...newObj };
+    };
+
+    const mergedData = {
+      p_objectivejson: mergeObjects(campaignData.p_objectivejson, p_objectivejson),
+      p_vendorinfojson: mergeObjects(campaignData.p_vendorinfojson, p_vendorinfojson),
+      p_campaignjson: Object.keys(p_campaignjson).length 
+      ? mergeObjects(campaignData.p_campaignjson, p_campaignjson)
+      : campaignData.p_campaignjson || {},
+      p_campaigncategoyjson: p_campaigncategoyjson.length ? p_campaigncategoyjson : campaignData.p_campaigncategoyjson || [],
+      p_campaignfilejson: finalCampaignFiles,
+      p_contenttypejson: p_contenttypejson.length ? p_contenttypejson : campaignData.p_contenttypejson || [],
+    };
+
+    // console.log("merge-->",mergedData.p_campaignjson)
+    // Call the stored procedure
+    const result = await client.query(
+      `CALL ins.usp_upsert_campaigndetails(
+        $1::BIGINT,
+        $2::BIGINT,
+        $3::JSON,
+        $4::JSON,
+        $5::JSON,
+        $6::JSON,
+        $7::JSON,
+        $8::JSON,
+        NULL,
+        NULL
+      )`,
+      [
+        userId,
+        campaignId,
+        JSON.stringify(mergedData.p_objectivejson),
+        JSON.stringify(mergedData.p_vendorinfojson),
+        JSON.stringify(mergedData.p_campaignjson),
+        JSON.stringify(mergedData.p_campaigncategoyjson),
+        JSON.stringify(mergedData.p_campaignfilejson),
+        JSON.stringify(mergedData.p_contenttypejson),
+      ]
+    );
+   
+    const { p_status, p_message } = result.rows[0] || {};
+    if (p_status) {
+      return res.status(200).json({ success: true, message: p_message ,source: "db"});
+    } else {
+      return res.status(400).json({ success: false, message: p_message });
+    }
+
+  } catch (error) {
+    console.error("❌ Error updating campaign:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error updating campaign",
+      error: error.message,
+    });
+  }
+};
