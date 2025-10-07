@@ -37,6 +37,16 @@ app.use(
   cors()
 );
 
+app.post('/test', async (req, res) => {
+  try {
+    console.log('Body:', req.body);
+    res.status(200).json({ message: 'POST working!' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 dotenv.config(); // if app in src
 
 app.use("/auth", authRoutes);
