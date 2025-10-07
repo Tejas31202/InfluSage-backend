@@ -132,12 +132,16 @@ io.on("connection", (socket) => {
   });
 
   socket.on("messageRead", async ({ messageId, conversationId, role }) => {
+    // 1. Update DB: mark message as read by this role
+    // e.g. set readbyvendor = true if role === vendor, etc.
+
+    // 2. Broadcast updated read status to the room
     io.to(`conversation_${conversationId}`).emit("updateMessageStatus", {
       messageId,
       readbyvendor: role === 1 ? true : undefined,
       readbyinfluencer: role === 2 ? true : undefined,
     });
-});
+  });
 
 });
 
