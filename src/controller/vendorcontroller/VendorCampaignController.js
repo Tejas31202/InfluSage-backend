@@ -1,5 +1,5 @@
 import { client } from '../../config/Db.js';
-import { redisClient } from '../../config/redis.js';
+import  redisClient  from '../../config/redis.js';
 // import redis from 'redis';
 import fs from 'fs';
 import path from 'path';
