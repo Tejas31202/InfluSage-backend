@@ -1,9 +1,15 @@
-// src/config/Redis.js
-import { Redis } from "@upstash/redis";
+import { createClient } from "redis";
+import dotenv from "dotenv";
 
-const redisClient = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_TOKEN,
+dotenv.config();
+
+const redis = createClient({
+  url: process.env.REDIS_URL, // rediss://...
+   socket: {
+    reconnectStrategy: (retries) => Math.min(retries * 50, 5000),
+    connectTimeout: 10000 // 10 sec
+  }
 });
 
-export default redisClient;
+await redis.connect();
+

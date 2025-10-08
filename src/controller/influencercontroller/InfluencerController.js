@@ -4,10 +4,11 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import sendingMail from '../../utils/MailUtils.js';
-import redis from 'redis';
+import { redis as redisClient } from '../../config/redis.js';
+// import redis from 'redis';
 
-const redisClient = redis.createClient({ url: process.env.REDIS_URL });
-redisClient.connect().catch(console.error);
+// const redisClient = redis.createClient({ url: process.env.REDIS_URL });
+// redisClient.connect().catch(console.error);
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
