@@ -4,7 +4,7 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import sendingMail from '../../utils/MailUtils.js';
-import { redis as redisClient } from '../../config/redis.js';
+import redisClient from '../../config/redis.js';
 // import redis from 'redis';
 
 // const redisClient = redis.createClient({ url: process.env.REDIS_URL });
