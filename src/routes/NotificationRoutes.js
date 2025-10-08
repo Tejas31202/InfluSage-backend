@@ -10,7 +10,7 @@ import {
 } from '../controller/NotificationController.js';
 
 
-routes.get('/getallnotification',authenticateUser(["Vendor"]),getallNotification);
+routes.get('/getallnotification',authenticateUser(["Vendor","Influencer",]),getallNotification);
 
 
 
