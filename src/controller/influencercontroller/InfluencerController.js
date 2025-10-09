@@ -25,7 +25,12 @@ function generateOTP() {
 }
 
 // Utility: Send email via Resend API
-async function sendingMail(to, subject, htmlContent, from = "InfluSage <no-reply@influSage.com>") {
+async function sendingMail(
+  to,
+  subject,
+  htmlContent,
+  from = `InfluSage <${process.env.EMAIL_USER}>`
+) {
   try {
     const response = await resend.emails.send({
       from,
@@ -39,6 +44,7 @@ async function sendingMail(to, subject, htmlContent, from = "InfluSage <no-reply
     throw new Error("Failed to send email");
   }
 }
+
 
 // ==================== Registration ====================
 
