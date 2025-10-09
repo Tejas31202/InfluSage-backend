@@ -1,17 +1,10 @@
-import nodemailer from 'nodemailer';
-
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+import { Resend } from "resend";
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 async function sendingMail(to, subject, otp) {
   try {
-    const info = await transporter.sendMail({
-      from: `"InfluSage" <${process.env.EMAIL_USER}>`,
+    await resend.emails.send({
+      from: "InfluSage <no-reply@influsage.dev@gmail.com>",
       to,
       subject,
       html: `
@@ -20,9 +13,9 @@ async function sendingMail(to, subject, otp) {
         <p>This code will expire in 10 minutes.</p>
       `,
     });
-    console.log("✅ Mail sent successfully:", info.messageId);
+    console.log("✅ Mail sent successfully via Resend");
   } catch (error) {
-    console.error("❌ Mail sending failed:", error);
+    console.error("❌ Mail sending failed via Resend:", error);
     throw new Error("Failed to send email");
   }
 }
