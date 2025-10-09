@@ -4,7 +4,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 async function sendingMail(to, subject, otp) {
   try {
     await resend.emails.send({
-      from: "InfluSage <no-reply@influsage.dev@gmail.com>",
+      from: "InfluSage <influsage.dev@gmail.com>",
       to,
       subject,
       html: `
