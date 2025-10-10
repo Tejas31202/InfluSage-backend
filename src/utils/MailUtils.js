@@ -13,7 +13,7 @@ const tranEmailApi = new SibApiV3Sdk.TransactionalEmailsApi();
 export const sendMail = async (toEmail, subject, htmlContent) => {
   try {
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail({
-      sender: { email: 'noreply@influsage.dev@gmail.com', name: 'Your App' },
+      sender: { email: 'noreply@influsage.dev', name: 'Your App' },
       to: [{ email: toEmail }],
       subject: subject,
       htmlContent: htmlContent,
