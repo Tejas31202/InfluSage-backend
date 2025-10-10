@@ -7,7 +7,8 @@ import {
   getCampaignObjectives,
   getInfluencerTiers,
   getProvidorContentTypes,
-  editCampaign
+  editCampaign,
+  upsertCampaign
 } from '../../controller/vendorcontroller/VendorCampaignController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 import { upload } from '../../middleware/CampaignMulterMiddleware.js';
@@ -54,5 +55,10 @@ routes.put("/edit-campaign/:campaignId",upload.fields([
     { name: "photo", maxCount: 1 },
     { name: "Files", maxCount: 5 },
   ]),authenticateUser(["Vendor"]),editCampaign);
+
+  routes.post("/update-campaign/",upload.fields([
+    { name: "photo", maxCount: 1 },
+    { name: "Files", maxCount: 5 },
+  ]),authenticateUser(["Vendor"]),upsertCampaign);
 
 export default routes;
