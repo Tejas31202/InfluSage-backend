@@ -2,6 +2,8 @@
 import nodemailer from "nodemailer";
 
 const transporter = nodemailer.createTransport({
+  Host: "smtp.elasticemail.com",
+  Ports: 2525,
   service: "gmail",
   auth: {
     user: process.env.SMTP_USER,
