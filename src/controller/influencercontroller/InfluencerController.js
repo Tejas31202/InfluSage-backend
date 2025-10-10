@@ -3,14 +3,15 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import redisClient from '../../config/redis.js';
-import { Resend } from 'resend';
 import dotenv from 'dotenv';
+import sendingMail from '../../utils/MailUtils.js';  // ✅ Added
+
 dotenv.config();
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// Utility: Check if email exists using stored procedure
+// ==================== Utility Functions ====================
+
 async function isEmailExists(email) {
   const result = await client.query(
     `CALL ins.usp_is_registered($1::VARCHAR,NULL,NULL)`,
@@ -19,36 +20,12 @@ async function isEmailExists(email) {
   return result.rows[0].p_isregistered;
 }
 
-// Utility: Generate OTP
 function generateOTP() {
   return Math.floor(1000 + Math.random() * 9000).toString();
 }
 
-// Utility: Send email via Resend API
-async function sendingMail(
-  to,
-  subject,
-  htmlContent,
-  from = `InfluSage <${process.env.EMAIL_USER}>`
-) {
-  try {
-    const response = await resend.emails.send({
-      from,
-      to,
-      subject,
-      html: htmlContent,
-    });
-    console.log("✅ Mail sent successfully:", response.id);
-  } catch (error) {
-    console.error("❌ Mail sending failed:", error);
-    throw new Error("Failed to send email");
-  }
-}
-
-
 // ==================== Registration ====================
 
-// Step 1: Request Registration (send OTP, store data in Redis)
 export const requestRegistration = async (req, res) => {
   try {
     const { firstName, lastName, email, roleId, password } = req.body;
@@ -61,17 +38,16 @@ export const requestRegistration = async (req, res) => {
     const passwordhash = await bcrypt.hash(password, 10);
     const otpCode = generateOTP();
 
-    // Store user data in Redis (5 minutes)
+    // Redis store user data
     await redisClient.setEx(
       `pendingUser:${normalizedEmail}`,
       300,
       JSON.stringify({ firstName, lastName, email: normalizedEmail, roleId, passwordhash })
     );
 
-    // Store OTP in Redis (5 minutes)
     await redisClient.setEx(`otp:${normalizedEmail}`, 300, otpCode);
 
-    // Send OTP email
+    // ✅ Send OTP email via Gmail SMTP
     await sendingMail(
       normalizedEmail,
       "InfluSage OTP Verification",
@@ -87,7 +63,6 @@ export const requestRegistration = async (req, res) => {
   }
 };
 
-// Step 2: Verify OTP and Register User
 export const verifyOtpAndRegister = async (req, res) => {
   try {
     const email = req.body.email.toLowerCase();
@@ -109,7 +84,6 @@ export const verifyOtpAndRegister = async (req, res) => {
 
     const { p_code, p_message } = result.rows[0];
 
-    // Clean up Redis
     await redisClient.del(`otp:${email}`);
     await redisClient.del(`pendingUser:${email}`);
 
@@ -121,6 +95,7 @@ export const verifyOtpAndRegister = async (req, res) => {
 };
 
 // ==================== Login ====================
+
 export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -136,7 +111,11 @@ export const loginUser = async (req, res) => {
     const isMatch = await bcrypt.compare(password, passwordhash);
     if (!isMatch) return res.status(401).json({ message: "Incorrect password" });
 
-    const token = jwt.sign({ id: userid, email, role: roleid, name: `${firstname}_${lastname}` }, JWT_SECRET, { expiresIn: "1h" });
+    const token = jwt.sign(
+      { id: userid, email, role: roleid, name: `${firstname}_${lastname}` },
+      JWT_SECRET,
+      { expiresIn: "1h" }
+    );
 
     return res.status(200).json({
       message: `Welcome back ${firstname} ${lastname}`,
@@ -155,6 +134,7 @@ export const loginUser = async (req, res) => {
 };
 
 // ==================== Resend OTP ====================
+
 export const resendOtp = async (req, res) => {
   try {
     const email = req.body.email.toLowerCase();
@@ -168,10 +148,8 @@ export const resendOtp = async (req, res) => {
        <p>This code will expire in 2 minutes.</p>`
     );
 
-    // Store OTP in Redis with 2 min expiry
     await redisClient.setEx(`otp:${email}`, 120, otpCode);
 
-    // Reset pendingUser TTL if exists
     const userData = await redisClient.get(`pendingUser:${email}`);
     if (userData) await redisClient.expire(`pendingUser:${email}`, 300);
 
@@ -183,6 +161,7 @@ export const resendOtp = async (req, res) => {
 };
 
 // ==================== Forgot Password ====================
+
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -213,6 +192,7 @@ export const forgotPassword = async (req, res) => {
 };
 
 // ==================== Reset Password ====================
+
 export const resetPassword = async (req, res) => {
   try {
     const { token, password } = req.body;
