@@ -4,14 +4,12 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import redisClient from '../../config/redis.js';
 import dotenv from 'dotenv';
-import sendingMail from '../../utils/MailUtils.js';  // ✅ Added
+import sendingMail from '../../utils/MailUtils.js';
 
 dotenv.config();
-
 const JWT_SECRET = process.env.JWT_SECRET;
 
 // ==================== Utility Functions ====================
-
 async function isEmailExists(email) {
   const result = await client.query(
     `CALL ins.usp_is_registered($1::VARCHAR,NULL,NULL)`,
@@ -25,7 +23,6 @@ function generateOTP() {
 }
 
 // ==================== Registration ====================
-
 export const requestRegistration = async (req, res) => {
   try {
     const { firstName, lastName, email, roleId, password } = req.body;
@@ -38,22 +35,23 @@ export const requestRegistration = async (req, res) => {
     const passwordhash = await bcrypt.hash(password, 10);
     const otpCode = generateOTP();
 
-    // Redis store user data
+    // Redis store pending user
     await redisClient.setEx(
       `pendingUser:${normalizedEmail}`,
       300,
       JSON.stringify({ firstName, lastName, email: normalizedEmail, roleId, passwordhash })
     );
 
+    // Redis store OTP
     await redisClient.setEx(`otp:${normalizedEmail}`, 300, otpCode);
 
-    // ✅ Send OTP email via Gmail SMTP
+    // ✅ Send OTP via Brevo API
     await sendingMail(
       normalizedEmail,
       "InfluSage OTP Verification",
       `<h3>InfluSage Verification Code</h3>
        <p>Your OTP is: <strong style="font-size:24px;">${otpCode}</strong></p>
-       <p>This code will expire in 10 minutes.</p>`
+       <p>This code will expire in 5 minutes.</p>`
     );
 
     return res.status(200).json({ message: "OTP sent to email. Complete verification to register." });
@@ -95,7 +93,6 @@ export const verifyOtpAndRegister = async (req, res) => {
 };
 
 // ==================== Login ====================
-
 export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -134,7 +131,6 @@ export const loginUser = async (req, res) => {
 };
 
 // ==================== Resend OTP ====================
-
 export const resendOtp = async (req, res) => {
   try {
     const email = req.body.email.toLowerCase();
@@ -161,7 +157,6 @@ export const resendOtp = async (req, res) => {
 };
 
 // ==================== Forgot Password ====================
-
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -192,7 +187,6 @@ export const forgotPassword = async (req, res) => {
 };
 
 // ==================== Reset Password ====================
-
 export const resetPassword = async (req, res) => {
   try {
     const { token, password } = req.body;

@@ -1,30 +1,31 @@
-// utils/MailUtils.js
-import nodemailer from "nodemailer";
+import SibApiV3Sdk from 'sib-api-v3-sdk';
+import dotenv from 'dotenv';
 
-const transporter = nodemailer.createTransport({
-  Host: "smtp.elasticemail.com",
-  Ports: 2525,
-  service: "gmail",
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+dotenv.config();
 
-const sendingMail = async (to, subject, htmlContent) => {
+// configure API key
+const client = SibApiV3Sdk.ApiClient.instance;
+const apiKeyAuth = client.authentications['api-key'];
+apiKeyAuth.apiKey = process.env.BREVO_API_KEY;
+
+const tranEmailApi = new SibApiV3Sdk.TransactionalEmailsApi();
+
+export const sendMail = async (toEmail, subject, htmlContent) => {
   try {
-    const info = await transporter.sendMail({
-      from: `"InfluSage" <${process.env.SMTP_USER}>`,
-      to,
-      subject,
-      html: htmlContent,
+    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail({
+      sender: { email: 'noreply@yourapp.com', name: 'Your App' },
+      to: [{ email: toEmail }],
+      subject: subject,
+      htmlContent: htmlContent,
     });
-    console.log("✅ Mail sent successfully:", info.response);
+
+    const response = await tranEmailApi.sendTransacEmail(sendSmtpEmail);
+    console.log('✅ Email sent:', response.messageId);
+    return response;
   } catch (error) {
-    console.error("❌ Mail sending failed:", error);
-    throw new Error("Failed to send email");
+    console.error('❌ Email error:', error);
+    throw error;
   }
 };
 
-export default sendingMail;
-
+export default sendMail;
