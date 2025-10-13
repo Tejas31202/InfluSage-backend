@@ -686,30 +686,30 @@ export const upsertCampaign = async (req, res) => {
     // Call DB procedure
     const result = await client.query(
       `CALL ins.usp_upsert_campaigndetails(
-        $1::BIGINT,
-        $2::BIGINT,
-        $3::varchar,
-        $3::JSON,
-        $4::JSON,
-        $5::JSON,
-        $6::JSON,
-        $7::JSON,
-        $8::JSON,
-        NULL,
-        NULL
+        $1::BIGINT,   
+        $2::BIGINT,  
+        $3::varchar, 
+        $4::JSON,    
+        $5::JSON,   
+        $6::JSON,  
+        $7::JSON, 
+        $8::JSON,   
+        $9::JSON,   
+        NULL,       
+        NULL  
       )`,
-      [
-        p_userid,
-        campaignId,
-        JSON.stringify(finalData.p_statusname),
-        JSON.stringify(finalData.p_objectivejson),
-        JSON.stringify(finalData.p_vendorinfojson),
-        JSON.stringify(finalData.p_campaignjson),
-        JSON.stringify(finalData.p_campaigncategoyjson),
-        JSON.stringify(finalData.p_campaignfilejson),
-        JSON.stringify(finalData.p_contenttypejson),
-      ]
-    );
+    [
+    p_userid,
+    campaignId,
+    JSON.stringify(finalData.p_statusname),
+    JSON.stringify(finalData.p_objectivejson),
+    JSON.stringify(finalData.p_vendorinfojson),
+    JSON.stringify(finalData.p_campaignjson),
+    JSON.stringify(finalData.p_campaigncategoyjson),
+    JSON.stringify(finalData.p_campaignfilejson),
+    JSON.stringify(finalData.p_contenttypejson),
+  ]
+);
 
     const { p_status, p_message } = result.rows[0] || {};
 
