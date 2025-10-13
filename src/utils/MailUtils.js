@@ -1,31 +1,31 @@
-import SibApiV3Sdk from 'sib-api-v3-sdk';
+// 📁 utils/MailUtils.js
 import dotenv from 'dotenv';
+import sgMail from '@sendgrid/mail';
 
 dotenv.config();
 
-// configure API key
-const client = SibApiV3Sdk.ApiClient.instance;
-const apiKeyAuth = client.authentications['api-key'];
-apiKeyAuth.apiKey = process.env.BREVO_API_KEY;
+// Set API key from environment
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-const tranEmailApi = new SibApiV3Sdk.TransactionalEmailsApi();
-
-export const sendMail = async (toEmail, subject, htmlContent) => {
+const sendingMail = async (toEmail, subject, htmlContent) => {
   try {
-    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail({
-      sender: { email: 'noreply@influsage.dev', name: 'Your App' },
-      to: [{ email: toEmail }],
+    const msg = {
+      to: toEmail,
+      from: {
+        email: process.env.SENDER_EMAIL, // must be verified in SendGrid
+        name: 'InfluSage', // optional display name
+      },
       subject: subject,
-      htmlContent: htmlContent,
-    });
+      html: htmlContent,
+    };
 
-    const response = await tranEmailApi.sendTransacEmail(sendSmtpEmail);
-    console.log('✅ Email sent:', response.messageId);
+    const response = await sgMail.send(msg);
+    console.log('✅ Email sent successfully to:', toEmail);
     return response;
   } catch (error) {
-    console.error('❌ Email error:', error);
+    console.error('❌ Error sending email:', error.response?.body || error.message);
     throw error;
   }
 };
 
-export default sendMail;
+export default sendingMail;
