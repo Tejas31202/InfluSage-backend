@@ -157,12 +157,13 @@ export const finalizeCampaign = async (req, res) => {
       `CALL ins.usp_upsert_campaigndetails(
           $1::BIGINT,
           $2::BIGINT,
-          $3::JSON,
+          $3::varchar,
           $4::JSON,
           $5::JSON,
           $6::JSON,
           $7::JSON,
           $8::JSON,
+          $9::JSON,
           NULL,
           NULL
       )`,
@@ -170,6 +171,7 @@ export const finalizeCampaign = async (req, res) => {
         userId,
         campaignId,
         JSON.stringify(campaignData.p_objectivejson || {}),
+        JSON.stringify(campaignData.p_statusname||{}),
         JSON.stringify(campaignData.p_vendorinfojson || {}),
         JSON.stringify(campaignData.p_campaignjson || {}),
         JSON.stringify(campaignData.p_campaigncategoyjson || {}),
@@ -686,6 +688,7 @@ export const upsertCampaign = async (req, res) => {
       `CALL ins.usp_upsert_campaigndetails(
         $1::BIGINT,
         $2::BIGINT,
+        $3::varchar,
         $3::JSON,
         $4::JSON,
         $5::JSON,
@@ -699,6 +702,7 @@ export const upsertCampaign = async (req, res) => {
         p_userid,
         campaignId,
         JSON.stringify(finalData.p_objectivejson),
+        JSON.stringify(finalData.p_statusname),
         JSON.stringify(finalData.p_vendorinfojson),
         JSON.stringify(finalData.p_campaignjson),
         JSON.stringify(finalData.p_campaigncategoyjson),
