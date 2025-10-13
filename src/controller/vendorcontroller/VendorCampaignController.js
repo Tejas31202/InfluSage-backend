@@ -618,14 +618,26 @@ export const upsertCampaign = async (req, res) => {
     const redisKey = `getCampaign:${p_userid}`;
 
     if (!campaignId) {
-      // No campaignId → DRAFT MODE
+      // Read existing draft if exists
+      let existingDraft = {};
+      const cachedData = await redisClient.get(redisKey);
+      if (cachedData) {
+        existingDraft = JSON.parse(cachedData);
+      }
+
+      // Merge old draft with new step
       const draftData = {
-        p_objectivejson,
-        p_vendorinfojson,
-        p_campaignjson,
-        p_campaigncategoyjson,
-        p_contenttypejson,
+        p_objectivejson: { ...(existingDraft.p_objectivejson || {}), ...p_objectivejson },
+        p_vendorinfojson: { ...(existingDraft.p_vendorinfojson || {}), ...p_vendorinfojson },
+        p_campaignjson: { ...(existingDraft.p_campaignjson || {}), ...p_campaignjson },
+        p_campaigncategoyjson: p_campaigncategoyjson.length
+          ? p_campaigncategoyjson
+          : existingDraft.p_campaigncategoyjson || [],
+        p_contenttypejson: p_contenttypejson.length
+          ? p_contenttypejson
+          : existingDraft.p_contenttypejson || [],
         p_campaignfilejson: [
+          ...(existingDraft.p_campaignfilejson || []),
           ...(p_campaignfilejson || []),
           ...(campaignFiles || []),
         ],
