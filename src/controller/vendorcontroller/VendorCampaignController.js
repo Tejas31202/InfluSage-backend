@@ -170,8 +170,8 @@ export const finalizeCampaign = async (req, res) => {
       [
         userId,
         campaignId,
-        JSON.stringify(campaignData.p_objectivejson || {}),
         JSON.stringify(campaignData.p_statusname||{}),
+        JSON.stringify(campaignData.p_objectivejson || {}),
         JSON.stringify(campaignData.p_vendorinfojson || {}),
         JSON.stringify(campaignData.p_campaignjson || {}),
         JSON.stringify(campaignData.p_campaigncategoyjson || {}),
@@ -701,12 +701,12 @@ export const upsertCampaign = async (req, res) => {
       [
         p_userid,
         campaignId,
-        JSON.stringify(finalData.p_objectivejson),
         JSON.stringify(finalData.p_statusname),
+        JSON.stringify(finalData.p_objectivejson),
         JSON.stringify(finalData.p_vendorinfojson),
         JSON.stringify(finalData.p_campaignjson),
         JSON.stringify(finalData.p_campaigncategoyjson),
-        JSON.stringify(finalData.p_campaignfilejson),
+        JSON.s,tringify(finalData.p_campaignfilejson),
         JSON.stringify(finalData.p_contenttypejson),
       ]
     );
