@@ -157,18 +157,20 @@ export const finalizeCampaign = async (req, res) => {
       `CALL ins.usp_upsert_campaigndetails(
           $1::BIGINT,
           $2::BIGINT,
-          $3::JSON,
+          $3::varchar,
           $4::JSON,
           $5::JSON,
           $6::JSON,
           $7::JSON,
           $8::JSON,
+          $9::JSON,
           NULL,
           NULL
       )`,
       [
         userId,
         campaignId,
+        JSON.stringify(campaignData.p_statusname||{}),
         JSON.stringify(campaignData.p_objectivejson || {}),
         JSON.stringify(campaignData.p_vendorinfojson || {}),
         JSON.stringify(campaignData.p_campaignjson || {}),
@@ -544,10 +546,10 @@ export const editCampaign = async (req, res) => {
 
 export const upsertCampaign = async (req, res) => {
   try {
-    const userId = req.user?.id || req.body.userId;
+    const p_userid = req.user?.id || req.body.p_userid;
     const campaignId = req.body.campaignId || null;
     let username = "user";
-    if (!userId) {
+    if (!p_userid) {
       return res.status(400).json({ message: "User ID is required" });
     }
 
@@ -559,7 +561,7 @@ export const upsertCampaign = async (req, res) => {
     } else {
       const dbUser = await client.query(
         "SELECT firstname, lastname FROM ins.users WHERE id=$1",
-        [userId]
+        [p_userid]
       );
       if (dbUser.rows[0]) {
         username = `${dbUser.rows[0].firstname || ""}_${dbUser.rows[0].lastname || ""}`.trim() || "user";
@@ -584,6 +586,7 @@ export const upsertCampaign = async (req, res) => {
     const p_vendorinfojson = parseIfJson(req.body.p_vendorinfojson);
     const p_campaignjson = parseIfJson(req.body.p_campaignjson);
     const p_campaigncategoyjson = cleanArray(parseIfJson(req.body.p_campaigncategoyjson));
+    const p_campaignfilejson = cleanArray(parseIfJson(req.body.p_campaignfilejson));
     const p_contenttypejson = cleanArray(parseIfJson(req.body.p_contenttypejson));
 
     // ---------------- FILE HANDLING ----------------
@@ -614,17 +617,32 @@ export const upsertCampaign = async (req, res) => {
     }
 
     // ---------------- REDIS (DRAFT) ----------------
-    const redisKey = `getCampaign:${userId}`;
+    const redisKey = `getCampaign:${p_userid}`;
 
     if (!campaignId) {
-      // No campaignId → DRAFT MODE
+      // Read existing draft if exists
+      let existingDraft = {};
+      const cachedData = await redisClient.get(redisKey);
+      if (cachedData) {
+        existingDraft = JSON.parse(cachedData);
+      }
+
+      // Merge old draft with new step
       const draftData = {
-        p_objectivejson,
-        p_vendorinfojson,
-        p_campaignjson,
-        p_campaigncategoyjson,
-        p_contenttypejson,
-        p_campaignfilejson: campaignFiles,
+        p_objectivejson: { ...(existingDraft.p_objectivejson || {}), ...p_objectivejson },
+        p_vendorinfojson: { ...(existingDraft.p_vendorinfojson || {}), ...p_vendorinfojson },
+        p_campaignjson: { ...(existingDraft.p_campaignjson || {}), ...p_campaignjson },
+        p_campaigncategoyjson: p_campaigncategoyjson.length
+          ? p_campaigncategoyjson
+          : existingDraft.p_campaigncategoyjson || [],
+        p_contenttypejson: p_contenttypejson.length
+          ? p_contenttypejson
+          : existingDraft.p_contenttypejson || [],
+        p_campaignfilejson: [
+          ...(existingDraft.p_campaignfilejson || []),
+          ...(p_campaignfilejson || []),
+          ...(campaignFiles || []),
+        ],
         is_completed: false,
       };
 
@@ -642,7 +660,7 @@ export const upsertCampaign = async (req, res) => {
     // Fetch existing data to merge
     const existingDataResult = await client.query(
       `SELECT * FROM ins.fn_get_campaigndetailsjson($1::BIGINT, $2::BIGINT)`,
-      [userId, campaignId]
+      [p_userid, campaignId]
     );
 
     const existingData = existingDataResult.rows[0] || {};
@@ -653,9 +671,16 @@ export const upsertCampaign = async (req, res) => {
       p_objectivejson: mergeObjects(existingData.p_objectivejson || {}, p_objectivejson),
       p_vendorinfojson: mergeObjects(existingData.p_vendorinfojson || {}, p_vendorinfojson),
       p_campaignjson: mergeObjects(existingData.p_campaignjson || {}, p_campaignjson),
-      p_campaigncategoyjson: p_campaigncategoyjson.length ? p_campaigncategoyjson : existingData.p_campaigncategoyjson || [],
-      p_campaignfilejson: campaignFiles.length > 0 ? [...(existingData.p_campaignfilejson || []), ...campaignFiles] : existingData.p_campaignfilejson || [],
-      p_contenttypejson: p_contenttypejson.length ? p_contenttypejson : existingData.p_contenttypejson || [],
+      p_campaigncategoyjson: p_campaigncategoyjson.length
+        ? p_campaigncategoyjson
+        : existingData.p_campaigncategoyjson || [],
+      p_campaignfilejson:
+        (p_campaignfilejson.length || campaignFiles.length)
+          ? [...(existingData.p_campaignfilejson || []), ...p_campaignfilejson, ...campaignFiles]
+          : existingData.p_campaignfilejson || [],
+      p_contenttypejson: p_contenttypejson.length
+        ? p_contenttypejson
+        : existingData.p_contenttypejson || [],
     };
 
     // Call DB procedure
@@ -663,6 +688,7 @@ export const upsertCampaign = async (req, res) => {
       `CALL ins.usp_upsert_campaigndetails(
         $1::BIGINT,
         $2::BIGINT,
+        $3::varchar,
         $3::JSON,
         $4::JSON,
         $5::JSON,
@@ -673,8 +699,9 @@ export const upsertCampaign = async (req, res) => {
         NULL
       )`,
       [
-        userId,
+        p_userid,
         campaignId,
+        JSON.stringify(finalData.p_statusname),
         JSON.stringify(finalData.p_objectivejson),
         JSON.stringify(finalData.p_vendorinfojson),
         JSON.stringify(finalData.p_campaignjson),
