@@ -8,7 +8,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-async function sendingMail(to, subject, otp) {
+export async function sendingMail(to, subject, otp) {
   await transporter.sendMail({
     from: process.env.EMAIL_USER,
     to,
@@ -21,4 +21,13 @@ async function sendingMail(to, subject, otp) {
   });
 }
 
-export default sendingMail;
+// export default sendingMail;
+
+export async function sendingMailFormatForAdmin(to,subject,html){
+  await transporter.sendMail({
+    from: process.env.EMAIL_USER,
+    to,
+    subject,
+    html
+  })
+}
