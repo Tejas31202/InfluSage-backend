@@ -1,13 +1,20 @@
 
 import express from 'express';
 const routes = express.Router();
-import { getAdminPanelStatusList,getDashboardCountList,getRequestedUserList,getRequestedCampaignList,insertApprovedOrRejectedApplication} from '../controller/AdminPanelController.js';
+import { 
+    getUserStatusList,
+    getCampaignStatusList,
+    getDashboardCountList,
+    getRequestedUserList,
+    getRequestedCampaignList,
+    insertApprovedOrRejectedApplication
+} from '../controller/AdminPanelController.js';
 
-routes.get("/admin-staus",getAdminPanelStatusList);
-routes.get("/dashboard-count",getDashboardCountList);
-routes.get("/user-request",getRequestedUserList);
-routes.get("/campaign-request",getRequestedCampaignList);
-routes.get("/dashboard-count",getDashboardCountList);
-routes.post("/approved-or-rejected",insertApprovedOrRejectedApplication);
+routes.get("/dashboard/user-status",getUserStatusList);
+routes.get("/dashboard/campaign-status",getCampaignStatusList);
+routes.get("/dashboard",getDashboardCountList);
+routes.get("/dashboard/user-requests",getRequestedUserList);
+routes.get("/dashboard/campaign-requests",getRequestedCampaignList);
+routes.post("/dashboard/approved-or-rejected",insertApprovedOrRejectedApplication);
 
 export default routes;

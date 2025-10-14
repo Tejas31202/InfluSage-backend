@@ -4,9 +4,9 @@ import {
   startConversation,
   insertMessage,
   getConversationsdetails,
-  getCampaigns,
-  getInfluencers,
-  getVendors,
+  // getCampaigns,
+  // getInfluencers,
+  // getVendors,
   getMessages,
   updateUndoMessage,
   unreadMessageList
@@ -23,9 +23,9 @@ const routes = express.Router();
 routes.post("/startconversation", authenticateUser(["Vendor"]), startConversation);
 routes.post("/insertmessage", authenticateUser(["Influencer", "Vendor"]),resolveUsername,upload.array("file", 1), insertMessage);
 routes.get("/conversationsdetails", authenticateUser(["Influencer", "Vendor"]), getConversationsdetails);
-routes.get("/conversationsdetails/campaigns", authenticateUser(["Influencer", "Vendor"]), getCampaigns);
-routes.get("/conversationsdetails/influencers", authenticateUser(["Influencer","Vendor"]), getInfluencers);
-routes.get("/conversationsdetails/vendors", authenticateUser(["Influencer","Vendor"]), getVendors);
+// routes.get("/conversationsdetails/campaigns", authenticateUser(["Influencer", "Vendor"]), getCampaigns);
+// routes.get("/conversationsdetails/influencers", authenticateUser(["Influencer","Vendor"]), getInfluencers);
+// routes.get("/conversationsdetails/vendors", authenticateUser(["Influencer","Vendor"]), getVendors);
 routes.put("/undodeletemessage", authenticateUser(["Influencer", "Vendor"]), updateUndoMessage);
 routes.get("/unread-messages",authenticateUser(["Influencer", "Vendor"]),unreadMessageList);
 

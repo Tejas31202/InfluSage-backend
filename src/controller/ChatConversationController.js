@@ -174,112 +174,112 @@ export const getConversationsdetails = async (req, res) => {
 };
 
 // Get Campaigns only
-export const getCampaigns = async (req, res) => {
-  try {
-    const p_userid = req.user?.id;
-    const { p_search = "" } = req.query || {};
+// export const getCampaigns = async (req, res) => {
+//   try {
+//     const p_userid = req.user?.id;
+//     const { p_search = "" } = req.query || {};
 
-    if (!p_userid) {
-      return res.status(400).json({ message: "User ID is required." });
-    }
+//     if (!p_userid) {
+//       return res.status(400).json({ message: "User ID is required." });
+//     }
 
-    const result = await client.query(
-      `SELECT * FROM ins.fn_get_conversationdetails($1::BIGINT, $2::TEXT)`,
-      [p_userid, p_search]
-    );
+//     const result = await client.query(
+//       `SELECT * FROM ins.fn_get_conversationdetails($1::BIGINT, $2::TEXT)`,
+//       [p_userid, p_search]
+//     );
 
-    if (!result?.rows?.length || !result.rows[0]?.fn_get_conversationdetails) {
-      return res.status(404).json({ message: "No campaigns found" });
-    }
+//     if (!result?.rows?.length || !result.rows[0]?.fn_get_conversationdetails) {
+//       return res.status(404).json({ message: "No campaigns found" });
+//     }
 
-    const campaigns = result.rows[0].fn_get_conversationdetails.map((row) => ({
-      campaignid: row.campaignid,
-      campaignname: row.campaignname,
-      campaignphoto: row.campaignphoto,
-    }));
+//     const campaigns = result.rows[0].fn_get_conversationdetails.map((row) => ({
+//       campaignid: row.campaignid,
+//       campaignname: row.campaignname,
+//       campaignphoto: row.campaignphoto,
+//     }));
 
-    return res.status(200).json({
-      message: "Campaigns fetched successfully",
-      data: campaigns,
-    });
-  } catch (error) {
-    console.error("Error fetching campaigns:", error);
-    return res.status(500).json({
-      message: "Failed to get campaigns",
-      error: error.message,
-    });
-  }
-};
-
-
-// Get Influencers only
-export const getInfluencers = async (req, res) => {
-  try {
-    const p_userid = req.user?.id;
-    const { p_search = "" } = req.query || {};
-
-    if (!p_userid) {
-      return res.status(400).json({ message: "User ID is required." });
-    }
-
-    const result = await client.query(
-      `SELECT * FROM ins.fn_get_conversationdetails($1::BIGINT, $2::TEXT)`,
-      [p_userid, p_search]
-    );
-
-    if (!result?.rows?.length || !result.rows[0]?.fn_get_conversationdetails) {
-      return res.status(404).json({ message: "No influencers found" });
-    }
-
-    // saare campaigns ke influencers ko ek array me merge karo
-    const influencers = result.rows[0].fn_get_conversationdetails.flatMap(
-      (row) => row.influencers || []
-    );
-
-    return res.status(200).json({
-      message: "Influencers fetched successfully",
-      data: influencers,
-    });
-  } catch (error) {
-    console.error("Error fetching influencers:", error);
-    return res.status(500).json({
-      message: "Failed to get influencers",
-      error: error.message,
-    });
-  }
-};
+//     return res.status(200).json({
+//       message: "Campaigns fetched successfully",
+//       data: campaigns,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching campaigns:", error);
+//     return res.status(500).json({
+//       message: "Failed to get campaigns",
+//       error: error.message,
+//     });
+//   }
+// };
 
 
-export const getVendors = async (req, res) => {
-  try {
-    const p_userid = req.user?.id;
-    const { p_search = "" } = req.query || {};
-    if (!p_userid) {
-      return res.status(400).json({ message: "User ID is required." });
-    }
-    const result = await client.query(
-      `SELECT * FROM ins.fn_get_conversationdetails($1::BIGINT, $2::TEXT)`,
-      [p_userid, p_search]
-    );
-    if (!result?.rows?.length || !result.rows[0]?.fn_get_conversationdetails) {
-      return res.status(404).json({ message: "No vendors found" });
-    }
-    // saare campaigns ke vendors ko ek array me merge karo
-    const vendors = result.rows[0].fn_get_conversationdetails.flatMap(
-      (row) => row.vendors || []
-    );
-    return res.status(200).json({
-      message: "Vendors fetched successfully",
-      data: vendors,
-    });
-  } catch (error) {
-    console.error("Error fetching vendors:", error);
-    return res.status(500).json({
-      message: "Failed to get vendors",
-      error: error.message,
-    });
-  }
-};
+// // Get Influencers only
+// export const getInfluencers = async (req, res) => {
+//   try {
+//     const p_userid = req.user?.id;
+//     const { p_search = "" } = req.query || {};
+
+//     if (!p_userid) {
+//       return res.status(400).json({ message: "User ID is required." });
+//     }
+
+//     const result = await client.query(
+//       `SELECT * FROM ins.fn_get_conversationdetails($1::BIGINT, $2::TEXT)`,
+//       [p_userid, p_search]
+//     );
+
+//     if (!result?.rows?.length || !result.rows[0]?.fn_get_conversationdetails) {
+//       return res.status(404).json({ message: "No influencers found" });
+//     }
+
+//     // saare campaigns ke influencers ko ek array me merge karo
+//     const influencers = result.rows[0].fn_get_conversationdetails.flatMap(
+//       (row) => row.influencers || []
+//     );
+
+//     return res.status(200).json({
+//       message: "Influencers fetched successfully",
+//       data: influencers,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching influencers:", error);
+//     return res.status(500).json({
+//       message: "Failed to get influencers",
+//       error: error.message,
+//     });
+//   }
+// };
+
+
+// export const getVendors = async (req, res) => {
+//   try {
+//     const p_userid = req.user?.id;
+//     const { p_search = "" } = req.query || {};
+//     if (!p_userid) {
+//       return res.status(400).json({ message: "User ID is required." });
+//     }
+//     const result = await client.query(
+//       `SELECT * FROM ins.fn_get_conversationdetails($1::BIGINT, $2::TEXT)`,
+//       [p_userid, p_search]
+//     );
+//     if (!result?.rows?.length || !result.rows[0]?.fn_get_conversationdetails) {
+//       return res.status(404).json({ message: "No vendors found" });
+//     }
+//     // saare campaigns ke vendors ko ek array me merge karo
+//     const vendors = result.rows[0].fn_get_conversationdetails.flatMap(
+//       (row) => row.vendors || []
+//     );
+//     return res.status(200).json({
+//       message: "Vendors fetched successfully",
+//       data: vendors,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching vendors:", error);
+//     return res.status(500).json({
+//       message: "Failed to get vendors",
+//       error: error.message,
+//     });
+//   }
+// };
 
 
 export const getMessages = async (req, res) => {

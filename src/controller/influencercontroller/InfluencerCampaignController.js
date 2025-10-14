@@ -1,13 +1,17 @@
 import { client } from '../../config/Db.js';
-// import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import redis from 'redis';
 import path from 'path';
 import fs from 'fs';
+import fsPromises from 'fs/promises';
 
 
-// const SUPABASE_URL = process.env.SUPABASE_URL;
-// const SUPABASE_KEY = process.env.SUPABASE_KEY;
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
 // const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+
+// const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY ,SUPABASE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
 redisClient.connect().catch(console.error);
@@ -16,12 +20,12 @@ redisClient.connect().catch(console.error);
 //For Selected Camapign Details
 export const getCampaignDetails = async (req, res) => {
   try {
-    const userId=req.user?.id||req.body.userId;
+    const userId = req.user?.id || req.body.userId;
     const { campaignId } = req.params;
 
     const result = await client.query(
       "select * from ins.fn_get_campaignbrowsedetails($1::bigint,$2::bigint)",
-      [userId,campaignId]
+      [userId, campaignId]
     );
 
     //Check From DB Not Found Campaign
@@ -41,10 +45,14 @@ export const getCampaignDetails = async (req, res) => {
 //For Apply Campaign
 export const applyNowCampaign = async (req, res) => {
   try {
+
     const userId = req.user?.id || req.body.userId;
     const campaignId = req.params.campaignId;
     const redisKey = `applyCampaign:${userId}`;
-
+    const firstName = (req.user?.name || 'anonymous').replace(/\W+/g, '_');
+    const first4 =firstName.substring(0,4);
+    const userId_firstName = `${userId}_${firstName}`
+    
     // Parse JSON from form-data
     let applycampaignjson = {};
     if (req.body.applycampaignjson) {
@@ -56,26 +64,34 @@ export const applyNowCampaign = async (req, res) => {
           .json({ message: "Invalid applycampaignjson format" });
       }
     }
+    //changes for file handling in supabase
     if (req.files && req.files.portfolioFiles) {
-      const uploadedFiles = req.files.portfolioFiles.map((file) => {
-        // normalize Windows paths -> forward slashes
-        const cleanPath = file.path.replace(/\\/g, "/");
+      const uploadedFiles = [];
+      for (const [index, file] of req.files.portfolioFiles.entries()) {
+        const ext = path.extname(file.originalname);
+        const newFileName=`${userId}_${first4}_${Date.now()}_${index}${ext}`
+        const uniqueFileName = `influencers/${userId_firstName}/Applycampains/${newFileName}`;
+        const fileBuffer = await fsPromises.readFile(file.path);
+        const { error: uploadError } = await supabase.storage
+          .from("uploads")
+          .upload(uniqueFileName, fileBuffer, {
+            contentType: file.mimetype,
+            upsert: true,
+          });
+        if (uploadError) {
+          console.error("Supabase upload error:", uploadError);
+          return res.status(500).json({ message: "Failed to upload file to cloud storage" });
+        }
+        // Get the public URL
+        const { data: publicUrlData } = supabase.storage
+          .from("uploads")
+          .getPublicUrl(uniqueFileName);
 
-        // Instead of saving "src/uploads..." save as relative "/uploads/..."
-        const relativePath = cleanPath.replace("src/", "/");
-
-        return { filepath: relativePath };
-      });
-
-      // Merge old + new files
-      if (
-        applycampaignjson.filepaths &&
-        Array.isArray(applycampaignjson.filepaths)
-      ) {
-        applycampaignjson.filepaths = [
-          ...applycampaignjson.filepaths,
-          ...uploadedFiles,
-        ];
+        uploadedFiles.push({ filepath: publicUrlData.publicUrl });
+      }
+      // Merge old + new filepaths
+      if (applycampaignjson.filepaths && Array.isArray(applycampaignjson.filepaths)) {
+        applycampaignjson.filepaths = [...applycampaignjson.filepaths, ...uploadedFiles];
       } else {
         applycampaignjson.filepaths = uploadedFiles;
       }
@@ -289,7 +305,7 @@ export const getUserCampaignWithDetails = async (req, res) => {
     // 1️⃣ Get campaign details (from DB)
     const campaignResult = await client.query(
       "select * from ins.fn_get_campaignbrowsedetails($1::bigint,$2::bigint)",
-      [userId,campaignId]
+      [userId, campaignId]
     );
 
     if (campaignResult.rows.length > 0) {
@@ -389,7 +405,7 @@ export const withdrawApplication = async (req, res) => {
   }
 
   try {
-    const p_statusname  = "Withdrawn";
+    const p_statusname = "Withdrawn";
 
     const result = await client.query(
       `CALL ins.usp_update_applicationstatus(
@@ -398,7 +414,7 @@ export const withdrawApplication = async (req, res) => {
         $3::boolean,
         $4::text
       )`,
-      [p_applicationid, p_statusname , null, null]
+      [p_applicationid, p_statusname, null, null]
     );
 
     const { p_status, p_message } = result.rows[0];
@@ -414,17 +430,16 @@ export const withdrawApplication = async (req, res) => {
   }
 };
 
-
 export const deleteApplyNowPortfolioFile = async (req, res) => {
   const userId = req.user?.id || req.body.userId;
-  const {filePath} = req.body;
+  const { filePath } = req.body;
   const redisKey = `applyCampaign:${userId}`;
 
   try {
     if (!filePath) {
       return res
         .status(400)
-        .json({ message: "filePath are required"});
+        .json({ message: "filePath are required" });
     }
 
     // 1) Redis se data fetch
@@ -452,7 +467,7 @@ export const deleteApplyNowPortfolioFile = async (req, res) => {
     if (fs.existsSync(fullPath)) {
       fs.unlinkSync(fullPath);
       console.log("File deleted from folder:", fullPath);
-     } else {
+    } else {
       return res.status(404).json({
         status: false,
         message: "File not found in folder"
@@ -466,6 +481,6 @@ export const deleteApplyNowPortfolioFile = async (req, res) => {
     });
   } catch (error) {
     console.error("deleteApplyNowPortfolioFile error:", error);
-    return res.status(500).json({message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
