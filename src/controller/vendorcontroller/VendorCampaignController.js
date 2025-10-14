@@ -138,6 +138,7 @@ export const finalizeCampaign = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.p_userid;
     const campaignId = req.body.p_campaignid || null; // ya req.body.campaignid
+    const p_statusname = req.body.p_statusname
 
     if (!userId)
       return res.status(400).json({ message: "User ID is required" });
@@ -170,7 +171,7 @@ export const finalizeCampaign = async (req, res) => {
       [
         userId,
         campaignId,
-        finalData.p_statusname || null,
+        p_statusname || null,
         JSON.stringify(campaignData.p_objectivejson || {}),
         JSON.stringify(campaignData.p_vendorinfojson || {}),
         JSON.stringify(campaignData.p_campaignjson || {}),
