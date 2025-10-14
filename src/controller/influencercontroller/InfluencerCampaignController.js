@@ -1,13 +1,13 @@
 import { client } from '../../config/Db.js';
-import { createClient } from '@supabase/supabase-js';
+// import { createClient } from '@supabase/supabase-js';
 import redis from 'redis';
 import path from 'path';
 import fs from 'fs';
 
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+// const SUPABASE_URL = process.env.SUPABASE_URL;
+// const SUPABASE_KEY = process.env.SUPABASE_KEY;
+// const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
 redisClient.connect().catch(console.error);
