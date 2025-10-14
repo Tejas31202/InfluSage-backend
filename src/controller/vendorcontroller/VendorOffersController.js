@@ -1,8 +1,8 @@
 import { client } from '../../config/Db.js';
-import redis from 'redis';
+import redisClient from '../../config/redis.js';
 
-const redisClient = redis.createClient({ url: process.env.REDIS_URL });
-redisClient.connect().catch(console.error);
+// const redisClient = redis.createClient({ url: process.env.REDIS_URL });
+// redisClient.connect().catch(console.error);
 
 export const getOffersForCampaign = async (req, res) => {
   try {

@@ -1,10 +1,13 @@
 import { client } from '../../config/Db.js';
-import redis from 'redis';
+import redisClient from '../../config/redis.js';
+
 import path from 'path';
 import fs from 'fs';
+import dotenv from 'dotenv';
+dotenv.config();
 
-const redisClient = redis.createClient({ url: process.env.REDIS_URL });
-redisClient.connect().catch(console.error);
+// const redisClient = redis.createClient({ url: process.env.REDIS_URL });
+// redisClient.connect().catch(console.error);
 
 const calculateProfileCompletion = (profileParts) => {
   const partsArray = Object.values(profileParts);

@@ -1,12 +1,16 @@
 import { client } from '../../config/Db.js';
+import { v4 as uuidv4 } from "uuid";
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import sendingMail from '../../utils/MailUtils.js';
-import redis from 'redis';
+import dotenv from 'dotenv';
+import redisClient from '../../config/redis.js';
+dotenv.config();
+// import redis from 'redis';
 
-const redisClient = redis.createClient({ url: process.env.REDIS_URL });
-redisClient.connect().catch(console.error);
+// const redisClient = redis.createClient({ url: process.env.REDIS_URL });
+// redisClient.connect().catch(console.error);
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -109,7 +113,7 @@ export const loginVendor = async (req, res) => {
     // Check if vendor exists
     const isVendorExists = await isEmailExists(email);
     if (!isVendorExists) {
-      return res.status(401).json({ message: "vendor not found" });
+      return res.status(401).json({ message: "Vendor not found" });
     }
 
     const vendorPasswordResult = await client.query(
@@ -120,27 +124,41 @@ export const loginVendor = async (req, res) => {
     const { passwordhash, roleid, vendorid, firstname, lastname } =
       vendorPasswordResult.rows[0];
 
-    // Compare entered password with hashed password
     const isMatch = await bcrypt.compare(password, passwordhash);
-
     if (!isMatch) {
       return res.status(401).json({ message: "Incorrect password" });
     }
 
-    // Generate JWT token
+    // ✅ Generate JWT
     const token = jwt.sign(
-      { id: vendorid, email: email, role: roleid },
-      JWT_SECRET,
+      { id: vendorid, email, role: roleid },
+      process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
 
-    // Success response
+    // ✅ Generate unique sessionId
+    const sessionId = uuidv4();
+
+    // ✅ Store session data in Redis (valid for 24 hours)
+    await redisClient.setEx(
+      `session:${sessionId}`,
+      3600 * 24,
+      JSON.stringify({
+        userId: vendorid,
+        email,
+        role: roleid,
+        loginTime: new Date().toISOString(),
+      })
+    );
+
+    // ✅ Send sessionId and token to frontend
     return res.status(200).json({
       message: "Welcome back " + firstname + " " + lastname,
-      token, // ← send to frontend
+      token,
+      sessionId, // <-- This is important
       id: vendorid,
       name: firstname + " " + lastname,
-      email: email,
+      email,
       role: roleid,
     });
   } catch (error) {
@@ -148,6 +166,7 @@ export const loginVendor = async (req, res) => {
     return res.status(500).json({ message: "Server error during login" });
   }
 };
+
 
 // This function is used to resend OTP to the vendor's email
 export const resendOtp = async (req, res) => {
