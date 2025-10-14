@@ -2,11 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
-import cookieParser from 'cookie-parser';
-import { createServer } from 'http';
-import { Server } from 'socket.io';
-
 import authRoutes from './src/routes/AuthRoutes.js';
+import cookieParser from 'cookie-parser';
+
 import InfluencerRoutes from './src/routes/influencerroutes/InfluencerRoutes.js';
 import InfluencerProfileDetailRoutes from './src/routes/influencerroutes/InfluencerProfileDetailRoutes.js';
 import VendorRoutes from './src/routes/vendorroutes/VendorRoute.js';
@@ -16,51 +14,48 @@ import InfluencerCampaignRoutes from './src/routes/influencerroutes/InfluencerCa
 import VendorBrowseInfluencerRoutes from './src/routes/vendorroutes/VendorBrowseInfluencerRoutes.js';
 import VendorOffersRoutes from './src/routes/vendorroutes/VendorOffersRoutes.js';
 import CommonRoutes from './src/routes/CommonRoutes.js';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 import ChatRoutes from './src/routes/ChatRoutes.js';
 import VendorMyCampaignRoutes from './src/routes/vendorroutes/VendorMyCampaignRoutes.js';
 import InfluencerMyCampaignRoutes from './src/routes/influencerroutes/InfluencerMyCampaignRoutes.js';
 import { sessionMiddleware } from './src/middleware/SessionMiddleware.js';
 
 dotenv.config();
+
 const app = express();
 
-// --------------------
-// CORS must come BEFORE session middleware
-// --------------------
-app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:5173",
-  credentials: true, // <- needed for cookies/session
-  methods: ["GET","POST","PUT","DELETE","OPTIONS"]
-}));
-
-// --------------------
-// Body parsers & cookie
-// --------------------
+// Middleware
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-
-// --------------------
-// Session middleware
-// --------------------
 app.use(sessionMiddleware);
 
-// --------------------
-// Static uploads
-// --------------------
-app.use("/src/uploads", express.static(path.join(process.cwd(), "src/uploads")));
+app.use(
+  "/src/uploads",
+  express.static(path.join(process.cwd(), "src/uploads"))
+);
+app.use(express.urlencoded({ extended: true }));
+app.use(
+  cors()
+);
 
-// --------------------
-// Test routes
-// --------------------
 app.post('/test', async (req, res) => {
-  console.log('Body:', req.body);
-  res.status(200).json({ message: 'POST working!' });
+  try {
+    console.log('Body:', req.body);
+    res.status(200).json({ message: 'POST working!' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
 });
 
 app.get('/test-session', (req, res) => {
-  if (!req.session.views) req.session.views = 1;
-  else req.session.views++;
+  // Check if session exists
+  if (!req.session.views) {
+    req.session.views = 1;
+  } else {
+    req.session.views++;
+  }
 
   console.log("Session ID =>", req.sessionID);
   console.log("Session object =>", req.session);
@@ -72,9 +67,9 @@ app.get('/test-session', (req, res) => {
   });
 });
 
-// --------------------
-// Routes
-// --------------------
+
+dotenv.config(); // if app in src
+
 app.use("/auth", authRoutes);
 app.use("/", CommonRoutes);
 app.use("/user", InfluencerRoutes);
@@ -89,67 +84,94 @@ app.use("/vendor", VendorOffersRoutes);
 app.use("/vendor", VendorMyCampaignRoutes);
 app.use("/chat", ChatRoutes);
 
-// --------------------
-// Server + Socket.IO
-// --------------------
+
 const PORT = process.env.BACKEND_PORT || 3001;
+
+// --------------------
+// Create HTTP server & attach Socket.IO
+// --------------------
 const server = createServer(app);
 const onlineUsers = new Map();
 
 const io = new Server(server, {
   cors: {
     origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    methods: ["GET", "POST","PUT", "DELETE", "OPTIONS"],
     credentials: true,
-    methods: ["GET","POST","PUT","DELETE","OPTIONS"]
   },
 });
 
 io.on("connection", (socket) => {
   console.log("🔗 User connected:", socket.id);
 
+  // User registers
   socket.on("register", (userId) => {
     onlineUsers.set(userId, socket.id);
     socket.userId = userId;
+
+    // Notify all other users
     socket.broadcast.emit("user-online", { userId });
+
+    // Send current online users to this socket
     socket.emit("online-users", { userIds: [...onlineUsers.keys()] });
+
+    console.log(`User ${userId} registered`);
   });
 
-  socket.on("joinRoom", (conversationId) => socket.join(conversationId));
-  socket.on("leaveRoom", (conversationId) => socket.leave(conversationId));
+  // Join room (conversation)
+  socket.on("joinRoom", (conversationId) => {
+    socket.join(conversationId);
+    console.log(`Socket ${socket.id} joined room ${conversationId}`);
+  });
 
-  socket.on("deleteMessage", ({ messageId, conversationId }) =>
-    io.to(conversationId).emit("deleteMessage", messageId)
-  );
+  socket.on("leaveRoom", (conversationId) => {
+    socket.leave(conversationId);
+    console.log(`Socket ${socket.id} left room ${conversationId}`);
+  });
 
-  socket.on("undoDeleteMessage", ({ messageId, conversationId }) =>
-    io.to(conversationId).emit("undoDeleteMessage", messageId)
-  );
+  socket.on("deleteMessage", ({ messageId, conversationId }) => {
+    io.to(conversationId).emit("deleteMessage", messageId);
+    console.log(`Message ${messageId} marked as deleted in room ${conversationId}`);
+  });
 
+  // Undo delete broadcast
+  socket.on("undoDeleteMessage", ({ messageId, conversationId }) => {
+    io.to(conversationId).emit("undoDeleteMessage", messageId);
+    console.log(`Message ${messageId} restored in room ${conversationId}`);
+  });
+
+  // Message sent
   socket.on("sendMessage", (message) => {
     const { conversationId } = message;
+    console.log(`Message received for room ${conversationId}`);
     socket.to(conversationId).emit("receiveMessage", message);
   });
 
+  // Disconnect
   socket.on("disconnect", () => {
     const userId = socket.userId;
     if (userId) {
       onlineUsers.delete(userId);
-      socket.broadcast.emit("user-offline", { userId, lastSeen: new Date() });
+      socket.broadcast.emit("user-offline", {
+        userId,
+        lastSeen: new Date(),
+      });
+      console.log(`User ${userId} disconnected`);
     }
   });
 
-  socket.on("messageRead", ({ messageId, conversationId, role }) =>
+  socket.on("messageRead", async ({ messageId, conversationId, role }) => {
     io.to(`conversation_${conversationId}`).emit("updateMessageStatus", {
       messageId,
       readbyvendor: role === 1 ? true : undefined,
       readbyinfluencer: role === 2 ? true : undefined,
-    })
-  );
+    });
 });
 
-// --------------------
-// Start server
-// --------------------
+});
+
+
+// Start server using HTTP server
 server.listen(PORT, () => {
   console.log("Server started on port", PORT);
 });
