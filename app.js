@@ -19,6 +19,7 @@ import { Server } from 'socket.io';
 import ChatRoutes from './src/routes/ChatRoutes.js';
 import VendorMyCampaignRoutes from './src/routes/vendorroutes/VendorMyCampaignRoutes.js';
 import InfluencerMyCampaignRoutes from './src/routes/influencerroutes/InfluencerMyCampaignRoutes.js';
+import { sessionMiddleware } from './src/middleware/SessionMiddleware.js';
 
 dotenv.config();
 
@@ -27,6 +28,7 @@ const app = express();
 // Middleware
 app.use(express.json());
 app.use(cookieParser());
+app.use(sessionMiddleware);
 
 app.use(
   "/src/uploads",
@@ -47,6 +49,25 @@ app.post('/test', async (req, res) => {
   }
 });
 
+app.get('/test-session', (req, res) => {
+  // Check if session exists
+  if (!req.session.views) {
+    req.session.views = 1;
+  } else {
+    req.session.views++;
+  }
+
+  console.log("Session ID =>", req.sessionID);
+  console.log("Session object =>", req.session);
+
+  res.json({
+    message: "Session test",
+    sessionID: req.sessionID,
+    views: req.session.views,
+  });
+});
+
+
 dotenv.config(); // if app in src
 
 app.use("/auth", authRoutes);
@@ -62,6 +83,7 @@ app.use("/vendor", VendorBrowseInfluencerRoutes);
 app.use("/vendor", VendorOffersRoutes);
 app.use("/vendor", VendorMyCampaignRoutes);
 app.use("/chat", ChatRoutes);
+
 
 const PORT = process.env.BACKEND_PORT || 3001;
 

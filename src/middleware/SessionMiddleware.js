@@ -1,22 +1,18 @@
-import session from "express-session";
-import RedisStore from "connect-redis";
-import redisClient from "../config/redis.js";
-// import redis from "redis";
-// const redisClient = redis.createClient({ url: process.env.REDIS_URL });
-// redisClient.connect().catch(console.error);
+// sessionMiddleware.js
+import session from 'express-session';
+import { RedisStore } from 'connect-redis';  // ✅ named import
+import redisClient from '../config/redis.js';
 
-const sessionMiddleware = session({
-  secret: process.env.SESSION_SECRET, // ✅ use this one
-  credentials: true,
-  name: "sid",
+export const sessionMiddleware = session({
+  name: "influSession",
   store: new RedisStore({ client: redisClient }),
+  secret: process.env.SESSION_SECRET || "defaultsecret",
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.ENVIRONMENT === "production" ? "true" : "auto",
     httpOnly: true,
+    secure: process.env.ENVIRONMENT === "production" ? true : false,
     sameSite: process.env.ENVIRONMENT === "production" ? "none" : "lax",
+    maxAge: 1000 * 60 * 60 * 24, // optional: 1 day
   },
 });
-
-app.use(sessionMiddleware);
