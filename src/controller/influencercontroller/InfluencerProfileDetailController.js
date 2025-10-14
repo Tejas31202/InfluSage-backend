@@ -20,29 +20,28 @@ const calculateProfileCompletion = (profileParts) => {
 // Complete User Profile
 export const completeUserProfile = async (req, res) => {
   const userId = req.user?.id || req.body?.userId;
+  // console.log("userId===>", userId);
   let username = "user";
-
-  // ✅ Log current session ID
-  console.log("Session ID =>", req.sessionID);
-
-  // ✅ Use session-based Redis key (no conflict across devices)
-  const redisKey = `profile:${req.sessionID}`;
-
-  // Prefer JWT payload (if available)
-  if (req.user?.firstName || req.user?.lastName) {
-    username = `${req.user.firstName || ""}_${req.user.lastName || ""}`.trim();
+ 
+// Prefer JWT payload (if available)
+if (req.user?.firstName || req.user?.lastName) {
+  username = `${req.user.firstName || ""}_${req.user.lastName || ""}`.trim();
+}
+ 
+// Otherwise fallback to body fields (if sent from frontend)
+else if (req.body?.firstName || req.body?.lastName) {
+  username = `${req.body.firstName || ""}_${req.body.lastName || ""}`.trim();
+}
+ 
+// If still missing, fetch from DB
+else {
+  const dbUser = await client.query("SELECT firstname, lastname FROM ins.users WHERE id=$1", [userId]);
+  if (dbUser.rows[0]) {
+    username = `${dbUser.rows[0].firstname || ""}_${dbUser.rows[0].lastname || ""}`.trim() || "user";
   }
-  // Otherwise fallback to body fields (if sent from frontend)
-  else if (req.body?.firstName || req.body?.lastName) {
-    username = `${req.body.firstName || ""}_${req.body.lastName || ""}`.trim();
-  }
-  // If still missing, fetch from DB
-  else {
-    const dbUser = await client.query("SELECT firstname, lastname FROM ins.users WHERE id=$1", [userId]);
-    if (dbUser.rows[0]) {
-      username = `${dbUser.rows[0].firstname || ""}_${dbUser.rows[0].lastname || ""}`.trim() || "user";
-    }
-  }
+}
+ 
+  const redisKey = `profile:${userId}`;
 
   try {
     // ---------------------------
@@ -61,7 +60,9 @@ export const completeUserProfile = async (req, res) => {
     // ---------------------------
     if (req.files?.photo) {
       const file = req.files.photo[0];
-      const newFileName = `${username}_up_${Date.now()}${path.extname(file.originalname)}`;
+      const newFileName = `${username}_up_${Date.now()}${path.extname(
+        file.originalname
+      )}`;
       const newPath = path.join("src/uploads/influencer", newFileName);
       fs.renameSync(file.path, newPath);
 
@@ -80,36 +81,37 @@ export const completeUserProfile = async (req, res) => {
     // ---------------------------
     // 3 Handle portfolio uploads
     // ---------------------------
-    if (req.files?.portfolioFiles) {
-      const portfolioPaths = req.files.portfolioFiles.map((file, index) => {
-        const newFileName = `${username}_portfolio_${Date.now()}_${index}${path.extname(file.originalname)}`;
-        const newPath = path.join("src/uploads/influencer", newFileName);
-        fs.renameSync(file.path, newPath);
-        return `src/uploads/influencer/${newFileName}`;
-      });
+   if (req.files?.portfolioFiles) {
+    const portfolioPaths = req.files.portfolioFiles.map((file,index) => {
+    const newFileName = `${username}_portfolio_${Date.now()}_${index}${path.extname(file.originalname)}`;
+    const newPath = path.join("src/uploads/influencer", newFileName);
+    fs.renameSync(file.path, newPath);
+    return `src/uploads/influencer/${newFileName}`;
+  });
 
-      if (portfoliojson) {
-        try {
-          const parsedPortfolio = JSON.parse(portfoliojson);
+  if (portfoliojson) {
+    try {
+      const parsedPortfolio = JSON.parse(portfoliojson);
 
-          // Preserve existing filepaths if any
-          const existingPaths = Array.isArray(parsedPortfolio.filepaths)
-            ? parsedPortfolio.filepaths.filter((p) => p?.filepath)
-            : [];
+      // Preserve existing filepaths if any
+      const existingPaths = Array.isArray(parsedPortfolio.filepaths)
+        ? parsedPortfolio.filepaths.filter((p) => p?.filepath)
+        : [];
 
-          // Add new uploaded files
-          const newPaths = portfolioPaths.map((p) => ({
-            filepath: p,
-          }));
+      // Add new uploaded files
+      const newPaths = portfolioPaths.map((p) => ({
+        filepath: p,
+      }));
 
-          parsedPortfolio.filepaths = [...existingPaths, ...newPaths];
+      parsedPortfolio.filepaths = [...existingPaths, ...newPaths];
 
-          req.body.portfoliojson = JSON.stringify(parsedPortfolio);
-        } catch (err) {
-          console.error("Invalid portfoliojson:", err.message);
-        }
-      }
+      req.body.portfoliojson = JSON.stringify(parsedPortfolio);
+    } catch (err) {
+      console.error("Invalid portfoliojson:", err.message);
     }
+  }
+}
+
 
     // ---------------------------
     // 4 Merge incoming data (safe JSON.parse)
@@ -139,24 +141,29 @@ export const completeUserProfile = async (req, res) => {
     // ---------------------------
     // 5 Check existing profile from DB
     // ---------------------------
-    const dbCheck = await client.query("SELECT * FROM ins.fn_get_userprofile($1)", [userId]);
+    const dbCheck = await client.query(
+      "SELECT * FROM ins.fn_get_userprofile($1)",
+      [userId]
+    );
     const existingUser = dbCheck.rows[0];
-
-    if (existingUser?.p_socials !== null && existingUser?.p_categories !== null) {
+    if (
+      existingUser?.p_socials !== null &&
+      existingUser?.p_categories !== null
+    ) {
       // ✅ CASE A: User already has socials + categories → update in DB
       try {
         await client.query("BEGIN");
         const result = await client.query(
           `CALL ins.usp_upsert_userprofile(
-              $1::bigint,
-              $2::json,
-              $3::json,
-              $4::json,
-              $5::json,
-              $6::json,
-              $7::boolean,
-              $8::text
-          )`,
+                $1::bigint,
+                $2::json,
+                $3::json,
+                $4::json,
+                $5::json,
+                $6::json,
+                $7::boolean,
+                $8::text
+            )`,
           [
             userId,
             JSON.stringify(mergedData.profilejson),
@@ -180,7 +187,7 @@ export const completeUserProfile = async (req, res) => {
         throw err;
       }
     } else {
-      // ✅ CASE B: User new or incomplete → check Redis (session-based)
+      // 1️⃣ Try to fetch Redis partials
       let redisData = {};
       const existingRedis = await redisClient.get(redisKey);
       if (existingRedis) {
@@ -191,8 +198,13 @@ export const completeUserProfile = async (req, res) => {
         }
       }
 
-      const finalData = { ...redisData, ...mergedData };
+      // 2️⃣ Merge Redis + current request body (request takes priority)
+      const finalData = {
+        ...redisData,
+        ...mergedData,
+      };
 
+      // 3️⃣ Check completeness AFTER merging
       const allPartsPresent =
         finalData.profilejson &&
         finalData.socialaccountjson &&
@@ -200,14 +212,22 @@ export const completeUserProfile = async (req, res) => {
         finalData.portfoliojson &&
         finalData.paymentjson;
 
-      // 🔹 Partial save to Redis
-      if (!allPartsPresent) {
-        await redisClient.set(redisKey, JSON.stringify(finalData));
-        console.log("Partial data saved in Redis for session:", req.sessionID);
+      // 4️⃣ Now update mergedData to be finalData going forward
+      mergedData.profilejson = finalData.profilejson;
+      mergedData.socialaccountjson = finalData.socialaccountjson;
+      mergedData.categoriesjson = finalData.categoriesjson;
+      mergedData.portfoliojson = finalData.portfoliojson;
+      mergedData.paymentjson = finalData.paymentjson;
 
+      // ✅ CASE B: User new or incomplete → check Redis
+      if (!allPartsPresent) {
+        const existingRedis = await redisClient.get(redisKey);
+        let redisData = existingRedis ? JSON.parse(existingRedis) : {};
+        redisData = { ...redisData, ...mergedData };
+
+        await redisClient.set(redisKey, JSON.stringify(redisData));
         return res.status(200).json({
-          message: "Partial data saved in Redis (first-time user, session-based)",
-          redisKey,
+          message: "Partial data saved in Redis (first-time user)",
           source: "redis",
         });
       }
@@ -217,37 +237,36 @@ export const completeUserProfile = async (req, res) => {
         await client.query("BEGIN");
         const result = await client.query(
           `CALL ins.usp_upsert_userprofile(
-              $1::bigint,
-              $2::json,
-              $3::json,
-              $4::json,
-              $5::json,
-              $6::json,
-              $7::boolean,
-              $8::text
-          )`,
+        $1::bigint,
+        $2::json,
+        $3::json,
+        $4::json,
+        $5::json,
+        $6::json,
+        $7::boolean,
+        $8::text
+      )`,
           [
             userId,
-            JSON.stringify(finalData.profilejson),
-            JSON.stringify(finalData.socialaccountjson),
-            JSON.stringify(finalData.categoriesjson),
-            JSON.stringify(finalData.portfoliojson),
-            JSON.stringify(finalData.paymentjson),
+            JSON.stringify(mergedData.profilejson),
+            JSON.stringify(mergedData.socialaccountjson),
+            JSON.stringify(mergedData.categoriesjson),
+            JSON.stringify(mergedData.portfoliojson),
+            JSON.stringify(mergedData.paymentjson),
             null,
             null,
           ]
         );
         await client.query("COMMIT");
+        // await redisClient.del(redisKey);
 
         const { p_status, p_message } = result.rows[0] || {};
         if (p_status === true) {
           await redisClient.del(redisKey);
-          console.log("Redis cleared for session:", req.sessionID);
         }
 
         return res.status(p_status ? 200 : 400).json({
           message: p_message || "Profile created successfully",
-          redisKey,
           source: "db",
         });
       } catch (err) {
@@ -260,20 +279,18 @@ export const completeUserProfile = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
-
 // Get User Profile
 export const getUserProfile = async (req, res) => {
   const userId = req.params.userId;
-
-  // 🔹 Log and use session ID
-  console.log("Session ID =>", req.sessionID);
-  const redisKey = `profile:${req.sessionID}`;
+  const redisKey = `profile:${userId}`;
 
   try {
+    // Try to fetch from Redis
     const cachedData = await redisClient.get(redisKey);
 
     if (cachedData) {
       const parsed = JSON.parse(cachedData);
+
       const profileParts = {
         p_profile: parsed.profilejson || {},
         p_socials: parsed.socialaccountjson || {},
@@ -284,18 +301,15 @@ export const getUserProfile = async (req, res) => {
 
       const profileCompletion = calculateProfileCompletion(profileParts);
 
-      console.log("Profile fetched from Redis for session:", req.sessionID);
-
       return res.status(200).json({
-        message: "Partial profile from Redis (session-based)",
+        message: "Partial profile from Redis",
         profileParts,
         profileCompletion,
-        redisKey,
         source: "redis",
       });
     }
 
-    // else fetch from DB
+    // If not in Redis → fetch from DB
     const result = await client.query(
       `SELECT * FROM ins.fn_get_userprofile($1::BIGINT)`,
       [userId]
@@ -313,10 +327,8 @@ export const getUserProfile = async (req, res) => {
       p_paymentaccounts,
     } = result.rows[0];
 
-    console.log("Profile fetched from DB for session:", req.sessionID);
-
     return res.status(200).json({
-      message: "Profile from DB",
+      message: "get profile from db",
       profileParts: {
         p_profile,
         p_socials,
@@ -324,7 +336,6 @@ export const getUserProfile = async (req, res) => {
         p_portfolios,
         p_paymentaccounts,
       },
-      redisKey,
       source: "db",
     });
   } catch (err) {
