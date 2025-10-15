@@ -5,7 +5,7 @@ import {
   deleteCampaignFile,
   finalizeCampaign,
   getCampaignObjectives,
-  getInfluencerTiers,
+  // getInfluencerTiers,
   getProvidorContentTypes,
   editCampaign,
   upsertCampaign,
@@ -19,7 +19,7 @@ const routes = express.Router();
 
 routes.get("/campaign/objectives", getCampaignObjectives);
 
-routes.get("/influencer-type", getInfluencerTiers);
+// routes.get("/influencer-type", getInfluencerTiers);
 
 routes.get("/provider-content-type", getProvidorContentTypes);
 
