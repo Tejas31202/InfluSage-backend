@@ -34,10 +34,10 @@ export const getContentTypes = async (req, res) => {
       source: "db",
     });
   } catch (error) {
-    console.error("Error fetching GetCampaignObjectives:", error);
+    console.error("Error fetching getContentTypes:", error);
     return res
       .status(500)
-      .json({ message: "Failed to fetch GetCampaignObjectives" });
+      .json({ message: "Failed to fetch getContentTypes" });
   }
 };
 
@@ -50,10 +50,10 @@ export const getGenders = async (req, res) => {
       source: "db",
     });
   } catch (error) {
-    console.error("Error fetching GetCampaignObjectives:", error);
+    console.error("Error fetching Genders:", error);
     return res
       .status(500)
-      .json({ message: "Failed to fetch GetCampaignObjectives" });
+      .json({ message: "Failed to fetch Genders" });
   }
 };
 
