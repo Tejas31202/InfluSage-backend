@@ -545,202 +545,18 @@ export const editCampaign = async (req, res) => {
   }
 };
 
-// export const upsertCampaign = async (req, res) => {
-//   try {
-//     const p_userid = req.user?.id || req.body.p_userid;
-//     const campaignId = req.body.campaignId || null;
-//     let username = "user";
-//     if (!p_userid) {
-//       return res.status(400).json({ message: "User ID is required" });
-//     }
-
-//     // 🧩 Get username from JWT, body, or DB
-//     if (req.user?.firstName || req.user?.lastName) {
-//       username = `${req.user.firstName || ""}_${req.user.lastName || ""}`.trim();
-//     } else if (req.body?.firstName || req.body?.lastName) {
-//       username = `${req.body.firstName || ""}_${req.body.lastName || ""}`.trim();
-//     } else {
-//       const dbUser = await client.query(
-//         "SELECT firstname, lastname FROM ins.users WHERE id=$1",
-//         [p_userid]
-//       );
-//       if (dbUser.rows[0]) {
-//         username = `${dbUser.rows[0].firstname || ""}_${dbUser.rows[0].lastname || ""}`.trim() || "user";
-//       }
-//     }
-//     // 🧩 Helpers
-//     const parseIfJson = (data) => {
-//       if (!data) return {};
-//       if (typeof data === "string") {
-//         try { return JSON.parse(data); } catch { return {}; }
-//       }
-//       return data;
-//     };
-
-//     const cleanArray = (arr) => {
-//       if (!arr || !Array.isArray(arr)) return [];
-//       return arr.filter((item) => item && Object.keys(item).length);
-//     };
-
-//     // 🧩 Parse JSON inputs
-//     const p_objectivejson = parseIfJson(req.body.p_objectivejson);
-//     const p_vendorinfojson = parseIfJson(req.body.p_vendorinfojson);
-//     const p_campaignjson = parseIfJson(req.body.p_campaignjson);
-//     const p_campaigncategoyjson = cleanArray(parseIfJson(req.body.p_campaigncategoyjson));
-//     const p_campaignfilejson = cleanArray(parseIfJson(req.body.p_campaignfilejson));
-//     const p_contenttypejson = cleanArray(parseIfJson(req.body.p_contenttypejson));
-
-//     // ---------------- FILE HANDLING ----------------
-//     let campaignPhotoPath = p_campaignjson?.photopath || null;
-//     let campaignFiles = [];
-
-//     // Photo upload
-//     if (req.files?.photo && req.files.photo[0]) {
-//       const photo = req.files.photo[0];
-//       const ext = path.extname(photo.originalname);
-//       const finalName = `${username}_cp_${Date.now()}${ext}`;
-//       const relativePath = path.join("src/uploads/vendor", finalName).replace(/\\/g, "/");
-//       fs.renameSync(photo.path, relativePath);
-//       campaignPhotoPath = relativePath;
-//       if (p_campaignjson) p_campaignjson.photopath = relativePath;
-//     }
-
-//     // Multiple files upload
-//     if (req.files?.Files && req.files.Files.length > 0) {
-//       campaignFiles = req.files.Files.map((file, index) => {
-//         const ext = path.extname(file.originalname);
-//         const finalName = `${username}_campaign_${Date.now()}_${index}${ext}`;
-//         const relativePath = 
-//         path.join("src/uploads/vendor", finalName).replace(/\\/g, "/");
-//         fs.renameSync(file.path, relativePath);
-//         return { filepath: relativePath };
-//       });
-//     }
-
-//     // ---------------- REDIS (DRAFT) ----------------
-//     const redisKey = `getCampaign:${p_userid}`;
-
-//     if (!campaignId) {
-//       // Read existing draft if exists
-//       let existingDraft = {};
-//       const cachedData = await redisClient.get(redisKey);
-//       if (cachedData) {
-//         existingDraft = JSON.parse(cachedData);
-//       }
-
-//       // Merge old draft with new step
-//       const draftData = {
-//         p_objectivejson: { ...(existingDraft.p_objectivejson || {}), ...p_objectivejson },
-//         p_vendorinfojson: { ...(existingDraft.p_vendorinfojson || {}), ...p_vendorinfojson },
-//         p_campaignjson: { ...(existingDraft.p_campaignjson || {}), ...p_campaignjson },
-//         p_campaigncategoyjson: p_campaigncategoyjson.length
-//           ? p_campaigncategoyjson
-//           : existingDraft.p_campaigncategoyjson || [],
-//         p_contenttypejson: p_contenttypejson.length
-//           ? p_contenttypejson
-//           : existingDraft.p_contenttypejson || [],
-//         p_campaignfilejson: [
-//           ...(existingDraft.p_campaignfilejson || []),
-//           ...(p_campaignfilejson || []),
-//           ...(campaignFiles || []),
-//         ],
-//         is_completed: false,
-//       };
-
-//       await redisClient.set(redisKey, JSON.stringify(draftData));
-
-//       return res.status(200).json({
-//         status: true,
-//         message: "Draft stored in Redis successfully",
-//         campaignParts: draftData,
-//         source: "redis",
-//       });
-//     }
-
-//     // ---------------- DB UPSERT ----------------
-//     // Fetch existing data to merge
-//     const existingDataResult = await client.query(
-//       `SELECT * FROM ins.fn_get_campaigndetailsjson($1::BIGINT, $2::BIGINT)`,
-//       [p_userid, campaignId]
-//     );
-
-//     const existingData = existingDataResult.rows[0] || {};
-
-//     const mergeObjects = (oldObj, newObj) => ({ ...oldObj, ...newObj });
-
-//     const finalData = {
-//       p_objectivejson: mergeObjects(existingData.p_objectivejson || {}, p_objectivejson),
-//       p_vendorinfojson: mergeObjects(existingData.p_vendorinfojson || {}, p_vendorinfojson),
-//       p_campaignjson: mergeObjects(existingData.p_campaignjson || {}, p_campaignjson),
-//       p_campaigncategoyjson: p_campaigncategoyjson.length
-//         ? p_campaigncategoyjson
-//         : existingData.p_campaigncategoyjson || [],
-//       p_campaignfilejson:
-//         (p_campaignfilejson.length || campaignFiles.length)
-//           ? [...(existingData.p_campaignfilejson || []), ...p_campaignfilejson, ...campaignFiles]
-//           : existingData.p_campaignfilejson || [],
-//       p_contenttypejson: p_contenttypejson.length
-//         ? p_contenttypejson
-//         : existingData.p_contenttypejson || [],
-//     };
-
-//     // Call DB procedure
-//     const result = await client.query(
-//       `CALL ins.usp_upsert_campaigndetails(
-//         $1::BIGINT,   
-//         $2::BIGINT,  
-//         $3::varchar, 
-//         $4::JSON,    
-//         $5::JSON,   
-//         $6::JSON,  
-//         $7::JSON, 
-//         $8::JSON,   
-//         $9::JSON,   
-//         NULL,       
-//         NULL  
-//       )`,
-//     [
-//     p_userid,
-//     campaignId,
-//     finalData.p_statusname || null,
-//     JSON.stringify(finalData.p_objectivejson),
-//     JSON.stringify(finalData.p_vendorinfojson),
-//     JSON.stringify(finalData.p_campaignjson),
-//     JSON.stringify(finalData.p_campaigncategoyjson),
-//     JSON.stringify(finalData.p_campaignfilejson),
-//     JSON.stringify(finalData.p_contenttypejson),
-//   ]
-// );
-
-//     const { p_status, p_message } = result.rows[0] || {};
-
-//     return res.status(p_status ? 200 : 400).json({
-//       success: p_status,
-//       message: p_message,
-//       source: "db",
-//     });
-
-//   } catch (err) {
-//     console.error("❌ upsertCampaign error:", err);
-//     return res.status(500).json({
-//       success: false,
-//       message: "Error processing campaign",
-//       error: err.message,
-//     });
-//   }
-// };
-
 export const upsertCampaign = async (req, res) => {
   try {
     const p_userid = req.user?.id || req.body.p_userid;
     const campaignId = req.body.campaignId || null;
-    const p_statusname = req.body.p_statusname || null;
     let username = "user";
     if (!p_userid) {
+
+      
       return res.status(400).json({ message: "User ID is required" });
     }
 
-    // Get username from JWT, body, or DB
+    // 🧩 Get username from JWT, body, or DB
     if (req.user?.firstName || req.user?.lastName) {
       username = `${req.user.firstName || ""}_${req.user.lastName || ""}`.trim();
     } else if (req.body?.firstName || req.body?.lastName) {
@@ -754,8 +570,7 @@ export const upsertCampaign = async (req, res) => {
         username = `${dbUser.rows[0].firstname || ""}_${dbUser.rows[0].lastname || ""}`.trim() || "user";
       }
     }
-
-    // Helpers
+    // 🧩 Helpers
     const parseIfJson = (data) => {
       if (!data) return {};
       if (typeof data === "string") {
@@ -769,7 +584,7 @@ export const upsertCampaign = async (req, res) => {
       return arr.filter((item) => item && Object.keys(item).length);
     };
 
-    // Parse JSON inputs
+    // 🧩 Parse JSON inputs
     const p_objectivejson = parseIfJson(req.body.p_objectivejson);
     const p_vendorinfojson = parseIfJson(req.body.p_vendorinfojson);
     const p_campaignjson = parseIfJson(req.body.p_campaignjson);
@@ -777,7 +592,7 @@ export const upsertCampaign = async (req, res) => {
     const p_campaignfilejson = cleanArray(parseIfJson(req.body.p_campaignfilejson));
     const p_contenttypejson = cleanArray(parseIfJson(req.body.p_contenttypejson));
 
-    // FILE HANDLING
+    // ---------------- FILE HANDLING ----------------
     let campaignPhotoPath = p_campaignjson?.photopath || null;
     let campaignFiles = [];
 
@@ -797,14 +612,14 @@ export const upsertCampaign = async (req, res) => {
       campaignFiles = req.files.Files.map((file, index) => {
         const ext = path.extname(file.originalname);
         const finalName = `${username}_campaign_${Date.now()}_${index}${ext}`;
-        const relativePath =
-          path.join("src/uploads/vendor", finalName).replace(/\\/g, "/");
+        const relativePath = 
+        path.join("src/uploads/vendor", finalName).replace(/\\/g, "/");
         fs.renameSync(file.path, relativePath);
         return { filepath: relativePath };
       });
     }
 
-    // REDIS (DRAFT)
+    // ---------------- REDIS (DRAFT) ----------------
     const redisKey = `getCampaign:${p_userid}`;
 
     if (!campaignId) {
@@ -844,7 +659,34 @@ export const upsertCampaign = async (req, res) => {
       });
     }
 
-    // DB UPSERT
+    // ---------------- DB UPSERT ----------------
+    // Fetch existing data to merge
+    const existingDataResult = await client.query(
+      `SELECT * FROM ins.fn_get_campaigndetailsjson($1::BIGINT, $2::BIGINT)`,
+      [p_userid, campaignId]
+    );
+
+    const existingData = existingDataResult.rows[0] || {};
+
+    const mergeObjects = (oldObj, newObj) => ({ ...oldObj, ...newObj });
+
+    const finalData = {
+      p_objectivejson: mergeObjects(existingData.p_objectivejson || {}, p_objectivejson),
+      p_vendorinfojson: mergeObjects(existingData.p_vendorinfojson || {}, p_vendorinfojson),
+      p_campaignjson: mergeObjects(existingData.p_campaignjson || {}, p_campaignjson),
+      p_campaigncategoyjson: p_campaigncategoyjson.length
+        ? p_campaigncategoyjson
+        : existingData.p_campaigncategoyjson || [],
+      p_campaignfilejson:
+        (p_campaignfilejson.length || campaignFiles.length)
+          ? [...(existingData.p_campaignfilejson || []), ...p_campaignfilejson, ...campaignFiles]
+          : existingData.p_campaignfilejson || [],
+      p_contenttypejson: p_contenttypejson.length
+        ? p_contenttypejson
+        : existingData.p_contenttypejson || [],
+    };
+
+    // Call DB procedure
     const result = await client.query(
       `CALL ins.usp_upsert_campaigndetails(
         $1::BIGINT,   
@@ -859,20 +701,19 @@ export const upsertCampaign = async (req, res) => {
         NULL,       
         NULL  
       )`,
-      [
-        p_userid,
-        campaignId,
-        p_statusname || null,
-        JSON.stringify(p_objectivejson || null),
-        JSON.stringify(p_vendorinfojson || null),
-        JSON.stringify(p_campaignjson || null),
-        JSON.stringify(p_campaigncategoyjson || null),
-        JSON.stringify([...p_campaignfilejson, ...campaignFiles] || null),
-        JSON.stringify(p_contenttypejson || null),
-      ]
-    );
+    [
+    p_userid,
+    campaignId,
+    finalData.p_statusname || null,
+    JSON.stringify(finalData.p_objectivejson),
+    JSON.stringify(finalData.p_vendorinfojson),
+    JSON.stringify(finalData.p_campaignjson),
+    JSON.stringify(finalData.p_campaigncategoyjson),
+    JSON.stringify(finalData.p_campaignfilejson),
+    JSON.stringify(finalData.p_contenttypejson),
+  ]
+);
 
-    console.log("DB Result:", result.rows);
     const { p_status, p_message } = result.rows[0] || {};
 
     return res.status(p_status ? 200 : 400).json({
@@ -890,6 +731,167 @@ export const upsertCampaign = async (req, res) => {
     });
   }
 };
+
+// export const upsertCampaign = async (req, res) => {
+//   try {
+//     const p_userid = req.user?.id || req.body.p_userid;
+//     const campaignId = req.body.campaignId || null;
+//     const p_statusname = req.body.p_statusname || null;
+//     let username = "user";
+//     if (!p_userid) {
+//       return res.status(400).json({ message: "User ID is required" });
+//     }
+
+//     // Get username from JWT, body, or DB
+//     if (req.user?.firstName || req.user?.lastName) {
+//       username = `${req.user.firstName || ""}_${req.user.lastName || ""}`.trim();
+//     } else if (req.body?.firstName || req.body?.lastName) {
+//       username = `${req.body.firstName || ""}_${req.body.lastName || ""}`.trim();
+//     } else {
+//       const dbUser = await client.query(
+//         "SELECT firstname, lastname FROM ins.users WHERE id=$1",
+//         [p_userid]
+//       );
+//       if (dbUser.rows[0]) {
+//         username = `${dbUser.rows[0].firstname || ""}_${dbUser.rows[0].lastname || ""}`.trim() || "user";
+//       }
+//     }
+
+//     // Helpers
+//     const parseIfJson = (data) => {
+//       if (!data) return {};
+//       if (typeof data === "string") {
+//         try { return JSON.parse(data); } catch { return {}; }
+//       }
+//       return data;
+//     };
+
+//     const cleanArray = (arr) => {
+//       if (!arr || !Array.isArray(arr)) return [];
+//       return arr.filter((item) => item && Object.keys(item).length);
+//     };
+
+//     // Parse JSON inputs
+//     const p_objectivejson = parseIfJson(req.body.p_objectivejson);
+//     const p_vendorinfojson = parseIfJson(req.body.p_vendorinfojson);
+//     const p_campaignjson = parseIfJson(req.body.p_campaignjson);
+//     const p_campaigncategoyjson = cleanArray(parseIfJson(req.body.p_campaigncategoyjson));
+//     const p_campaignfilejson = cleanArray(parseIfJson(req.body.p_campaignfilejson));
+//     const p_contenttypejson = cleanArray(parseIfJson(req.body.p_contenttypejson));
+
+//     // FILE HANDLING
+//     let campaignPhotoPath = p_campaignjson?.photopath || null;
+//     let campaignFiles = [];
+
+//     // Photo upload
+//     if (req.files?.photo && req.files.photo[0]) {
+//       const photo = req.files.photo[0];
+//       const ext = path.extname(photo.originalname);
+//       const finalName = `${username}_cp_${Date.now()}${ext}`;
+//       const relativePath = path.join("src/uploads/vendor", finalName).replace(/\\/g, "/");
+//       fs.renameSync(photo.path, relativePath);
+//       campaignPhotoPath = relativePath;
+//       if (p_campaignjson) p_campaignjson.photopath = relativePath;
+//     }
+
+//     // Multiple files upload
+//     if (req.files?.Files && req.files.Files.length > 0) {
+//       campaignFiles = req.files.Files.map((file, index) => {
+//         const ext = path.extname(file.originalname);
+//         const finalName = `${username}_campaign_${Date.now()}_${index}${ext}`;
+//         const relativePath =
+//           path.join("src/uploads/vendor", finalName).replace(/\\/g, "/");
+//         fs.renameSync(file.path, relativePath);
+//         return { filepath: relativePath };
+//       });
+//     }
+
+//     // REDIS (DRAFT)
+//     const redisKey = `getCampaign:${p_userid}`;
+
+//     if (!campaignId) {
+//       // Read existing draft if exists
+//       let existingDraft = {};
+//       const cachedData = await redisClient.get(redisKey);
+//       if (cachedData) {
+//         existingDraft = JSON.parse(cachedData);
+//       }
+
+//       // Merge old draft with new step
+//       const draftData = {
+//         p_objectivejson: { ...(existingDraft.p_objectivejson || {}), ...p_objectivejson },
+//         p_vendorinfojson: { ...(existingDraft.p_vendorinfojson || {}), ...p_vendorinfojson },
+//         p_campaignjson: { ...(existingDraft.p_campaignjson || {}), ...p_campaignjson },
+//         p_campaigncategoyjson: p_campaigncategoyjson.length
+//           ? p_campaigncategoyjson
+//           : existingDraft.p_campaigncategoyjson || [],
+//         p_contenttypejson: p_contenttypejson.length
+//           ? p_contenttypejson
+//           : existingDraft.p_contenttypejson || [],
+//         p_campaignfilejson: [
+//           ...(existingDraft.p_campaignfilejson || []),
+//           ...(p_campaignfilejson || []),
+//           ...(campaignFiles || []),
+//         ],
+//         is_completed: false,
+//       };
+
+//       await redisClient.set(redisKey, JSON.stringify(draftData));
+
+//       return res.status(200).json({
+//         status: true,
+//         message: "Draft stored in Redis successfully",
+//         campaignParts: draftData,
+//         source: "redis",
+//       });
+//     }
+
+//     // DB UPSERT
+//     const result = await client.query(
+//       `CALL ins.usp_upsert_campaigndetails(
+//         $1::BIGINT,   
+//         $2::BIGINT,  
+//         $3::varchar, 
+//         $4::JSON,    
+//         $5::JSON,   
+//         $6::JSON,  
+//         $7::JSON, 
+//         $8::JSON,   
+//         $9::JSON,   
+//         NULL,       
+//         NULL  
+//       )`,
+//       [
+//         p_userid,
+//         campaignId,
+//         p_statusname || null,
+//         JSON.stringify(p_objectivejson || null),
+//         JSON.stringify(p_vendorinfojson || null),
+//         JSON.stringify(p_campaignjson || null),
+//         JSON.stringify(p_campaigncategoyjson || null),
+//         JSON.stringify([...p_campaignfilejson, ...campaignFiles] || null),
+//         JSON.stringify(p_contenttypejson || null),
+//       ]
+//     );
+
+//     console.log("DB Result:", result.rows);
+//     const { p_status, p_message } = result.rows[0] || {};
+
+//     return res.status(p_status ? 200 : 400).json({
+//       success: p_status,
+//       message: p_message,
+//       source: "db",
+//     });
+
+//   } catch (err) {
+//     console.error("❌ upsertCampaign error:", err);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Error processing campaign",
+//       error: err.message,
+//     });
+//   }
+// };
 
 
 export const editEndDate = async (req, res) => {
