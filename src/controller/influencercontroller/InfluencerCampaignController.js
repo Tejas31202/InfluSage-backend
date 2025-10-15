@@ -432,51 +432,52 @@ export const withdrawApplication = async (req, res) => {
 
 export const deleteApplyNowPortfolioFile = async (req, res) => {
   const userId = req.user?.id || req.body.userId;
-  const { filePath } = req.body;
+  const { filePath } = req.body; // this is the public URL
   const redisKey = `applyCampaign:${userId}`;
 
   try {
     if (!filePath) {
-      return res
-        .status(400)
-        .json({ message: "filePath are required" });
+      return res.status(400).json({ message: "filePath is required" });
     }
 
-    // 1) Redis se data fetch
+    // Step 1: Redis se data fetch karo
     let campaignData = await redisClient.get(redisKey);
     if (campaignData) {
       campaignData = JSON.parse(campaignData);
 
-      // Remove file from applycampaignjson.filepaths
+      // Redis se file remove karo
       if (campaignData.applycampaignjson?.filepaths) {
         campaignData.applycampaignjson.filepaths =
           campaignData.applycampaignjson.filepaths.filter(
             (file) => file.filepath !== filePath
           );
 
-        // Update Redis
+        // Update Redis data
         await redisClient.set(redisKey, JSON.stringify(campaignData));
       }
     }
 
-    // 2) Delete file from local uploads folder
-    const uploadDir = path.join(process.cwd(), "src", "uploads", "influencer");
-    const fileName = path.basename(filePath);
-    const fullPath = path.join(uploadDir, fileName);
+    // Step 2: Supabase file path nikalna (public URL se relative path)
+    // Example: https://xyz.supabase.co/storage/v1/object/public/uploads/influencers/1234_Tejas/Applycampains/file.png
+    const supabaseBaseURL = `${SUPABASE_URL}/storage/v1/object/public/uploads/`;
+    const relativeFilePath = filePath.replace(supabaseBaseURL, "");
 
-    if (fs.existsSync(fullPath)) {
-      fs.unlinkSync(fullPath);
-      console.log("File deleted from folder:", fullPath);
-    } else {
-      return res.status(404).json({
+    // Step 3: Supabase se file delete karo
+    const { error: deleteError } = await supabase.storage
+      .from("uploads")
+      .remove([relativeFilePath]);
+
+    if (deleteError) {
+      console.error("Supabase file delete error:", deleteError);
+      return res.status(500).json({
         status: false,
-        message: "File not found in folder"
+        message: "Failed to delete file from cloud storage",
       });
     }
 
     return res.status(200).json({
       status: true,
-      message: "Portfolio file deleted successfully",
+      message: "Portfolio file deleted successfully from Supabase",
       portfolioFiles: campaignData?.applycampaignjson?.filepaths || [],
     });
   } catch (error) {
