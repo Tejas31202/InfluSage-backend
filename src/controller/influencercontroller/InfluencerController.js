@@ -1,9 +1,8 @@
-
 import { client } from '../../config/Db.js';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
-import {sendingMail} from '../../utils/MailUtils.js';
+import { sendingMail } from '../../utils/MailUtils.js';
 import redis from 'redis';
 
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
@@ -69,11 +68,9 @@ export const requestRegistration = async (req, res) => {
     // Send OTP email
     await sendingMail(normalizedEmail, "InflueSage OTP Verification", otpCode);
 
-    res
-      .status(200)
-      .json({
-        message: "OTP sent to email. Complete verification to register.",
-      });
+    res.status(200).json({
+      message: "OTP sent to email. Complete verification to register.",
+    });
   } catch (error) {
     console.error("Request Registration Error:", error);
     res.status(500).json({ message: "Error during registration request." });
@@ -143,22 +140,35 @@ export const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // Check if user exists
-    const isUserExists = await isEmailExists(email);
-    if (!isUserExists) {
-      return res.status(401).json({ message: "User not found" });
-    }
-
-    const userPasswordResult = await client.query(
-      "SELECT * FROM ins.fn_get_loginpassword($1::VARCHAR)",
-      [email]
+    const result = await client.query(
+      "CALL ins.usp_login_user($1::VARCHAR, $2::JSON, $3::BOOLEAN, $4::TEXT);",
+      [email, null, null, null]
     );
 
-    const { passwordhash, roleid, userid, firstname, lastname } =
-      userPasswordResult.rows[0];
+    const dbResponse = result.rows[0];
+    const user = dbResponse.p_loginuser;
+    const p_status = dbResponse.p_status;
+    const p_message = dbResponse.p_message;
+
+    if (!user || user.code === "NOTREGISTERED") {
+      return res.status(404).json({
+        message: user?.message,
+        code: user?.code,
+      });
+    }
+
+    if (!user.passwordhash) {
+      return res.status(404).json({
+        message: "In DB response, passwordhash field is missing or null",
+      });
+    }
+    // If DB says login failed
+    if (!p_status) {
+      return res.status(400).json({ message: p_message });
+    }
 
     // Compare entered password with hashed password
-    const isMatch = await bcrypt.compare(password, passwordhash);
+    const isMatch = await bcrypt.compare(password, user.passwordhash);
 
     if (!isMatch) {
       return res.status(401).json({ message: "Incorrect password" });
@@ -167,10 +177,10 @@ export const loginUser = async (req, res) => {
     // Generate JWT token
     const token = jwt.sign(
       {
-        id: userid,
+        id: user.userid,
         email: email,
-        role: roleid,
-        name: `${firstname}_${lastname}`,
+        role: user.roleid,
+        name: user.fullname,
       },
       JWT_SECRET,
       { expiresIn: "1h" }
@@ -178,14 +188,14 @@ export const loginUser = async (req, res) => {
 
     // Success response
     return res.status(200).json({
-      message: "Welcome back " + firstname + " " + lastname,
+      message: "Welcome back " + user.fullname,
       token, // ← send to frontend
-      id: userid,
-      firstName: firstname,
-      lastName: lastname,
-      name: firstname + " " + lastname,
+      id: user.userid,
+      name: user.fullname,
       email: email,
-      role: roleid,
+      role: user.roleid,
+      p_code: user.code,
+      p_message: user.message,
     });
   } catch (error) {
     console.error("Login error:", error);
