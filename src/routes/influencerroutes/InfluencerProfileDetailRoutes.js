@@ -22,7 +22,7 @@ routes.post(
 
 routes.get(
   "/profile/:userId",
-  authenticateUser(["Influencer"]),
+  authenticateUser(["Influencer","Admin"]),
   getUserProfile
 );
 
