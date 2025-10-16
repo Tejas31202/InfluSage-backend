@@ -1,7 +1,14 @@
 import { client } from '../../config/Db.js';
+import { createClient } from "@supabase/supabase-js";
 import redis from 'redis';
 import path from 'path';
 import fs from 'fs';
+import fsPromises from "fs/promises";
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
 redisClient.connect().catch(console.error);
@@ -60,17 +67,33 @@ else {
     // ---------------------------
     if (req.files?.photo) {
       const file = req.files.photo[0];
-      const newFileName = `${username}_up_${Date.now()}${path.extname(
-        file.originalname
-      )}`;
-      const newPath = path.join("src/uploads/influencer", newFileName);
-      fs.renameSync(file.path, newPath);
+      const ext = path.extname(file.originalname);
+      const newFileName = `${userId}_${username}_photo_${Date.now()}${ext}`;
+      const supabasePath = `influencers/${userId}_${username}/profile/${newFileName}`;
+      const fileBuffer = await fsPromises.readFile(file.path);
 
-      const photoPath = `src/uploads/influencer/${newFileName}`;
+      const { error: uploadError } = await supabase.storage
+        .from("uploads")
+        .upload(supabasePath, fileBuffer, {
+          contentType: file.mimetype,
+          upsert: true,
+        });
+
+      if (uploadError) {
+        console.error("Supabase photo upload error:", uploadError);
+        return res.status(500).json({ message: "Failed to upload profile photo" });
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from("uploads")
+        .getPublicUrl(supabasePath);
+
+      const photoUrl = publicUrlData.publicUrl;
+
       if (profilejson) {
         try {
           const parsedProfile = JSON.parse(profilejson);
-          parsedProfile.photopath = photoPath;
+          parsedProfile.photopath = photoUrl;
           req.body.profilejson = JSON.stringify(parsedProfile);
         } catch (err) {
           console.error("Invalid profilejson:", err.message);
@@ -82,35 +105,46 @@ else {
     // 3 Handle portfolio uploads
     // ---------------------------
    if (req.files?.portfolioFiles) {
-    const portfolioPaths = req.files.portfolioFiles.map((file,index) => {
-    const newFileName = `${username}_portfolio_${Date.now()}_${index}${path.extname(file.originalname)}`;
-    const newPath = path.join("src/uploads/influencer", newFileName);
-    fs.renameSync(file.path, newPath);
-    return `src/uploads/influencer/${newFileName}`;
-  });
+      const uploadedFiles = [];
 
-  if (portfoliojson) {
-    try {
-      const parsedPortfolio = JSON.parse(portfoliojson);
+      for (const [index, file] of req.files.portfolioFiles.entries()) {
+        const ext = path.extname(file.originalname);
+        const newFileName = `${userId}_${username}_portfolio_${Date.now()}_${index}${ext}`;
+        const supabasePath = `influencers/${userId}_${username}/portfolio/${newFileName}`;
+        const fileBuffer = await fsPromises.readFile(file.path);
 
-      // Preserve existing filepaths if any
-      const existingPaths = Array.isArray(parsedPortfolio.filepaths)
-        ? parsedPortfolio.filepaths.filter((p) => p?.filepath)
-        : [];
+        const { error: uploadError } = await supabase.storage
+          .from("uploads")
+          .upload(supabasePath, fileBuffer, {
+            contentType: file.mimetype,
+            upsert: true,
+          });
 
-      // Add new uploaded files
-      const newPaths = portfolioPaths.map((p) => ({
-        filepath: p,
-      }));
+        if (uploadError) {
+          console.error("Supabase portfolio upload error:", uploadError);
+          return res.status(500).json({ message: "Failed to upload portfolio files" });
+        }
 
-      parsedPortfolio.filepaths = [...existingPaths, ...newPaths];
+        const { data: publicUrlData } = supabase.storage
+          .from("uploads")
+          .getPublicUrl(supabasePath);
 
-      req.body.portfoliojson = JSON.stringify(parsedPortfolio);
-    } catch (err) {
-      console.error("Invalid portfoliojson:", err.message);
+        uploadedFiles.push({ filepath: publicUrlData.publicUrl });
+      }
+
+      if (portfoliojson) {
+        try {
+          const parsedPortfolio = JSON.parse(portfoliojson);
+          const existingPaths = Array.isArray(parsedPortfolio.filepaths)
+            ? parsedPortfolio.filepaths.filter((p) => p?.filepath)
+            : [];
+          parsedPortfolio.filepaths = [...existingPaths, ...uploadedFiles];
+          req.body.portfoliojson = JSON.stringify(parsedPortfolio);
+        } catch (err) {
+          console.error("Invalid portfoliojson:", err.message);
+        }
+      }
     }
-  }
-}
 
 
     // ---------------------------
@@ -373,18 +407,16 @@ export const getUserNameByEmail = async (req, res) => {
 export const deletePortfolioFile = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
-    const filePathToDelete = req.body.filepath; // frontend se milega
+    const filePathToDelete = req.body.filepath; // frontend se milega (public URL)
 
     if (!userId || !filePathToDelete) {
-      return res
-        .status(400)
-        .json({ message: "userId and filepath are required" });
+      return res.status(400).json({ message: "userId and filepath are required" });
     }
 
-    // Redis key (influencer profile ke liye)
+    // Redis key
     const redisKey = `getInfluencerProfile:${userId}`;
 
-    // 1 Redis se data fetch
+    // 🔹 1️⃣ Redis se data fetch
     let profileData = await redisClient.get(redisKey);
     if (profileData) {
       profileData = JSON.parse(profileData);
@@ -398,22 +430,39 @@ export const deletePortfolioFile = async (req, res) => {
       }
     }
 
+    // 🔹 2️⃣ Local file delete
     const uploadDir = path.join(process.cwd(), "src", "uploads", "influencer");
-
     const fileName = path.basename(filePathToDelete);
-
     const fullPath = path.join(uploadDir, fileName);
 
     if (fs.existsSync(fullPath)) {
       fs.unlinkSync(fullPath);
-      console.log(" File deleted from folder:", fullPath);
-    } else {
-      return res.status(404).json({
-        status: false,
-        message: "File not found in folder"
-      });
+      console.log("✅ File deleted from local folder:", fullPath);
     }
 
+    // 🔹 3️⃣ Supabase se delete (actual storage path nikalo)
+    const bucketName = "uploads";
+
+    // Public URL ko relative storage path me convert karo
+    const supabaseFilePath = filePathToDelete
+      .split("/storage/v1/object/public/" + bucketName + "/")[1]
+      ?.trim();
+
+    if (!supabaseFilePath) {
+      console.warn("⚠️ Could not extract Supabase file path from URL:", filePathToDelete);
+    } else {
+      const { error: supaError } = await supabase.storage
+        .from(bucketName)
+        .remove([supabaseFilePath]);
+
+      if (supaError) {
+        console.error("❌ Supabase delete error:", supaError.message);
+      } else {
+        console.log("✅ File deleted from Supabase storage:", supabaseFilePath);
+      }
+    }
+
+    // 🔹 4️⃣ Final response
     return res.status(200).json({
       status: true,
       message: "Portfolio file deleted successfully",

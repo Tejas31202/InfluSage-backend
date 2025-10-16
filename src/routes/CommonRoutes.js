@@ -6,6 +6,7 @@ import {
   getLanguages,
   getCategories,
   getProviders,
+  getInfluencerTiers
 } from '../controller/CommonController.js';
 
 const routes = express.Router();
@@ -16,5 +17,6 @@ routes.get("/genders", getGenders);
 routes.get("/languages", getLanguages);
 routes.get("/categories", getCategories);
 routes.get("/providers", getProviders);
+routes.get("/influencer-type", getInfluencerTiers);
 
 export default routes;

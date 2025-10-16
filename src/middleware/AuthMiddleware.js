@@ -6,6 +6,7 @@ const roleMap = {
   1: "Influencer",
   2: "Vendor",
   3: "Agency",
+  4: "Admin"
 };
 
 //Changes For Role Based Auth..

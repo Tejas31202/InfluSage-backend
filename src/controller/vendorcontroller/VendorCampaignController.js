@@ -327,23 +327,23 @@ export const getCampaignObjectives = async (req, res) => {
   }
 };
 
-export const getInfluencerTiers = async (req, res) => {
-  try {
-    const result = await client.query(
-      "SELECT * from ins.fn_get_influencertiers();"
-    );
+// export const getInfluencerTiers = async (req, res) => {
+//   try {
+//     const result = await client.query(
+//       "SELECT * from ins.fn_get_influencertiers();"
+//     );
 
-    return res.status(200).json({
-      influencerType: result.rows,
-      source: "db",
-    });
-  } catch (error) {
-    console.error("Error fetching GetCampaignObjectives:", error);
-    return res
-      .status(500)
-      .json({ message: "Failed to fetch GetCampaignObjectives" });
-  }
-};
+//     return res.status(200).json({
+//       influencerType: result.rows,
+//       source: "db",
+//     });
+//   } catch (error) {
+//     console.error("Error fetching GetCampaignObjectives:", error);
+//     return res
+//       .status(500)
+//       .json({ message: "Failed to fetch GetCampaignObjectives" });
+//   }
+// };
 
 export const getProvidorContentTypes = async (req, res) => {
   try {
