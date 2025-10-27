@@ -7,6 +7,7 @@ import cookieParser from 'cookie-parser';
 
 import InfluencerRoutes from './src/routes/influencerroutes/InfluencerRoutes.js';
 import InfluencerProfileDetailRoutes from './src/routes/influencerroutes/InfluencerProfileDetailRoutes.js';
+import InfluencerDashboardRoutes from './src/routes/influencerroutes/InfluencerDashboardRoutes.js';
 import VendorRoutes from './src/routes/vendorroutes/VendorRoute.js';
 import VendorProfileDetailRoutes from './src/routes/vendorroutes/VendorProfileDetailRoutes.js';
 import VendorCampaignRoutes from './src/routes/vendorroutes/VendorCampaignRoutes.js';
@@ -50,6 +51,7 @@ app.use("/user", InfluencerRoutes);
 app.use("/user", InfluencerProfileDetailRoutes);
 app.use("/user", InfluencerCampaignRoutes);
 app.use("/user", InfluencerMyCampaignRoutes);
+app.use("/user", InfluencerDashboardRoutes);
 app.use("/vendor", VendorRoutes);
 app.use("/vendor", VendorProfileDetailRoutes);
 app.use("/vendor", VendorCampaignRoutes);
