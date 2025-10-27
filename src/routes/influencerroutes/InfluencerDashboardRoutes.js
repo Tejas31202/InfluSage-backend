@@ -1,6 +1,6 @@
 import express from "express";
 import {
-  getInfluencerDesboardCountList,
+  getInfluencerDashsboardCountList,
   getInfluencerProfileCompletionPercentage,
   getAllToDoList,
   getSingleToDo,
@@ -10,7 +10,7 @@ import authenticateUser from "../../middleware/AuthMiddleware.js";
 
 const routes = express.Router();
 
-routes.get("/dashboard/counts", getInfluencerDesboardCountList);
+routes.get("/dashboard/counts",authenticateUser(["Influencer"]),getInfluencerDashsboardCountList);
 routes.get(
   "/dashboard/profile-completion",
   authenticateUser(["Influencer"]),

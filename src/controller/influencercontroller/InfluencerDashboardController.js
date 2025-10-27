@@ -1,11 +1,11 @@
 import { client } from '../../config/Db.js'
 
-export const getInfluencerDesboardCountList = async (req, res) => {
+export const getInfluencerDashsboardCountList = async (req, res) => {
   try {
-    const userId=req.user?.id||req.body.userId;
-    const result = await client.query("SELECT * FROM ins.fn_get_influencer_dash();",[userId]);
+    const p_userid=req.user?.id||req.body.p_userid;
+    const result = await client.query("SELECT * FROM ins.fn_get_influencerdashboard($1::bigint);",[p_userid]);
 
-    const countList = result.rows;
+    const countList = result.rows[0].fn_get_influencerdashboard;
 
     return res.status(200).json({
       message: "Fetched getInfluencerDesboardCountList.",
@@ -22,8 +22,8 @@ export const getInfluencerDesboardCountList = async (req, res) => {
 
 export const getInfluencerProfileCompletionPercentage = async (req, res) => {
   try {
-    const userId = req.user?.id || req.body.userId;
-    const result = await client.query("SELECT * FROM ins.fn_complete_influencerprofilepercentage($1::bigint);",[userId]);
+    const p_userid = req.user?.id || req.body.p_userid;
+    const result = await client.query("SELECT * FROM ins.fn_complete_influencerprofilepercentage($1::bigint);",[p_userid]);
 
     const percentage = result.rows[0].fn_complete_influencerprofilepercentage;
 
