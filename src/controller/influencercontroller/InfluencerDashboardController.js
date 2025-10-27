@@ -1,9 +1,12 @@
-import { client } from '../../config/Db.js'
+import { client } from '../../config/Db.js';
 
 export const getInfluencerDashsboardCountList = async (req, res) => {
   try {
-    const p_userid=req.user?.id||req.body.p_userid;
-    const result = await client.query("SELECT * FROM ins.fn_get_influencerdashboard($1::bigint);",[p_userid]);
+    const p_userid = req.user?.id || req.body.p_userid;
+    const result = await client.query(
+      "SELECT * FROM ins.fn_get_influencerdashboard($1::bigint);",
+      [p_userid]
+    );
 
     const countList = result.rows[0].fn_get_influencerdashboard;
 
@@ -23,7 +26,10 @@ export const getInfluencerDashsboardCountList = async (req, res) => {
 export const getInfluencerProfileCompletionPercentage = async (req, res) => {
   try {
     const p_userid = req.user?.id || req.body.p_userid;
-    const result = await client.query("SELECT * FROM ins.fn_complete_influencerprofilepercentage($1::bigint);",[p_userid]);
+    const result = await client.query(
+      "SELECT * FROM ins.fn_complete_influencerprofilepercentage($1::bigint);",
+      [p_userid]
+    );
 
     const percentage = result.rows[0].fn_complete_influencerprofilepercentage;
 
@@ -40,36 +46,19 @@ export const getInfluencerProfileCompletionPercentage = async (req, res) => {
   }
 };
 
-export const getAllToDoList = async (req, res) => {
+export const getToDoList = async (req, res) => {
   try {
-    const userId=req.user?.id||req.body.userId;
-    const result = await client.query("SELECT * FROM ins.fn_get_influencer_todolist();",[userId]);
+    const p_userid = req.user?.id || req.body.p_userid;
+    const p_todolistid = req.body.p_todolistid||null;
+    const result = await client.query(
+      "select * from ins.fn_get_todolist($1::bigint,$2::bigint);",
+      [p_userid, p_todolistid]
+    );
 
-    const todoList = result.rows;
+    const todo = result.rows[0].fn_get_todolist;
 
     return res.status(200).json({
-      message: "Fetched getAllToDoList.",
-      data: todoList,
-      source: "db",
-    });
-  } catch (error) {
-    console.error("Error in getAllToDoList:", error);
-    return res.status(500).json({
-      message: error.message,
-    });
-  }
-}
-
-export const getSingleToDo = async (req, res) => {
-  try {
-    const userId=req.user?.id||req.body.userId;
-    const todoId=req.body.todoId
-    const result = await client.query("SELECT * FROM ins.fn_get_influencer_todo($1::smallint,$2::smallint);",[userId,todoId]);
-
-    const todo = result.rows;
-
-    return res.status(200).json({
-      message: "Fetched getSingleToDo.",
+      message: "Fetched todo list.",
       data: todo,
       source: "db",
     });
@@ -79,53 +68,59 @@ export const getSingleToDo = async (req, res) => {
       message: error.message,
     });
   }
-}
+};
 
-export const deleteSingleToDo = async (req, res) => {
+export const insertOrEditOrDeleteToDo = async (req, res) => {
   try {
-    const userId=req.user?.id||req.body.userId;
-    const todoId=req.body.todoId
-    const result = await client.query("delete * FROM ins.fn_get_influencer_todo($1::smallint,$2::smallint);",[userId,todoId]);
+    const p_userid = req.user?.id || req.body.p_userid;
+    const {
+      p_todolistid,
+      p_description,
+      p_duedate,
+      p_iscompleted,
+      p_isdeleted,
+    } = req.body;
 
-    const {p_status,p_message} = result.rows;
+    const result = await client.query(
+      `CALL ins.usp_upsert_todolist(
+      $1::bigint, 
+      $2::bigint, 
+      $3::text, 
+      $4::date, 
+      $5::boolean, 
+      $6::boolean,
+      $7::boolean,
+      $8::varchar
+      );`,
+      [
+        p_userid,
+        p_todolistid || null,
+        p_description || null,
+        p_duedate || null,
+        p_iscompleted || null,
+        p_isdeleted || false,
+        null,
+        null,
+      ]
+    );
+
+    const { p_status, p_message } = result.rows[0];
 
     if (p_status) {
-      return res
-        .status(200)
-        .json({ message: p_message,source: "db" });
+      return res.status(200).json({
+        message: p_message,
+        source: "db",
+      });
     } else {
-      return res.status(400).json({ message: p_message, p_status });
+      return res.status(400).json({
+        message: p_message,
+        status: p_status,
+      });
     }
-
   } catch (error) {
-    console.error("Error in getSingleToDo:", error);
+    console.error("Error in insertOrEditToDo:", error);
     return res.status(500).json({
       message: error.message,
     });
   }
-}
-
-export const insertOrEditToDO = async (req,res) =>{
- try {
-    const userId=req.user?.id||req.body.userId;
-    const todoId=req.body.todoId||null;
-    const {title,date}=req.body;
-    const result = await client.query("call ins.fn_get_influencer_todo($1::smallint,$2::smallint);",[userId,todoId,title,date]);
-
-    const {p_status,p_message} = result.rows;
-
-    if (p_status) {
-      return res
-        .status(200)
-        .json({ message: p_message,source: "db" });
-    } else {
-      return res.status(400).json({ message: p_message, p_status });
-    }
-
-  } catch (error) {
-    console.error("Error in getSingleToDo:", error);
-    return res.status(500).json({
-      message: error.message,
-    });
-  }
-}
+};
