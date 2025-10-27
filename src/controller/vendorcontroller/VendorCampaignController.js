@@ -135,38 +135,45 @@ export const createMyCampaign = async (req, res) => {
 
 // ---------------- FINALIZE Campaign ----------------
 export const finalizeCampaign = async (req, res) => {
+  console.log("finalizeCampaign called");
   try {
     const userId = req.user?.id || req.body.p_userid;
-    const campaignId = req.body.p_campaignid || null; // ya req.body.campaignid
-    const p_statusname = req.body.p_statusname
+    const campaignId = req.body.p_campaignid ||null;
+    const p_statusname = req.body.p_statusname;
 
-    if (!userId)
+    if (!userId) {
       return res.status(400).json({ message: "User ID is required" });
+    }
 
-    const redisKey = `getCampaign:${userId}`;
+   const redisKey = campaignId
+  ? `getCampaign:${userId}:${campaignId}`   // same for edit
+  : `getCampaign:${userId}:new`;            // same for new campaign
+
     const cachedData = await redisClient.get(redisKey);
     if (!cachedData) {
-      return res
-        .status(404)
-        .json({ message: "No campaign data found in Redis to finalize" });
+      return res.status(404).json({
+        message: "No campaign data found in Redis to finalize",
+        source: "redis",
+      });
     }
 
     const campaignData = JSON.parse(cachedData);
 
     await client.query("BEGIN");
+
     const result = await client.query(
       `CALL ins.usp_upsert_campaigndetails(
-          $1::BIGINT,
-          $2::BIGINT,
-          $3::varchar,
-          $4::JSON,
-          $5::JSON,
-          $6::JSON,
-          $7::JSON,
-          $8::JSON,
-          $9::JSON,
-          NULL,
-          NULL
+        $1::BIGINT,
+        $2::BIGINT,
+        $3::VARCHAR,
+        $4::JSON,
+        $5::JSON,
+        $6::JSON,
+        $7::JSON,
+        $8::JSON,
+        $9::JSON,
+        NULL,
+        NULL
       )`,
       [
         userId,
@@ -180,16 +187,18 @@ export const finalizeCampaign = async (req, res) => {
         JSON.stringify(campaignData.p_contenttypejson || {}),
       ]
     );
-   
+
     await client.query("COMMIT");
 
     const { p_status, p_message } = result.rows[0] || {};
+
     if (p_status) {
-      await redisClient.del(redisKey); // delete draft
+      await redisClient.del(redisKey);
+
       return res.status(200).json({
         status: p_status,
         message: p_message,
-        // campaignId: p_campaignid
+        campaignId: campaignId,
       });
     } else {
       return res.status(400).json({
@@ -210,50 +219,59 @@ export const getCampaign = async (req, res) => {
     const userId = req.user?.id || req.query.p_userid;
     const campaignId = req.params.campaignId || "01"; // default draft
 
-    if (!userId) return res.status(400).json({ message: "User ID required" });
+    if (!userId)
+      return res.status(400).json({ message: "User ID required" });
 
-    // If draft (campaignId "01"), try Redis cache
-    if (campaignId === "01") {
-      const redisKey = `getCampaign:${userId}`;
-      const cachedData = await redisClient.get(redisKey);
-      if (cachedData) {
-        return res.status(200).json({
-          message: "Draft campaign data from Redis",
-          campaignParts: JSON.parse(cachedData),
-          source: "redis",
-        });
-      }
+    // Build Redis key (supports both new and edit mode)
+    const redisKey =
+      campaignId === "01"
+        ? `getCampaign:${userId}`
+        : `getCampaign:${userId}:${campaignId}`;
 
-      // Draft not found → return empty
+    // 🧠 1️⃣ Check Redis first (works for both new and edit)
+    const cachedData = await redisClient.get(redisKey);
+
+    if (cachedData) {
       return res.status(200).json({
-        message: "No draft found",
-        campaignParts: {},
+        message: "Campaign data from Redis",
+        campaignParts: JSON.parse(cachedData),
         source: "redis",
       });
     }
 
-    // For any other campaignId → fetch directly from DB
-    const result = await client.query(
-      `SELECT * FROM ins.fn_get_campaigndetailsjson($1::BIGINT,$2::BIGINT)`,
-      [userId, campaignId]
-    );
+    // 🧠 2️⃣ If Redis empty → fallback to DB (for edit)
+    if (campaignId !== "01") {
+      const result = await client.query(
+        `SELECT * FROM ins.fn_get_campaigndetailsjson($1::BIGINT,$2::BIGINT)`,
+        [userId, campaignId]
+      );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: "Campaign not found" });
+      if (result.rows.length === 0) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+
+      const fullData = result.rows[0];
+
+      return res.status(200).json({
+        message: "Campaign data from DB",
+        campaignParts: fullData,
+        source: "db",
+      });
     }
 
-    const fullData = result.rows[0];
-
+    // 🧠 3️⃣ If new draft and no Redis data → empty response
     return res.status(200).json({
-      message: "Campaign data from DB",
-      campaignParts: fullData,
-      source: "db",
+      message: "No draft found",
+      campaignParts: {},
+      source: "empty",
     });
+
   } catch (err) {
     console.error("❌ getCampaign error:", err);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
 
 
 export const deleteCampaignFile = async (req, res) => {
@@ -545,18 +563,207 @@ export const editCampaign = async (req, res) => {
   }
 };
 
+// export const upsertCampaign = async (req, res) => {
+//   try {
+//     const p_userid = req.user?.id || req.body.p_userid;
+//     const campaignId = req.body.campaignId || null;
+//     let username = "user";
+//     if (!p_userid) {
+
+      
+//       return res.status(400).json({ message: "User ID is required" });
+//     }
+
+//     // 🧩 Get username from JWT, body, or DB
+//     if (req.user?.firstName || req.user?.lastName) {
+//       username = `${req.user.firstName || ""}_${req.user.lastName || ""}`.trim();
+//     } else if (req.body?.firstName || req.body?.lastName) {
+//       username = `${req.body.firstName || ""}_${req.body.lastName || ""}`.trim();
+//     } else {
+//       const dbUser = await client.query(
+//         "SELECT firstname, lastname FROM ins.users WHERE id=$1",
+//         [p_userid]
+//       );
+//       if (dbUser.rows[0]) {
+//         username = `${dbUser.rows[0].firstname || ""}_${dbUser.rows[0].lastname || ""}`.trim() || "user";
+//       }
+//     }
+//     // 🧩 Helpers
+//     const parseIfJson = (data) => {
+//       if (!data) return {};
+//       if (typeof data === "string") {
+//         try { return JSON.parse(data); } catch { return {}; }
+//       }
+//       return data;
+//     };
+
+//     const cleanArray = (arr) => {
+//       if (!arr || !Array.isArray(arr)) return [];
+//       return arr.filter((item) => item && Object.keys(item).length);
+//     };
+
+//     // 🧩 Parse JSON inputs
+//     const p_objectivejson = parseIfJson(req.body.p_objectivejson);
+//     const p_vendorinfojson = parseIfJson(req.body.p_vendorinfojson);
+//     const p_campaignjson = parseIfJson(req.body.p_campaignjson);
+//     const p_campaigncategoyjson = cleanArray(parseIfJson(req.body.p_campaigncategoyjson));
+//     const p_campaignfilejson = cleanArray(parseIfJson(req.body.p_campaignfilejson));
+//     const p_contenttypejson = cleanArray(parseIfJson(req.body.p_contenttypejson));
+
+//     // ---------------- FILE HANDLING ----------------
+//     let campaignPhotoPath = p_campaignjson?.photopath || null;
+//     let campaignFiles = [];
+
+//     // Photo upload
+//     if (req.files?.photo && req.files.photo[0]) {
+//       const photo = req.files.photo[0];
+//       const ext = path.extname(photo.originalname);
+//       const finalName = `${username}_cp_${Date.now()}${ext}`;
+//       const relativePath = path.join("src/uploads/vendor", finalName).replace(/\\/g, "/");
+//       fs.renameSync(photo.path, relativePath);
+//       campaignPhotoPath = relativePath;
+//       if (p_campaignjson) p_campaignjson.photopath = relativePath;
+//     }
+
+//     // Multiple files upload
+//     if (req.files?.Files && req.files.Files.length > 0) {
+//       campaignFiles = req.files.Files.map((file, index) => {
+//         const ext = path.extname(file.originalname);
+//         const finalName = `${username}_campaign_${Date.now()}_${index}${ext}`;
+//         const relativePath = 
+//         path.join("src/uploads/vendor", finalName).replace(/\\/g, "/");
+//         fs.renameSync(file.path, relativePath);
+//         return { filepath: relativePath };
+//       });
+//     }
+
+//     // ---------------- REDIS (DRAFT) ----------------
+//     const redisKey = `getCampaign:${p_userid}`;
+
+//     if (!campaignId) {
+//       // Read existing draft if exists
+//       let existingDraft = {};
+//       const cachedData = await redisClient.get(redisKey);
+//       if (cachedData) {
+//         existingDraft = JSON.parse(cachedData);
+//       }
+
+//       // Merge old draft with new step
+//       const draftData = {
+//         p_objectivejson: { ...(existingDraft.p_objectivejson || {}), ...p_objectivejson },
+//         p_vendorinfojson: { ...(existingDraft.p_vendorinfojson || {}), ...p_vendorinfojson },
+//         p_campaignjson: { ...(existingDraft.p_campaignjson || {}), ...p_campaignjson },
+//         p_campaigncategoyjson: p_campaigncategoyjson.length
+//           ? p_campaigncategoyjson
+//           : existingDraft.p_campaigncategoyjson || [],
+//         p_contenttypejson: p_contenttypejson.length
+//           ? p_contenttypejson
+//           : existingDraft.p_contenttypejson || [],
+//         p_campaignfilejson: [
+//           ...(existingDraft.p_campaignfilejson || []),
+//           ...(p_campaignfilejson || []),
+//           ...(campaignFiles || []),
+//         ],
+//         is_completed: false,
+//       };
+
+//       await redisClient.set(redisKey, JSON.stringify(draftData));
+
+//       return res.status(200).json({
+//         status: true,
+//         message: "Draft stored in Redis successfully",
+//         campaignParts: draftData,
+//         source: "redis",
+//       });
+//     }
+
+//     // ---------------- DB UPSERT ----------------
+//     // Fetch existing data to merge
+//     const existingDataResult = await client.query(
+//       `SELECT * FROM ins.fn_get_campaigndetailsjson($1::BIGINT, $2::BIGINT)`,
+//       [p_userid, campaignId]
+//     );
+
+//     const existingData = existingDataResult.rows[0] || {};
+
+//     const mergeObjects = (oldObj, newObj) => ({ ...oldObj, ...newObj });
+
+//     const finalData = {
+//       p_objectivejson: mergeObjects(existingData.p_objectivejson || {}, p_objectivejson),
+//       p_vendorinfojson: mergeObjects(existingData.p_vendorinfojson || {}, p_vendorinfojson),
+//       p_campaignjson: mergeObjects(existingData.p_campaignjson || {}, p_campaignjson),
+//       p_campaigncategoyjson: p_campaigncategoyjson.length
+//         ? p_campaigncategoyjson
+//         : existingData.p_campaigncategoyjson || [],
+//       p_campaignfilejson:
+//         (p_campaignfilejson.length || campaignFiles.length)
+//           ? [...(existingData.p_campaignfilejson || []), ...p_campaignfilejson, ...campaignFiles]
+//           : existingData.p_campaignfilejson || [],
+//       p_contenttypejson: p_contenttypejson.length
+//         ? p_contenttypejson
+//         : existingData.p_contenttypejson || [],
+//     };
+
+//     // Call DB procedure
+//     const result = await client.query(
+//       `CALL ins.usp_upsert_campaigndetails(
+//         $1::BIGINT,   
+//         $2::BIGINT,  
+//         $3::varchar, 
+//         $4::JSON,    
+//         $5::JSON,   
+//         $6::JSON,  
+//         $7::JSON, 
+//         $8::JSON,   
+//         $9::JSON,   
+//         NULL,       
+//         NULL  
+//       )`,
+//     [
+//     p_userid,
+//     campaignId,
+//     finalData.p_statusname || null,
+//     JSON.stringify(finalData.p_objectivejson),
+//     JSON.stringify(finalData.p_vendorinfojson),
+//     JSON.stringify(finalData.p_campaignjson),
+//     JSON.stringify(finalData.p_campaigncategoyjson),
+//     JSON.stringify(finalData.p_campaignfilejson),
+//     JSON.stringify(finalData.p_contenttypejson),
+//   ]
+// );
+
+//     const { p_status, p_message } = result.rows[0] || {};
+
+//     return res.status(p_status ? 200 : 400).json({
+//       success: p_status,
+//       message: p_message,
+//       source: "db",
+//     });
+
+//   } catch (err) {
+//     console.error("❌ upsertCampaign error:", err);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Error processing campaign",
+//       error: err.message,
+//     });
+//   }
+// };
+
+
 export const upsertCampaign = async (req, res) => {
   try {
     const p_userid = req.user?.id || req.body.p_userid;
     const campaignId = req.body.campaignId || null;
-    let username = "user";
-    if (!p_userid) {
+    const isFinalSubmit = req.body.isFinalSubmit || false;
+    const p_statusname = req.body.p_statusname || "Draft";
 
-      
+    if (!p_userid) {
       return res.status(400).json({ message: "User ID is required" });
     }
 
-    // 🧩 Get username from JWT, body, or DB
+    // ---------------- USERNAME RESOLUTION ----------------
+    let username = "user";
     if (req.user?.firstName || req.user?.lastName) {
       username = `${req.user.firstName || ""}_${req.user.lastName || ""}`.trim();
     } else if (req.body?.firstName || req.body?.lastName) {
@@ -567,14 +774,21 @@ export const upsertCampaign = async (req, res) => {
         [p_userid]
       );
       if (dbUser.rows[0]) {
-        username = `${dbUser.rows[0].firstname || ""}_${dbUser.rows[0].lastname || ""}`.trim() || "user";
+        username =
+          `${dbUser.rows[0].firstname || ""}_${dbUser.rows[0].lastname || ""}`.trim() ||
+          "user";
       }
     }
-    // 🧩 Helpers
+
+    // ---------------- HELPERS ----------------
     const parseIfJson = (data) => {
       if (!data) return {};
       if (typeof data === "string") {
-        try { return JSON.parse(data); } catch { return {}; }
+        try {
+          return JSON.parse(data);
+        } catch {
+          return {};
+        }
       }
       return data;
     };
@@ -584,7 +798,7 @@ export const upsertCampaign = async (req, res) => {
       return arr.filter((item) => item && Object.keys(item).length);
     };
 
-    // 🧩 Parse JSON inputs
+    // ---------------- PARSE JSON FIELDS ----------------
     const p_objectivejson = parseIfJson(req.body.p_objectivejson);
     const p_vendorinfojson = parseIfJson(req.body.p_vendorinfojson);
     const p_campaignjson = parseIfJson(req.body.p_campaignjson);
@@ -596,7 +810,7 @@ export const upsertCampaign = async (req, res) => {
     let campaignPhotoPath = p_campaignjson?.photopath || null;
     let campaignFiles = [];
 
-    // Photo upload
+    // Upload main photo
     if (req.files?.photo && req.files.photo[0]) {
       const photo = req.files.photo[0];
       const ext = path.extname(photo.originalname);
@@ -607,50 +821,55 @@ export const upsertCampaign = async (req, res) => {
       if (p_campaignjson) p_campaignjson.photopath = relativePath;
     }
 
-    // Multiple files upload
+    // Upload multiple files
     if (req.files?.Files && req.files.Files.length > 0) {
       campaignFiles = req.files.Files.map((file, index) => {
         const ext = path.extname(file.originalname);
         const finalName = `${username}_campaign_${Date.now()}_${index}${ext}`;
-        const relativePath = 
-        path.join("src/uploads/vendor", finalName).replace(/\\/g, "/");
+        const relativePath = path.join("src/uploads/vendor", finalName).replace(/\\/g, "/");
         fs.renameSync(file.path, relativePath);
         return { filepath: relativePath };
       });
     }
 
-    // ---------------- REDIS (DRAFT) ----------------
-    const redisKey = `getCampaign:${p_userid}`;
+    // ---------------- REDIS DRAFT STORAGE ----------------
+    const redisKey = `getCampaign:${p_userid}${campaignId ? `:${campaignId}` : ""}`;
+  // const redisKey = campaignId
+  // ? `getCampaign:${p_userid}:${campaignId}`
+  // : `getCampaign:${p_userid}:new`;
 
-    if (!campaignId) {
-      // Read existing draft if exists
-      let existingDraft = {};
-      const cachedData = await redisClient.get(redisKey);
-      if (cachedData) {
-        existingDraft = JSON.parse(cachedData);
-      }
+    // Read existing Redis draft if any
+    let existingDraft = {};
+    const cachedData = await redisClient.get(redisKey);
+    if (cachedData) {
+      existingDraft = JSON.parse(cachedData);
+    }
 
-      // Merge old draft with new step
-      const draftData = {
-        p_objectivejson: { ...(existingDraft.p_objectivejson || {}), ...p_objectivejson },
-        p_vendorinfojson: { ...(existingDraft.p_vendorinfojson || {}), ...p_vendorinfojson },
-        p_campaignjson: { ...(existingDraft.p_campaignjson || {}), ...p_campaignjson },
-        p_campaigncategoyjson: p_campaigncategoyjson.length
-          ? p_campaigncategoyjson
-          : existingDraft.p_campaigncategoyjson || [],
-        p_contenttypejson: p_contenttypejson.length
-          ? p_contenttypejson
-          : existingDraft.p_contenttypejson || [],
-        p_campaignfilejson: [
-          ...(existingDraft.p_campaignfilejson || []),
-          ...(p_campaignfilejson || []),
-          ...(campaignFiles || []),
-        ],
-        is_completed: false,
-      };
+    // Merge old + new data
+    const draftData = {
+      p_objectivejson: { ...(existingDraft.p_objectivejson || {}), ...p_objectivejson },
+      p_vendorinfojson: { ...(existingDraft.p_vendorinfojson || {}), ...p_vendorinfojson },
+      p_campaignjson: { ...(existingDraft.p_campaignjson || {}), ...p_campaignjson },
+      p_campaigncategoyjson: p_campaigncategoyjson.length
+        ? p_campaigncategoyjson
+        : existingDraft.p_campaigncategoyjson || [],
+      p_contenttypejson: p_contenttypejson.length
+        ? p_contenttypejson
+        : existingDraft.p_contenttypejson || [],
+      p_campaignfilejson: [
+        ...(existingDraft.p_campaignfilejson || []),
+        ...(p_campaignfilejson || []),
+        ...(campaignFiles || []),
+      ],
+      is_completed: false,
+      updated_at: new Date(),
+    };
 
-      await redisClient.set(redisKey, JSON.stringify(draftData));
+    // Always save to Redis
+    await redisClient.set(redisKey, JSON.stringify(draftData));
 
+    // If it's only draft saving (not final submit)
+    if (!isFinalSubmit) {
       return res.status(200).json({
         status: true,
         message: "Draft stored in Redis successfully",
@@ -659,13 +878,11 @@ export const upsertCampaign = async (req, res) => {
       });
     }
 
-    // ---------------- DB UPSERT ----------------
-    // Fetch existing data to merge
+    // ---------------- FINAL SAVE TO DATABASE ----------------
     const existingDataResult = await client.query(
       `SELECT * FROM ins.fn_get_campaigndetailsjson($1::BIGINT, $2::BIGINT)`,
       [p_userid, campaignId]
     );
-
     const existingData = existingDataResult.rows[0] || {};
 
     const mergeObjects = (oldObj, newObj) => ({ ...oldObj, ...newObj });
@@ -674,54 +891,59 @@ export const upsertCampaign = async (req, res) => {
       p_objectivejson: mergeObjects(existingData.p_objectivejson || {}, p_objectivejson),
       p_vendorinfojson: mergeObjects(existingData.p_vendorinfojson || {}, p_vendorinfojson),
       p_campaignjson: mergeObjects(existingData.p_campaignjson || {}, p_campaignjson),
-      p_campaigncategoyjson: p_campaigncategoyjson.length
-        ? p_campaigncategoyjson
-        : existingData.p_campaigncategoyjson || [],
+      p_campaigncategoyjson:
+        p_campaigncategoyjson.length > 0
+          ? p_campaigncategoyjson
+          : existingData.p_campaigncategoyjson || [],
       p_campaignfilejson:
-        (p_campaignfilejson.length || campaignFiles.length)
+        p_campaignfilejson.length || campaignFiles.length
           ? [...(existingData.p_campaignfilejson || []), ...p_campaignfilejson, ...campaignFiles]
           : existingData.p_campaignfilejson || [],
-      p_contenttypejson: p_contenttypejson.length
-        ? p_contenttypejson
-        : existingData.p_contenttypejson || [],
+      p_contenttypejson:
+        p_contenttypejson.length > 0
+          ? p_contenttypejson
+          : existingData.p_contenttypejson || [],
     };
 
-    // Call DB procedure
+    // DB Call
     const result = await client.query(
       `CALL ins.usp_upsert_campaigndetails(
-        $1::BIGINT,   
-        $2::BIGINT,  
+        $1::BIGINT, 
+        $2::BIGINT, 
         $3::varchar, 
-        $4::JSON,    
-        $5::JSON,   
-        $6::JSON,  
+        $4::JSON, 
+        $5::JSON, 
+        $6::JSON, 
         $7::JSON, 
-        $8::JSON,   
-        $9::JSON,   
-        NULL,       
-        NULL  
+        $8::JSON, 
+        $9::JSON, 
+        NULL, 
+        NULL
       )`,
-    [
-    p_userid,
-    campaignId,
-    finalData.p_statusname || null,
-    JSON.stringify(finalData.p_objectivejson),
-    JSON.stringify(finalData.p_vendorinfojson),
-    JSON.stringify(finalData.p_campaignjson),
-    JSON.stringify(finalData.p_campaigncategoyjson),
-    JSON.stringify(finalData.p_campaignfilejson),
-    JSON.stringify(finalData.p_contenttypejson),
-  ]
-);
+      [
+        p_userid,
+        campaignId,
+        p_statusname,
+        JSON.stringify(finalData.p_objectivejson),
+        JSON.stringify(finalData.p_vendorinfojson),
+        JSON.stringify(finalData.p_campaignjson),
+        JSON.stringify(finalData.p_campaigncategoyjson),
+        JSON.stringify(finalData.p_campaignfilejson),
+        JSON.stringify(finalData.p_contenttypejson),
+      ]
+    );
 
-    const { p_status, p_message } = result.rows[0] || {};
+    const { p_status, p_message, p_campaignid } = result.rows[0] || {};
 
-    return res.status(p_status ? 200 : 400).json({
-      success: p_status,
-      message: p_message,
+    // Delete draft after successful DB save
+    await redisClient.del(redisKey);
+
+    return res.status(200).json({
+      success: true,
+      message: p_message || "Campaign saved successfully",
+      campaignId: p_campaignid || campaignId,
       source: "db",
     });
-
   } catch (err) {
     console.error("❌ upsertCampaign error:", err);
     return res.status(500).json({
