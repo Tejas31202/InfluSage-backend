@@ -372,11 +372,7 @@ export const getUserProfile = async (req, res) => {
       `SELECT * FROM ins.fn_get_userprofile($1::BIGINT)`,
       [userId]
     );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: "User not found." });
-    }
-
+  
     const {
       p_profile,
       p_socials,
@@ -384,6 +380,10 @@ export const getUserProfile = async (req, res) => {
       p_portfolios,
       p_paymentaccounts,
     } = result.rows[0];
+
+    if (!p_profile && !p_socials && !p_categories && !p_portfolios) {
+        return res.status(404).json({ message: "User not found" });
+    }
 
     return res.status(200).json({
       message: "get profile from db",
