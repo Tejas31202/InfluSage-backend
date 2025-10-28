@@ -135,7 +135,6 @@ export const createMyCampaign = async (req, res) => {
 
 // ---------------- FINALIZE Campaign ----------------
 export const finalizeCampaign = async (req, res) => {
-  console.log("finalizeCampaign called");
   try {
     const userId = req.user?.id || req.body.p_userid;
     const campaignId = req.body.p_campaignid ||null;
@@ -146,8 +145,8 @@ export const finalizeCampaign = async (req, res) => {
     }
 
    const redisKey = campaignId
-  ? `getCampaign:${userId}:${campaignId}`   // same for edit
-  : `getCampaign:${userId}:new`;            // same for new campaign
+  ? `getCampaign:${userId}:${campaignId}`
+  : `getCampaign:${userId}`;
 
     const cachedData = await redisClient.get(redisKey);
     if (!cachedData) {
@@ -217,53 +216,65 @@ export const finalizeCampaign = async (req, res) => {
 export const getCampaign = async (req, res) => {
   try {
     const userId = req.user?.id || req.query.p_userid;
-    const campaignId = req.params.campaignId || "01"; // default draft
+    const campaignId = req.params.campaignId || "01";
 
     if (!userId)
       return res.status(400).json({ message: "User ID required" });
 
-    // Build Redis key (supports both new and edit mode)
     const redisKey =
       campaignId === "01"
         ? `getCampaign:${userId}`
         : `getCampaign:${userId}:${campaignId}`;
 
-    // 🧠 1️⃣ Check Redis first (works for both new and edit)
-    const cachedData = await redisClient.get(redisKey);
+    // console.log("🧩 getCampaign called with:", { userId, campaignId, redisKey });
 
-    if (cachedData) {
+    if (campaignId === "01") {
+      const cachedData = await redisClient.get(redisKey);
+      if (cachedData) {
+        return res.status(200).json({
+          message: "Draft campaign from Redis",
+          campaignParts: JSON.parse(cachedData),
+          source: "redis",
+        });
+      }
+
+      return res.status(200).json({
+        message: "No draft found",
+        campaignParts: {},
+        source: "empty",
+      });
+    }
+
+    const cachedEditData = await redisClient.get(redisKey);
+    if (cachedEditData) {
+      // console.log("Returning campaign data from Redis");
       return res.status(200).json({
         message: "Campaign data from Redis",
-        campaignParts: JSON.parse(cachedData),
+        campaignParts: JSON.parse(cachedEditData),
         source: "redis",
       });
     }
 
-    // 🧠 2️⃣ If Redis empty → fallback to DB (for edit)
-    if (campaignId !== "01") {
-      const result = await client.query(
-        `SELECT * FROM ins.fn_get_campaigndetailsjson($1::BIGINT,$2::BIGINT)`,
-        [userId, campaignId]
-      );
+    // console.log("Redis miss → fetching from DB");
 
-      if (result.rows.length === 0) {
-        return res.status(404).json({ message: "Campaign not found" });
-      }
+    const result = await client.query(
+      `SELECT * FROM ins.fn_get_campaigndetailsjson($1::BIGINT, $2::BIGINT)`,
+      [userId, campaignId]
+    );
 
-      const fullData = result.rows[0];
-
-      return res.status(200).json({
-        message: "Campaign data from DB",
-        campaignParts: fullData,
-        source: "db",
-      });
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "Campaign not found" });
     }
 
-    // 🧠 3️⃣ If new draft and no Redis data → empty response
+    const fullData = result.rows[0];
+
+    // Cache DB data in Redis for next time
+    await redisClient.set(redisKey, JSON.stringify(fullData));
+
     return res.status(200).json({
-      message: "No draft found",
-      campaignParts: {},
-      source: "empty",
+      message: "Campaign data from DB",
+      campaignParts: fullData,
+      source: "db",
     });
 
   } catch (err) {
@@ -834,9 +845,6 @@ export const upsertCampaign = async (req, res) => {
 
     // ---------------- REDIS DRAFT STORAGE ----------------
     const redisKey = `getCampaign:${p_userid}${campaignId ? `:${campaignId}` : ""}`;
-  // const redisKey = campaignId
-  // ? `getCampaign:${p_userid}:${campaignId}`
-  // : `getCampaign:${p_userid}:new`;
 
     // Read existing Redis draft if any
     let existingDraft = {};
