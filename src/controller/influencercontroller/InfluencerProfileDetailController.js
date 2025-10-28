@@ -29,25 +29,28 @@ export const completeUserProfile = async (req, res) => {
   const userId = req.user?.id || req.body?.userId;
   // console.log("userId===>", userId);
   let username = "user";
- 
-// Prefer JWT payload (if available)
-if (req.user?.firstName || req.user?.lastName) {
-  username = `${req.user.firstName || ""}_${req.user.lastName || ""}`.trim();
-}
- 
-// Otherwise fallback to body fields (if sent from frontend)
-else if (req.body?.firstName || req.body?.lastName) {
-  username = `${req.body.firstName || ""}_${req.body.lastName || ""}`.trim();
-}
- 
-// If still missing, fetch from DB
-else {
-  const dbUser = await client.query("SELECT firstname, lastname FROM ins.users WHERE id=$1", [userId]);
-  if (dbUser.rows[0]) {
-    username = `${dbUser.rows[0].firstname || ""}_${dbUser.rows[0].lastname || ""}`.trim() || "user";
+
+  // Prefer JWT payload (if available)
+  if (req.user?.firstName || req.user?.lastName) {
+    username = `${req.user.firstName || ""}_${req.user.lastName || ""}`.trim();
   }
-}
- 
+
+  // Otherwise fallback to body fields (if sent from frontend)
+  else if (req.body?.firstName || req.body?.lastName) {
+    username = `${req.body.firstName || ""}_${req.body.lastName || ""}`.trim();
+  }
+
+  // If still missing, fetch from DB
+  else {
+    const dbUser = await client.query(
+      "SELECT firstname, lastname FROM ins.users WHERE id=$1",
+      [userId]
+    );
+   if (dbUser.rows[0]) {
+    username = `${dbUser.rows[0].firstname || ""}_${dbUser.rows[0].lastname || ""}`.trim() || "user";
+    }
+  }
+
   const redisKey = `profile:${userId}`;
 
   try {
@@ -65,13 +68,35 @@ else {
     // ---------------------------
     // 2 Handle photo upload
     // ---------------------------
-    if (req.files?.photo) {
+    if (req.files?.photo?.[0]) {
       const file = req.files.photo[0];
       const ext = path.extname(file.originalname);
       const newFileName = `${userId}_${username}_photo_${Date.now()}${ext}`;
-      const supabasePath = `influencers/${userId}_${username}/profile/${newFileName}`;
-      const fileBuffer = await fsPromises.readFile(file.path);
+      const profileFolderPath = `influencers/${userId}_${username}/profile`;
+      const supabasePath = `${profileFolderPath}/${newFileName}`;
 
+      // Step 1️⃣: Delete old profile photos (if any exist)
+      const { data: existingFiles, error: listError } = await supabase.storage
+        .from("uploads")
+        .list(profileFolderPath, { limit: 100 });
+
+      if (!listError && existingFiles?.length > 0) {
+        const oldFilePaths = existingFiles.map(
+          (f) => `${profileFolderPath}/${f.name}`
+        );
+        const { error: deleteError } = await supabase.storage
+          .from("uploads")
+          .remove(oldFilePaths);
+        if (deleteError) {
+          console.warn(
+            "⚠️ Could not delete old profile photos:",
+            deleteError.message
+          );
+        }
+      }
+
+      // Step 2️⃣: Upload new photo
+      const fileBuffer = await fsPromises.readFile(file.path);
       const { error: uploadError } = await supabase.storage
         .from("uploads")
         .upload(supabasePath, fileBuffer, {
@@ -80,31 +105,29 @@ else {
         });
 
       if (uploadError) {
-        console.error("Supabase photo upload error:", uploadError);
-        return res.status(500).json({ message: "Failed to upload profile photo" });
+        console.error("❌ Supabase upload failed:", uploadError.message);
+        return res
+          .status(500)
+          .json({ message: "Failed to upload profile photo" });
       }
 
+      // Step 3️⃣: Get public URL and update profile JSON
       const { data: publicUrlData } = supabase.storage
         .from("uploads")
         .getPublicUrl(supabasePath);
 
-      const photoUrl = publicUrlData.publicUrl;
-
-      if (profilejson) {
-        try {
-          const parsedProfile = JSON.parse(profilejson);
-          parsedProfile.photopath = photoUrl;
-          req.body.profilejson = JSON.stringify(parsedProfile);
-        } catch (err) {
-          console.error("Invalid profilejson:", err.message);
-        }
+      const photoUrl = publicUrlData?.publicUrl;
+      if (photoUrl) {
+        const parsedProfile = profilejson ? JSON.parse(profilejson) : {};
+        parsedProfile.photopath = photoUrl;
+        req.body.profilejson = JSON.stringify(parsedProfile);
       }
     }
 
     // ---------------------------
     // 3 Handle portfolio uploads
     // ---------------------------
-   if (req.files?.portfolioFiles) {
+    if (req.files?.portfolioFiles) {
       const uploadedFiles = [];
 
       for (const [index, file] of req.files.portfolioFiles.entries()) {
@@ -122,7 +145,9 @@ else {
 
         if (uploadError) {
           console.error("Supabase portfolio upload error:", uploadError);
-          return res.status(500).json({ message: "Failed to upload portfolio files" });
+          return res
+            .status(500)
+            .json({ message: "Failed to upload portfolio files" });
         }
 
         const { data: publicUrlData } = supabase.storage
@@ -145,7 +170,6 @@ else {
         }
       }
     }
-
 
     // ---------------------------
     // 4 Merge incoming data (safe JSON.parse)

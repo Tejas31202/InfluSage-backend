@@ -2,6 +2,13 @@ import { client } from '../../config/Db.js';
 import redis from 'redis';
 import path from 'path';
 import fs from 'fs';
+import fsPromises from "fs/promises";
+import { createClient } from "@supabase/supabase-js";
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
 redisClient.connect().catch(console.error);
@@ -168,24 +175,30 @@ export const getVendorProfile = async (req, res) => {
 export const completeVendorProfile = async (req, res) => {
   const userId = req.user?.id || req.body.userid;
   let username = "user";
- 
-// Prefer JWT payload (if available)
-if (req.user?.firstName || req.user?.lastName) {
-  username = `${req.user.firstName || ""}_${req.user.lastName || ""}`.trim();
-}
- 
-// Otherwise fallback to body fields (if sent from frontend)
-else if (req.body?.firstName || req.body?.lastName) {
-  username = `${req.body.firstName || ""}_${req.body.lastName || ""}`.trim();
-}
- 
-// If still missing, fetch from DB
-else {
-  const dbUser = await client.query("SELECT firstname, lastname FROM ins.users WHERE id=$1", [userId]);
-  if (dbUser.rows[0]) {
-    username = `${dbUser.rows[0].firstname || ""}_${dbUser.rows[0].lastname || ""}`.trim() || "user";
+
+  // Prefer JWT payload (if available)
+  if (req.user?.firstName || req.user?.lastName) {
+    username = `${req.user.firstName || ""}_${req.user.lastName || ""}`.trim();
   }
-}
+
+  // Otherwise fallback to body fields (if sent from frontend)
+  else if (req.body?.firstName || req.body?.lastName) {
+    username = `${req.body.firstName || ""}_${req.body.lastName || ""}`.trim();
+  }
+
+  // If still missing, fetch from DB
+  else {
+    const dbUser = await client.query(
+      "SELECT firstname, lastname FROM ins.users WHERE id=$1",
+      [userId]
+    );
+    if (dbUser.rows[0]) {
+      username =
+        `${dbUser.rows[0].firstname || ""}_${
+          dbUser.rows[0].lastname || ""
+        }`.trim() || "user";
+    }
+  }
   const redisKey = `vendorprofile:${userId}`;
 
   try {
@@ -203,17 +216,50 @@ else {
     // Step 1: Handle uploaded photo
     let updatedProfileJson = profilejson ? JSON.parse(profilejson) : {};
 
+    // ---------------------------
+    // 2️⃣ Handle Profile Photo Upload
+    // ---------------------------
     if (req.file) {
       const file = req.file;
-      const newFileName = `${username}_up_${Date.now()}${path.extname(
-        file.originalname
-      )}`;
-      const newPath = path.join("src/uploads/vendor", newFileName);
+      const ext = path.extname(file.originalname);
+      const newFileName = `${userId}_${username}_photo_${Date.now()}${ext}`;
+      const profileFolderPath = `vendors/${userId}_${username}/profile`;
+      const supabasePath = `${profileFolderPath}/${newFileName}`;
 
-      fs.renameSync(file.path, newPath);
+      // Step 1: Delete old files in this profile folder
+      const { data: existingFiles, error: listError } = await supabase.storage
+        .from("uploads")
+        .list(profileFolderPath, { limit: 100 });
 
-      const photoPath = newPath.replace(/\\/g, "/");
-      updatedProfileJson.photopath = photoPath;
+      if (!listError && existingFiles?.length > 0) {
+        const oldFilePaths = existingFiles.map(
+          (f) => `${profileFolderPath}/${f.name}`
+        );
+        await supabase.storage.from("uploads").remove(oldFilePaths);
+      }
+
+      //  Step 2: Read new file from multer’s temp path
+      const fileBuffer = await fsPromises.readFile(file.path);
+
+      // Step 3: Upload new photo
+      const { error: uploadError } = await supabase.storage
+        .from("uploads")
+        .upload(supabasePath, fileBuffer, {
+          contentType: file.mimetype,
+          upsert: true,
+        });
+
+      if (uploadError) {
+        return res.status(500).json({ message: "Image upload failed" });
+      }
+
+      //  Step 4: Get public URL for the new photo
+      const { data: publicUrlData } = supabase.storage
+        .from("uploads")
+        .getPublicUrl(supabasePath);
+
+      // Step 5: Update your profile JSON
+      updatedProfileJson.photopath = publicUrlData.publicUrl;
     }
 
     const safeParse = (data) => {
@@ -250,7 +296,7 @@ else {
       existingUser?.p_categories !== null &&
       existingUser?.p_objectives !== null
     ) {
-      // ✅ CASE A: User already has provider  + objectives → update in DB
+      // CASE A: User already has provider  + objectives → update in DB
       try {
         await client.query("BEGIN");
         const result = await client.query(
@@ -362,7 +408,7 @@ else {
     }
   } catch (error) {
     await client.query("ROLLBACK");
-    console.error("💥 Error in completeVendorProfile:", error);
+    console.error("Error in completeVendorProfile:", error);
     return res.status(500).json({ message: error.message });
   }
 };
