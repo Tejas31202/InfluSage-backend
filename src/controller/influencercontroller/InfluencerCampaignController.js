@@ -45,50 +45,81 @@ export const getCampaignDetails = async (req, res) => {
 //For Apply Campaign
 export const applyNowCampaign = async (req, res) => {
   try {
-
     const userId = req.user?.id || req.body.userId;
     const campaignId = req.params.campaignId;
     const redisKey = `applyCampaign:${userId}`;
-    const firstName = (req.user?.name || 'anonymous').replace(/\W+/g, '_');
-    const first4 =firstName.substring(0,4);
-    const userId_firstName = `${userId}_${firstName}`
-    
-    // Parse JSON from form-data
+
+    let username = "user";
+
+    // ✅ 1️⃣ Prefer JWT payload (if available)
+    if (req.user?.firstName || req.user?.lastName) {
+      username = `${req.user.firstName || ""}_${req.user.lastName || ""}`.trim();
+    }
+
+    // ✅ 2️⃣ Fallback to frontend body fields
+    else if (req.body?.firstName || req.body?.lastName) {
+      username = `${req.body.firstName || ""}_${req.body.lastName || ""}`.trim();
+    }
+
+    // ✅ 3️⃣ Final fallback: fetch from DB
+    else {
+      const dbUser = await client.query(
+        "SELECT firstname, lastname FROM ins.users WHERE id=$1",
+        [userId]
+      );
+      if (dbUser.rows[0]) {
+        username =
+          `${dbUser.rows[0].firstname || ""}_${dbUser.rows[0].lastname || ""}`.trim() || "user";
+      }
+    }
+
+    // Clean username to remove any special chars
+    username = username.replace(/\W+/g, "_");
+
+    // Unique folder name pattern
+    const userFolder = `${userId}_${username}`;
+
+    // ✅ Parse JSON from form-data
     let applycampaignjson = {};
     if (req.body.applycampaignjson) {
       try {
         applycampaignjson = JSON.parse(req.body.applycampaignjson);
       } catch (err) {
-        return res
-          .status(400)
-          .json({ message: "Invalid applycampaignjson format" });
+        return res.status(400).json({ message: "Invalid applycampaignjson format" });
       }
     }
-    //changes for file handling in supabase
+
+    // ✅ File upload to Supabase
     if (req.files && req.files.portfolioFiles) {
       const uploadedFiles = [];
+
       for (const [index, file] of req.files.portfolioFiles.entries()) {
         const ext = path.extname(file.originalname);
-        const newFileName=`${userId}_${first4}_${Date.now()}_${index}${ext}`
-        const uniqueFileName = `influencers/${userId_firstName}/Applycampains/${newFileName}`;
+        const newFileName = `${userId}_${username}_${Date.now()}_${index}${ext}`;
+        const uniqueFileName = `influencers/${userFolder}/ApplyCampaigns/${newFileName}`;
         const fileBuffer = await fsPromises.readFile(file.path);
+
+        // Upload to Supabase
         const { error: uploadError } = await supabase.storage
           .from("uploads")
           .upload(uniqueFileName, fileBuffer, {
             contentType: file.mimetype,
             upsert: true,
           });
+
         if (uploadError) {
           console.error("Supabase upload error:", uploadError);
           return res.status(500).json({ message: "Failed to upload file to cloud storage" });
         }
-        // Get the public URL
+
+        // Get public URL
         const { data: publicUrlData } = supabase.storage
           .from("uploads")
           .getPublicUrl(uniqueFileName);
 
         uploadedFiles.push({ filepath: publicUrlData.publicUrl });
       }
+
       // Merge old + new filepaths
       if (applycampaignjson.filepaths && Array.isArray(applycampaignjson.filepaths)) {
         applycampaignjson.filepaths = [...applycampaignjson.filepaths, ...uploadedFiles];
@@ -96,14 +127,15 @@ export const applyNowCampaign = async (req, res) => {
         applycampaignjson.filepaths = uploadedFiles;
       }
     }
-    // Save in DB
+
+    // ✅ Save data in DB via stored procedure
     const result = await client.query(
       `CALL ins.usp_insert_campaignapplication(
-          $1::bigint,
-          $2::bigint,
-          $3::json,
-          $4::boolean,
-          $5::text
+        $1::bigint,
+        $2::bigint,
+        $3::json,
+        $4::boolean,
+        $5::text
       )`,
       [userId, campaignId, JSON.stringify(applycampaignjson), null, null]
     );
@@ -124,6 +156,7 @@ export const applyNowCampaign = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
+
 
 //For Applied Campaign
 export const getUsersAppliedCampaigns = async (req, res) => {
