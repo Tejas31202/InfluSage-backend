@@ -284,9 +284,13 @@ export const upsertCampaign = async (req, res) => {
     // ---------------- USERNAME RESOLUTION ----------------
     let username = "user";
     if (req.user?.firstName || req.user?.lastName) {
-      username = `${req.user.firstName || ""}_${req.user.lastName || ""}`.trim();
+      username = `${req.user.firstName || ""}_${
+        req.user.lastName || ""
+      }`.trim();
     } else if (req.body?.firstName || req.body?.lastName) {
-      username = `${req.body.firstName || ""}_${req.body.lastName || ""}`.trim();
+      username = `${req.body.firstName || ""}_${
+        req.body.lastName || ""
+      }`.trim();
     } else {
       const dbUser = await client.query(
         "SELECT firstname, lastname FROM ins.users WHERE id=$1",
@@ -294,8 +298,9 @@ export const upsertCampaign = async (req, res) => {
       );
       if (dbUser.rows[0]) {
         username =
-          `${dbUser.rows[0].firstname || ""}_${dbUser.rows[0].lastname || ""}`.trim() ||
-          "user";
+          `${dbUser.rows[0].firstname || ""}_${
+            dbUser.rows[0].lastname || ""
+          }`.trim() || "user";
       }
     }
 
@@ -321,9 +326,15 @@ export const upsertCampaign = async (req, res) => {
     const p_objectivejson = parseIfJson(req.body.p_objectivejson);
     const p_vendorinfojson = parseIfJson(req.body.p_vendorinfojson);
     const p_campaignjson = parseIfJson(req.body.p_campaignjson);
-    const p_campaigncategoyjson = cleanArray(parseIfJson(req.body.p_campaigncategoyjson));
-    const p_campaignfilejson = cleanArray(parseIfJson(req.body.p_campaignfilejson));
-    const p_contenttypejson = cleanArray(parseIfJson(req.body.p_contenttypejson));
+    const p_campaigncategoyjson = cleanArray(
+      parseIfJson(req.body.p_campaigncategoyjson)
+    );
+    const p_campaignfilejson = cleanArray(
+      parseIfJson(req.body.p_campaignfilejson)
+    );
+    const p_contenttypejson = cleanArray(
+      parseIfJson(req.body.p_contenttypejson)
+    );
 
     // ---------------- FILE HANDLING ----------------
     let campaignPhotoPath = p_campaignjson?.photopath || null;
@@ -337,20 +348,8 @@ export const upsertCampaign = async (req, res) => {
       const campaignFolderPath = `vendors/${p_userid}_${username}/campaign_profile`;
       const supabasePath = `${campaignFolderPath}/${newFileName}`;
 
-      // 1️⃣ Delete old photos
-      const { data: existingFiles } = await supabase.storage
-        .from("uploads")
-        .list(campaignFolderPath, { limit: 100 });
+      const fileBuffer = file.buffer || fs.readFileSync(file.path);
 
-      if (existingFiles?.length > 0) {
-        const oldFilePaths = existingFiles.map(
-          (f) => `${campaignFolderPath}/${f.name}`
-        );
-        await supabase.storage.from("uploads").remove(oldFilePaths);
-      }
-
-      // 2️⃣ Upload new photo
-      const fileBuffer = fs.readFileSync(file.path);
       const { error: uploadError } = await supabase.storage
         .from("uploads")
         .upload(supabasePath, fileBuffer, {
@@ -358,17 +357,20 @@ export const upsertCampaign = async (req, res) => {
           upsert: true,
         });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error("Upload error:", uploadError.message);
+        throw uploadError;
+      }
 
       const { data: publicURL } = supabase.storage
         .from("uploads")
         .getPublicUrl(supabasePath);
 
       campaignPhotoPath = publicURL.publicUrl;
-      p_campaignjson.photopath = campaignPhotoPath; // ✅ important fix
+      p_campaignjson.photopath = campaignPhotoPath;
     }
     // Upload multiple files
-     if (req.files?.Files?.length > 0) {
+    if (req.files?.Files?.length > 0) {
       campaignFiles = await Promise.all(
         req.files.Files.map(async (file, index) => {
           const ext = path.extname(file.originalname);
@@ -395,9 +397,10 @@ export const upsertCampaign = async (req, res) => {
       );
     }
 
-
     // ---------------- REDIS DRAFT STORAGE ----------------
-    const redisKey = `getCampaign:${p_userid}${campaignId ? `:${campaignId}` : ""}`;
+    const redisKey = `getCampaign:${p_userid}${
+      campaignId ? `:${campaignId}` : ""
+    }`;
 
     // Read existing Redis draft if any
     let existingDraft = {};
@@ -408,9 +411,18 @@ export const upsertCampaign = async (req, res) => {
 
     // Merge old + new data
     const draftData = {
-      p_objectivejson: { ...(existingDraft.p_objectivejson || {}), ...p_objectivejson },
-      p_vendorinfojson: { ...(existingDraft.p_vendorinfojson || {}), ...p_vendorinfojson },
-      p_campaignjson: { ...(existingDraft.p_campaignjson || {}), ...p_campaignjson },
+      p_objectivejson: {
+        ...(existingDraft.p_objectivejson || {}),
+        ...p_objectivejson,
+      },
+      p_vendorinfojson: {
+        ...(existingDraft.p_vendorinfojson || {}),
+        ...p_vendorinfojson,
+      },
+      p_campaignjson: {
+        ...(existingDraft.p_campaignjson || {}),
+        ...p_campaignjson,
+      },
       p_campaigncategoyjson: p_campaigncategoyjson.length
         ? p_campaigncategoyjson
         : existingDraft.p_campaigncategoyjson || [],
@@ -449,16 +461,29 @@ export const upsertCampaign = async (req, res) => {
     const mergeObjects = (oldObj, newObj) => ({ ...oldObj, ...newObj });
 
     const finalData = {
-      p_objectivejson: mergeObjects(existingData.p_objectivejson || {}, p_objectivejson),
-      p_vendorinfojson: mergeObjects(existingData.p_vendorinfojson || {}, p_vendorinfojson),
-      p_campaignjson: mergeObjects(existingData.p_campaignjson || {}, p_campaignjson),
+      p_objectivejson: mergeObjects(
+        existingData.p_objectivejson || {},
+        p_objectivejson
+      ),
+      p_vendorinfojson: mergeObjects(
+        existingData.p_vendorinfojson || {},
+        p_vendorinfojson
+      ),
+      p_campaignjson: mergeObjects(
+        existingData.p_campaignjson || {},
+        p_campaignjson
+      ),
       p_campaigncategoyjson:
         p_campaigncategoyjson.length > 0
           ? p_campaigncategoyjson
           : existingData.p_campaigncategoyjson || [],
       p_campaignfilejson:
         p_campaignfilejson.length || campaignFiles.length
-          ? [...(existingData.p_campaignfilejson || []), ...p_campaignfilejson, ...campaignFiles]
+          ? [
+              ...(existingData.p_campaignfilejson || []),
+              ...p_campaignfilejson,
+              ...campaignFiles,
+            ]
           : existingData.p_campaignfilejson || [],
       p_contenttypejson:
         p_contenttypejson.length > 0
