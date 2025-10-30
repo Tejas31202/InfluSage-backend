@@ -97,7 +97,9 @@ export const applyNowCampaign = async (req, res) => {
         const ext = path.extname(file.originalname);
         const newFileName = `${userId}_${username}_${Date.now()}_${index}${ext}`;
         const uniqueFileName = `influencers/${userFolder}/ApplyCampaigns/${newFileName}`;
-        const fileBuffer = await fsPromises.readFile(file.path);
+        // const fileBuffer = await fsPromises.readFile(file.path);
+
+        const fileBuffer = file.buffer;
 
         // Upload to Supabase
         const { error: uploadError } = await supabase.storage
