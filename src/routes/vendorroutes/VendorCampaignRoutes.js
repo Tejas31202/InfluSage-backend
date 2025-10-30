@@ -8,7 +8,7 @@ import {
   upsertCampaign,
 } from '../../controller/vendorcontroller/VendorCampaignController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
-import { upload } from '../../middleware/CampaignMulterMiddleware.js';
+import { upload } from '../../middleware/MulterMiddleware.js';
 
 
 const routes = express.Router();
