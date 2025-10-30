@@ -1,9 +1,8 @@
 import { client } from '../../config/Db.js';
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from '@supabase/supabase-js';
 import redis from 'redis';
 import path from 'path';
 import fs from 'fs';
-import fsPromises from "fs/promises";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
@@ -46,8 +45,11 @@ export const completeUserProfile = async (req, res) => {
       "SELECT firstname, lastname FROM ins.users WHERE id=$1",
       [userId]
     );
-   if (dbUser.rows[0]) {
-    username = `${dbUser.rows[0].firstname || ""}_${dbUser.rows[0].lastname || ""}`.trim() || "user";
+    if (dbUser.rows[0]) {
+      username =
+        `${dbUser.rows[0].firstname || ""}_${
+          dbUser.rows[0].lastname || ""
+        }`.trim() || "user";
     }
   }
 
@@ -75,28 +77,19 @@ export const completeUserProfile = async (req, res) => {
       const profileFolderPath = `influencers/${userId}_${username}/profile`;
       const supabasePath = `${profileFolderPath}/${newFileName}`;
 
-      // Step 1️⃣: Delete old profile photos (if any exist)
-      const { data: existingFiles, error: listError } = await supabase.storage
+      // Delete old photos (optional cleanup)
+      const { data: existingFiles } = await supabase.storage
         .from("uploads")
-        .list(profileFolderPath, { limit: 100 });
-
-      if (!listError && existingFiles?.length > 0) {
-        const oldFilePaths = existingFiles.map(
+        .list(profileFolderPath);
+      if (existingFiles?.length > 0) {
+        const oldPaths = existingFiles.map(
           (f) => `${profileFolderPath}/${f.name}`
         );
-        const { error: deleteError } = await supabase.storage
-          .from("uploads")
-          .remove(oldFilePaths);
-        if (deleteError) {
-          console.warn(
-            "⚠️ Could not delete old profile photos:",
-            deleteError.message
-          );
-        }
+        await supabase.storage.from("uploads").remove(oldPaths);
       }
 
-      // Step 2️⃣: Upload new photo
-      const fileBuffer = await fsPromises.readFile(file.path);
+      // Upload new photo
+      const fileBuffer = file.buffer;
       const { error: uploadError } = await supabase.storage
         .from("uploads")
         .upload(supabasePath, fileBuffer, {
@@ -104,14 +97,11 @@ export const completeUserProfile = async (req, res) => {
           upsert: true,
         });
 
-      if (uploadError) {
-        console.error("❌ Supabase upload failed:", uploadError.message);
+      if (uploadError)
         return res
           .status(500)
           .json({ message: "Failed to upload profile photo" });
-      }
 
-      // Step 3️⃣: Get public URL and update profile JSON
       const { data: publicUrlData } = supabase.storage
         .from("uploads")
         .getPublicUrl(supabasePath);
@@ -134,7 +124,7 @@ export const completeUserProfile = async (req, res) => {
         const ext = path.extname(file.originalname);
         const newFileName = `${userId}_${username}_portfolio_${Date.now()}_${index}${ext}`;
         const supabasePath = `influencers/${userId}_${username}/portfolio/${newFileName}`;
-        const fileBuffer = await fsPromises.readFile(file.path);
+        const fileBuffer = file.buffer;
 
         const { error: uploadError } = await supabase.storage
           .from("uploads")
@@ -434,7 +424,9 @@ export const deletePortfolioFile = async (req, res) => {
     const filePathToDelete = req.body.filepath; // frontend se milega (public URL)
 
     if (!userId || !filePathToDelete) {
-      return res.status(400).json({ message: "userId and filepath are required" });
+      return res
+        .status(400)
+        .json({ message: "userId and filepath are required" });
     }
 
     // Redis key
@@ -473,7 +465,10 @@ export const deletePortfolioFile = async (req, res) => {
       ?.trim();
 
     if (!supabaseFilePath) {
-      console.warn("⚠️ Could not extract Supabase file path from URL:", filePathToDelete);
+      console.warn(
+        "⚠️ Could not extract Supabase file path from URL:",
+        filePathToDelete
+      );
     } else {
       const { error: supaError } = await supabase.storage
         .from(bucketName)

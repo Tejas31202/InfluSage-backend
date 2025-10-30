@@ -8,7 +8,7 @@ import {
   getUserNameByEmail,
 } from '../../controller/vendorcontroller/VendorProfileDetailController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
-import { uploadVendor } from '../../middleware/MulterVenderMiddelware.js';
+import { upload } from '../../middleware/MulterMiddleware.js';
 
 const routes = express.Router();
 
@@ -17,7 +17,7 @@ routes.get("/influencer-tiers", getInfluencerTiers);
 routes.post(
   "/complete-vendor-profile",
   authenticateUser(["Vendor"]),
-  uploadVendor.single("photo"),
+  upload.single("photo"),
   completeVendorProfile
 );
 routes.get("/profile/:userId", authenticateUser(["Vendor"]), getVendorProfile);

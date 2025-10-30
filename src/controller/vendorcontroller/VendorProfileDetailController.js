@@ -1,9 +1,8 @@
 import { client } from '../../config/Db.js';
 import redis from 'redis';
 import path from 'path';
-import fs from 'fs';
-import fsPromises from "fs/promises";
-import { createClient } from "@supabase/supabase-js";
+
+import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
@@ -217,16 +216,22 @@ export const completeVendorProfile = async (req, res) => {
     let updatedProfileJson = profilejson ? JSON.parse(profilejson) : {};
 
     // ---------------------------
-    // 2️⃣ Handle Profile Photo Upload
+    // 2️⃣ Handle Profile Photo Upload (Debug + Safe Upload)
     // ---------------------------
     if (req.file) {
       const file = req.file;
+
+      // Quick check for file buffer
+      if (!file.buffer || file.buffer.length === 0) {
+        return res.status(400).json({ message: "No valid file buffer found" });
+      }
+
       const ext = path.extname(file.originalname);
       const newFileName = `${userId}_${username}_photo_${Date.now()}${ext}`;
       const profileFolderPath = `vendors/${userId}_${username}/profile`;
       const supabasePath = `${profileFolderPath}/${newFileName}`;
 
-      // Step 1: Delete old files in this profile folder
+      // List & remove old profile photos (optional cleanup)
       const { data: existingFiles, error: listError } = await supabase.storage
         .from("uploads")
         .list(profileFolderPath, { limit: 100 });
@@ -238,30 +243,31 @@ export const completeVendorProfile = async (req, res) => {
         await supabase.storage.from("uploads").remove(oldFilePaths);
       }
 
-      //  Step 2: Read new file from multer’s temp path
-      const fileBuffer = await fsPromises.readFile(file.path);
-
-      // Step 3: Upload new photo
+      // Upload new photo
       const { error: uploadError } = await supabase.storage
         .from("uploads")
-        .upload(supabasePath, fileBuffer, {
+        .upload(supabasePath, file.buffer, {
           contentType: file.mimetype,
           upsert: true,
         });
 
       if (uploadError) {
-        return res.status(500).json({ message: "Image upload failed" });
+        return res
+          .status(500)
+          .json({ message: "Image upload failed", error: uploadError.message });
       }
 
-      //  Step 4: Get public URL for the new photo
+      // Get public URL for uploaded image
       const { data: publicUrlData } = supabase.storage
         .from("uploads")
         .getPublicUrl(supabasePath);
 
-      // Step 5: Update your profile JSON
+      if (!publicUrlData?.publicUrl) {
+        return res.status(500).json({ message: "Could not get public URL" });
+      }
+
       updatedProfileJson.photopath = publicUrlData.publicUrl;
     }
-
     const safeParse = (data) => {
       try {
         return data ? JSON.parse(data) : null;
