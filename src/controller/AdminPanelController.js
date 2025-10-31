@@ -1,5 +1,5 @@
 import { client } from '../config/Db.js';
-import { sendingMailFormatForAdmin } from '../utils/MailUtils.js';
+import sendingMailFormatForAdmin  from '../utils/MailUtils.js';
 import {
   userProfileEmailHTML,
   campaignEmailHTML,

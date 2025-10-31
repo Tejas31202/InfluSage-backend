@@ -166,8 +166,7 @@ export const getCampaign = async (req, res) => {
 export const deleteCampaignFile = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
-    const campaignId = req.body.campaignId || null; // Pass this from frontend
-    const filePathToDelete = req.body.filepath; // Public Supabase URL
+    const filePathToDelete = req.body.filepath; // Supabase public file URL
     const bucketName = "uploads";
 
     if (!userId || !filePathToDelete) {
@@ -177,37 +176,23 @@ export const deleteCampaignFile = async (req, res) => {
       });
     }
 
-    // ---------------- 1️⃣ Build Redis Key ----------------
-    const redisKey = campaignId
-      ? `getCampaign:${userId}:${campaignId}`
-      : `getCampaign:${userId}`;
-
-    // ---------------- 2️⃣ Update Redis ----------------
+    // ---------------- 1️⃣ Update Redis ----------------
+    const redisKey = `getCampaign:${userId}`;
     let campaignData = await redisClient.get(redisKey);
-    let updatedFiles = [];
-
     if (campaignData) {
       campaignData = JSON.parse(campaignData);
 
-      if (Array.isArray(campaignData.p_campaignfilejson)) {
-        const beforeCount = campaignData.p_campaignfilejson.length;
-
-        // Match by filename instead of full URL
+      // Remove deleted file from Redis cache
+      if (campaignData.p_campaignfilejson) {
         campaignData.p_campaignfilejson = campaignData.p_campaignfilejson.filter(
-          (file) => {
-            const redisFileName = file.filepath.split("/").pop();
-            const requestFileName = filePathToDelete.split("/").pop();
-            return redisFileName !== requestFileName;
-          }
+          (file) => file.filepath !== filePathToDelete
         );
-
-        updatedFiles = campaignData.p_campaignfilejson;
 
         await redisClient.set(redisKey, JSON.stringify(campaignData));
       }
     }
 
-    // ---------------- 3️⃣ Convert public URL → Supabase Path ----------------
+    // ---------------- 2️⃣ Convert public URL to relative path ----------------
     const supabaseFilePath = filePathToDelete
       .split(`/storage/v1/object/public/${bucketName}/`)[1]
       ?.trim();
@@ -219,12 +204,13 @@ export const deleteCampaignFile = async (req, res) => {
       });
     }
 
-    // ---------------- 4️⃣ Delete from Supabase Storage ----------------
+    // ---------------- 3️⃣ Delete from Supabase Storage ----------------
     const { error: deleteError } = await supabase.storage
       .from(bucketName)
       .remove([supabaseFilePath]);
 
     if (deleteError) {
+      console.error("❌ Supabase delete error:", deleteError.message);
       return res.status(500).json({
         status: false,
         message: "Error deleting file from Supabase",
@@ -232,17 +218,17 @@ export const deleteCampaignFile = async (req, res) => {
       });
     }
 
-    // ---------------- ✅ SUCCESS RESPONSE ----------------
     return res.status(200).json({
       status: true,
-      message: "File deleted successfully from Supabase & Redis",
+      message: "File deleted successfully from Supabase and Redis",
       deletedFile: supabaseFilePath,
-      campaignFiles: updatedFiles || [],
+      campaignFiles: campaignData?.p_campaignfilejson || [],
     });
   } catch (error) {
+    console.error("❌ deleteCampaignFile error:", error);
     return res.status(500).json({
       status: false,
-      message: error.message || "Internal Server Error",
+      message: error.message,
     });
   }
 };
@@ -362,7 +348,7 @@ export const upsertCampaign = async (req, res) => {
       const campaignFolderPath = `vendors/${p_userid}_${username}/campaign_profile`;
       const supabasePath = `${campaignFolderPath}/${newFileName}`;
 
-      const fileBuffer = file.buffer;
+      const fileBuffer = file.buffer || fs.readFileSync(file.path);
 
       const { error: uploadError } = await supabase.storage
         .from("uploads")
@@ -390,7 +376,7 @@ export const upsertCampaign = async (req, res) => {
           const ext = path.extname(file.originalname);
           const newFileName = `${p_userid}_${username}_portfolio_file_${Date.now()}_${index}${ext}`;
           const filePath = `vendors/${p_userid}_${username}/campaigns/${newFileName}`;
-          const fileBuffer = file.buffer;
+          const fileBuffer = fs.readFileSync(file.path);
 
           const { error: uploadError } = await supabase.storage
             .from("uploads")

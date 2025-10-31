@@ -38,10 +38,16 @@ app.use(
 app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
-    origin: "http://localhost:5173",
-    credentials: true,
+    origin: ["https://influsage-mvp.netlify.app"], // your Netlify URL
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true, // if using cookies or auth headers
   })
 );
+
+
+
+
 
 dotenv.config(); // if app in src
 
@@ -79,7 +85,7 @@ const io = new Server(server, {
 });
 
 io.on("connection", (socket) => {
-  console.log("🔗 User connected:", socket.id);
+  // console.log("🔗 User connected:", socket.id);
 
   // User registers
   socket.on("register", (userId) => {

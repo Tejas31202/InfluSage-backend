@@ -10,7 +10,6 @@ import {
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 import { upload } from '../../middleware/MulterMiddleware.js';
 
-
 const routes = express.Router();
 
 routes.get("/campaign/objectives", getCampaignObjectives);

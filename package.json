@@ -12,6 +12,7 @@
    },
    "dependencies": {
       "@dotenvx/dotenvx": "^1.48.2",
+      "@sendgrid/mail": "^8.1.6",
       "@supabase/supabase-js": "^2.75.0",
       "apple-signin-auth": "^2.0.0",
       "arctic": "^3.7.0",
