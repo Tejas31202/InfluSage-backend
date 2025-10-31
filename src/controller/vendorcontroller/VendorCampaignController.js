@@ -376,7 +376,7 @@ export const upsertCampaign = async (req, res) => {
           const ext = path.extname(file.originalname);
           const newFileName = `${p_userid}_${username}_portfolio_file_${Date.now()}_${index}${ext}`;
           const filePath = `vendors/${p_userid}_${username}/campaigns/${newFileName}`;
-          const fileBuffer = fs.readFileSync(file.path);
+          const fileBuffer = file.buffer;
 
           const { error: uploadError } = await supabase.storage
             .from("uploads")
