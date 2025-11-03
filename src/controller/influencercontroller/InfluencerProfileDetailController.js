@@ -122,17 +122,15 @@ export const completeUserProfile = async (req, res) => {
 
      for (const file of req.files.portfolioFiles) {
     const fileName = file.originalname;
-    const newFileName = `${userId}_${username}_portfolio_${fileName}`;
+    const newFileName = `${fileName}`;
     const supabasePath = `influencers/${userId}_${username}/portfolio/${newFileName}`;
     const fileBuffer = file.buffer;
 
     try {
       // ✅ Step 1: Check if file already exists in Supabase
-      const { data: existingFile, error: listError } = await supabase.storage
+     const { data: existingFile, error: listError } = await supabase.storage
         .from("uploads")
-        .list(`influencers/${userId}_${username}/portfolio`, {
-          search: newFileName,
-        });
+        .list(`influencers/${userId}_${username}/portfolio`);
 
       if (listError) {
         console.error("Supabase list error:", listError);
