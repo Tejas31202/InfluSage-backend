@@ -357,9 +357,9 @@ export const upsertCampaign = async (req, res) => {
     // Upload main photo
     if (req.files?.photo?.[0]) {
       const file = req.files.photo[0];
-      const ext = path.extname(file.originalname);
-      const newFileName = `${p_userid}_${username}_campaign_photo_${Date.now()}${ext}`;
-      const campaignFolderPath = `vendors/${p_userid}_${username}/campaign_profile`;
+      const fileName =file.originalname;
+      const newFileName = `${p_userid}_${username}_campaign_photo_${fileName}`;
+      const campaignFolderPath = `vendors/${p_userid}_${username}/campaigns/campaign_profile`;
       const supabasePath = `${campaignFolderPath}/${newFileName}`;
 
       const fileBuffer = file.buffer;
@@ -386,10 +386,10 @@ export const upsertCampaign = async (req, res) => {
     // Upload multiple files
     if (req.files?.Files?.length > 0) {
       campaignFiles = await Promise.all(
-        req.files.Files.map(async (file, index) => {
-          const ext = path.extname(file.originalname);
-          const newFileName = `${p_userid}_${username}_portfolio_file_${Date.now()}_${index}${ext}`;
-          const filePath = `vendors/${p_userid}_${username}/campaigns/${newFileName}`;
+        req.files.Files.map(async (file) => {
+          const fileName = file.originalname;
+          const newFileName = `${p_userid}_${username}_portfolio_file_${fileName}`;
+          const filePath = `vendors/${p_userid}_${username}/campaigns/portfolios/${newFileName}`;
           const fileBuffer = file.buffer;
 
           const { error: uploadError } = await supabase.storage
