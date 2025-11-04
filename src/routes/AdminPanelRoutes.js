@@ -7,7 +7,8 @@ import {
     getDashboardCountList,
     getRequestedUserList,
     getRequestedCampaignList,
-    insertApprovedOrRejectedApplication
+    insertApprovedOrRejectedApplication,
+    getUserDetails
 } from '../controller/AdminPanelController.js';
 import authenticateUser from '../middleware/AuthMiddleware.js'
 
@@ -17,5 +18,5 @@ routes.get("/dashboard",authenticateUser(["Admin"]),getDashboardCountList);
 routes.get("/dashboard/user-requests",authenticateUser(["Admin"]),getRequestedUserList);
 routes.get("/dashboard/campaign-requests",authenticateUser(["Admin"]),getRequestedCampaignList);
 routes.post("/dashboard/approved-or-rejected",authenticateUser(["Admin"]),insertApprovedOrRejectedApplication);
-
+routes.get("/dashboard/user-detail",getUserDetails);
 export default routes;

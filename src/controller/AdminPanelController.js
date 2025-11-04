@@ -26,8 +26,8 @@ export const getUserStatusList = async (req, res) => {
   }
 };
 
-export const getCampaignStatusList=async (req,res)=>{
- try {
+export const getCampaignStatusList = async (req, res) => {
+  try {
     const result = await client.query(
       "SELECT * FROM ins.fn_get_campaignapprovalstatus();"
     );
@@ -268,3 +268,44 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
+
+//changes for getalluserdetails
+export const getUserDetails = async (req, res) => {
+  try {
+    const p_userid = req.user?.id || req.body.p_userid;
+
+    if (!p_userid) {
+      return res.status(400).json({
+        message: "User ID is required to fetch user details.",
+      });
+    }
+
+    const result = await client.query(
+      "SELECT * FROM ins.fn_get_userdetails($1::bigint)",
+      [p_userid]
+    );
+
+    console.log("AllDetails ==>", result);
+
+    const allDetails = result.rows[0].fn_get_userdetails;
+
+    if (allDetails === 0 || !allDetails) {
+      return res.status(404).json({
+        message: "No user details found for the given ID.",
+      });
+    }
+
+    return res.status(200).json({
+      message: "User details fetched successfully.",
+      userDetails: allDetails,
+      source: "db",
+    });
+  } catch (error) {
+    console.error("Error in getAllUserDetails:", error);
+    return res.status(500).json({
+      message: "Internal Server Error",
+      error: error.message,
+    });
+  }
+};
+

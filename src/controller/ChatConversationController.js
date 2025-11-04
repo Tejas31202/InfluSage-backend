@@ -1,6 +1,11 @@
+import { createClient } from '@supabase/supabase-js';
 import { client } from '../config/Db.js';
 // import authenticateUser from '../middleware/AuthMiddleware.js';
 
+// Create Supabase client once at the top
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 export const resolveUsername = async (req, res, next) => {
   const userId = req.user?.id || req.body?.userId;
@@ -38,14 +43,14 @@ export const resolveUsername = async (req, res, next) => {
 };
 
 export const startConversation = async (req, res) => {
-  const { p_campaignapplicationid} = req.body;
+  const { p_campaignapplicationid } = req.body;
 
-  if (!p_campaignapplicationid ) {
+  if (!p_campaignapplicationid) {
     return res.status(400).json({
       message: "campaignapplicationid  Id Require",
     });
   }
-  
+
 
   try {
     const result = await client.query(
@@ -76,17 +81,74 @@ export const startConversation = async (req, res) => {
   }
 };
 
-
-
 export const insertMessage = async (req, res) => {
-  const { p_conversationid, p_roleid, p_messages, p_replyid, p_messageid  } = req.body || {};
-
-  // Multiple file paths
+  const { p_conversationid, p_roleid, p_messages, p_replyid, p_messageid, campaignid, campaignName } = req.body || {};
+  const influencerId = req.user?.id;
+  const influencerName = req.user?.name;
   let p_filepaths = null;
   if (req.files && req.files.length > 0) {
-    p_filepaths = req.files
-      .map((file) => file.path.replace(/\\/g, "/"))
-      .join(",");
+    const uploadedUrls = [];
+
+    // Get role and user info
+    const roleId = req.user?.roleId || p_roleid;
+    const userId = req.user?.id;
+    // const username = req.username || "user";
+
+    // Dynamic Folder Cretion
+
+    // let roleFolder;
+    // if (Number(roleId) === 1) roleFolder = "influencers";
+    // else if (Number(roleId) === 2) roleFolder = "vendors";
+    // else roleFolder = "others";
+
+    //Which Role Id Get In Console
+    // console.log("roleid==>", roleId)
+
+
+    for (const file of req.files) {
+      const newFileName = `${Date.now()}_${file.originalname}`;
+
+      let uniqueFileName = ""
+
+      //Dynamic create a Folder
+      // const uniqueFileName = `${roleFolder}/${userId}_${username}/campaign/${campaignid}_${campaignName}/chat/${newFileName}`;
+
+      //Created Folder Path For Vendor And Influencer saved in vendor side
+      if (Number(roleId) === 1 || Number(roleId) === 2) {
+        uniqueFileName = `Vendor/${userId}/Campaigns/${campaignid}_${campaignName}/Chat/Influencer_${influencerId}_${influencerName}/Message/${p_messageid || newFileName}`;
+      }
+
+      //If Role Id Not Match
+      //  else {
+      //   console.error("Invalid roleId: only 1 (Influencer) or 2 (Vendor) are allowed.");
+      //   uniqueFileName = null; // or handle it however you want
+      // }
+
+      //Vendor And Influencer Different Path For Save supabase
+      // storage vendor and influencer 
+      // if (Number(roleId) === 2) {
+      //   uniqueFileName = `Vendor/${userId}/Campaigns/${campaignid}_${campaignName}/Chat/Influencer_${influencerId}_${influencerName}/Message/${p_messageid || newFileName}`
+      // } else if (Number(roleId) === 1) { uniqueFileName = `Influencer/${userId}/Campaigns/${campaignid}_${campaignName}/Chat/Influencer_${influencerId}_${influencerName}/Message/${p_messageid || newFileName}` }
+
+      // Upload file to Supabase
+      const { data, error } = await supabase.storage
+        .from("uploads") // bucket name
+        .upload(uniqueFileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false,
+        });
+
+      if (error) throw error;
+
+      // Get public URL
+      const { data: publicData } = supabase.storage
+        .from("uploads")
+        .getPublicUrl(uniqueFileName);
+
+      uploadedUrls.push(publicData.publicUrl);
+    }
+
+    p_filepaths = uploadedUrls.join(",");
   } else if (req.body.p_filepath) {
     p_filepaths = req.body.p_filepath;
   }
@@ -117,7 +179,7 @@ export const insertMessage = async (req, res) => {
         null,
         null,
         p_replyid || null,
-        p_messageid  || null,
+        p_messageid || null,
       ]
     );
 
@@ -137,7 +199,6 @@ export const insertMessage = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
-
 
 //Get Conversations (Full)
 export const getConversationsdetails = async (req, res) => {
@@ -281,7 +342,6 @@ export const getConversationsdetails = async (req, res) => {
 //   }
 // };
 
-
 export const getMessages = async (req, res) => {
   try {
     const { p_conversationid, p_roleid, p_limit, p_offset } = req.query;
@@ -363,7 +423,7 @@ export const getMessages = async (req, res) => {
 
 export const updateUndoMessage = async (req, res) => {
   try {
-    const { p_messageid, p_roleid, p_action  } = req.body;
+    const { p_messageid, p_roleid, p_action } = req.body;
     if (!p_messageid || !p_roleid || !p_action) {
       return res
         .status(400)

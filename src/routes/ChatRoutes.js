@@ -13,7 +13,7 @@ import {
   // deleteMessage,
 
 } from '../controller/ChatConversationController.js';
-import { upload } from '../middleware/ChatMulterMiddleware.js';
+import { chatupload } from '../middleware/ChatMulterMiddleware.js';
 import authenticateUser from '../middleware/AuthMiddleware.js';
 
 const routes = express.Router();
@@ -21,7 +21,7 @@ const routes = express.Router();
 // Create a new conversation
 
 routes.post("/startconversation", authenticateUser(["Vendor"]), startConversation);
-routes.post("/insertmessage", authenticateUser(["Influencer", "Vendor"]),resolveUsername,upload.array("file", 1), insertMessage);
+routes.post("/insertmessage", authenticateUser(["Influencer", "Vendor"]),resolveUsername,chatupload.array("file", 5), insertMessage);
 routes.get("/conversationsdetails", authenticateUser(["Influencer", "Vendor"]), getConversationsdetails);
 // routes.get("/conversationsdetails/campaigns", authenticateUser(["Influencer", "Vendor"]), getCampaigns);
 // routes.get("/conversationsdetails/influencers", authenticateUser(["Influencer","Vendor"]), getInfluencers);
