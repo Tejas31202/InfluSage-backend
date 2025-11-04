@@ -59,10 +59,10 @@ app.use("/vendor", VendorCampaignRoutes);
 app.use("/vendor", VendorBrowseInfluencerRoutes);
 app.use("/vendor", VendorOffersRoutes);
 app.use("/vendor", VendorMyCampaignRoutes);
+app.use("/vendor",VendorDashboardRoutes);
 app.use("/chat", ChatRoutes);
 app.use("/new",NotificationRoutes);
 app.use("/admin",AdminPanelRoutes);
-app.use("/user",VendorDashboardRoutes);
 
 const PORT = process.env.BACKEND_PORT || 3001;
 
