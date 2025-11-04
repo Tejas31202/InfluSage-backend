@@ -27,8 +27,13 @@ export function campaignEmailHTML({ userName,campaignName,status }) {
   `;
 }
 
-export function htmlContent({otp}){
-  `<h3>InfluSage Verification Code</h3>
-      <p>Your OTP is: <strong style="font-size:24px;">${otp}</strong></p>
-      <p>This code will expire in 10 minutes.</p>`;
+
+ export function htmlContent({ otp }) {
+  return `
+    <div style="font-family: Arial, sans-serif;">
+      <h2>InfluSage Verification Code</h2>
+      <p>Your OTP is: <b>${otp}</b></p>
+      <p>This code expires in 5 minutes.</p>
+    </div>
+  `;
 }
