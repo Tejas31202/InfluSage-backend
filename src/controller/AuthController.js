@@ -184,17 +184,18 @@ export async function getFacebookLoginPage(req, res) {
     const { roleid } = req.query;
 
     const redirectUrl =
-      `https://www.facebook.com/v17.0/dialog/oauth?` +
+      `https://www.facebook.com/v23.0/dialog/oauth?` +
       `client_id=${process.env.FACEBOOK_APP_ID}` +
       `&redirect_uri=${process.env.BACKEND_URL}/auth/facebook/callback` +
       `&scope=email,public_profile`;
 
     res.cookie("selected_role", roleid, {
-      maxAge: 10 * 60 * 1000,
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-    });
+    maxAge: 10 * 60 * 1000,
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+  });
+
 
     res.redirect(redirectUrl);
   } catch (err) {
@@ -216,7 +217,7 @@ export async function getFacebookLoginCallback(req, res) {
   try {
     // Exchange code for access token
     const tokenRes = await axios.get(
-      `https://graph.facebook.com/v17.0/oauth/access_token?` +
+      `https://graph.facebook.com/v23.0/oauth/access_token?` +
         `client_id=${process.env.FACEBOOK_APP_ID}` +
         `&redirect_uri=${process.env.BACKEND_URL}/auth/facebook/callback` +
         `&client_secret=${process.env.FACEBOOK_APP_SECRET}` +
