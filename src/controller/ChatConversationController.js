@@ -82,9 +82,9 @@ export const startConversation = async (req, res) => {
 };
 
 export const insertMessage = async (req, res) => {
-  const { p_conversationid, p_roleid, p_messages, p_replyid, p_messageid, campaignid, campaignName } = req.body || {};
-  const influencerId = req.user?.id;
-  const influencerName = req.user?.name;
+  const { p_conversationid, p_roleid, p_messages, p_replyid, p_messageid, campaignid, campaignName,influencerId,influencerName } = req.body || {};
+  // const influencerId = req.user?.id;
+  // const influencerName = req.user?.name;
   let p_filepaths = null;
   if (req.files && req.files.length > 0) {
     const uploadedUrls = [];
@@ -92,7 +92,7 @@ export const insertMessage = async (req, res) => {
     // Get role and user info
     const roleId = req.user?.roleId || p_roleid;
     const userId = req.user?.id;
-    // const username = req.username || "user";
+    const username = req.username || "user";
 
     // Dynamic Folder Cretion
 
@@ -106,7 +106,7 @@ export const insertMessage = async (req, res) => {
 
 
     for (const file of req.files) {
-      const newFileName = `${Date.now()}_${file.originalname}`;
+      const newFileName = `${file.originalname}`;
 
       let uniqueFileName = ""
 
@@ -115,7 +115,7 @@ export const insertMessage = async (req, res) => {
 
       //Created Folder Path For Vendor And Influencer saved in vendor side
       if (Number(roleId) === 1 || Number(roleId) === 2) {
-        uniqueFileName = `Vendor/${userId}/Campaigns/${campaignid}_${campaignName}/Chat/Influencer_${influencerId}_${influencerName}/Message/${p_messageid || newFileName}`;
+        uniqueFileName = `Vendor/${userId}_${username}/Campaigns/${campaignid}_${campaignName}/Chat/${influencerId}_${influencerName}/${newFileName}`;
       }
 
       //If Role Id Not Match
