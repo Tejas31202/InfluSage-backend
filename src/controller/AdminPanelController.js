@@ -202,6 +202,7 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
     const actionableMessages = [
       "User Approved.",
       "User Rejected.",
+      "User Blocked.",
       "Campaign Approved.",
       "Campaign Rejected.",
     ];

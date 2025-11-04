@@ -82,7 +82,7 @@ export const startConversation = async (req, res) => {
 };
 
 export const insertMessage = async (req, res) => {
-  const { p_conversationid, p_roleid, p_messages, p_replyid, p_messageid, campaignid, campaignName,influencerId,influencerName } = req.body || {};
+  const { p_conversationid, p_roleid, p_messages, p_replyid, p_messageid, campaignid, campaignName, influencerId, influencerName, vendorId, vendorName} = req.body || {};
   // const influencerId = req.user?.id;
   // const influencerName = req.user?.name;
   let p_filepaths = null;
@@ -114,8 +114,10 @@ export const insertMessage = async (req, res) => {
       // const uniqueFileName = `${roleFolder}/${userId}_${username}/campaign/${campaignid}_${campaignName}/chat/${newFileName}`;
 
       //Created Folder Path For Vendor And Influencer saved in vendor side
-      if (Number(roleId) === 1 || Number(roleId) === 2) {
+      if (Number(roleId) === 2) {
         uniqueFileName = `Vendor/${userId}_${username}/Campaigns/${campaignid}_${campaignName}/Chat/${influencerId}_${influencerName}/${newFileName}`;
+      } else if ((Number(roleId) === 1)){
+        uniqueFileName = `Vendor/${vendorId}_${vendorName}/Campaigns/${campaignid}_${campaignName}/Chat/${userId}_${username}/${newFileName}`;
       }
 
       //If Role Id Not Match
