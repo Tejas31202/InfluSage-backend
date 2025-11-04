@@ -33,7 +33,7 @@ export function campaignEmailHTML({ userName,campaignName,status }) {
     <div style="font-family: Arial, sans-serif;">
       <h2>InfluSage Verification Code</h2>
       <p>Your OTP is: <b>${otp}</b></p>
-      <p>This code expires in 5 minutes.</p>
+      <p>This code expires in 1 minutes.</p>
     </div>
   `;
 }
