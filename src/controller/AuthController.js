@@ -12,7 +12,6 @@ const JWT_SECRET = process.env.JWT_SECRET;
 // ================== Helper Functions ==================
 
 async function getUserByEmail(email) {
-  // ✅ Replaced fn_get_loginpassword with usp_login_user
   const result = await client.query(
     "CALL ins.usp_login_user($1::VARCHAR, $2::JSON, $3::BOOLEAN, $4::TEXT);",
     [email, null, null, null]
@@ -55,13 +54,36 @@ async function createUser(data) {
   return { p_code, p_message };
 }
 
+// ✅ Common login handler used by both manual + social login
+async function handleUserLogin(user) {
+  const token = jwt.sign(
+    {
+      id: user.userid,
+      email: user.email,
+      role: user.roleid,
+      name: user.fullname,
+    },
+    JWT_SECRET,
+    { expiresIn: "1h" }
+  );
+
+  return {
+    success: true,
+    message: `Welcome back ${user.fullname}`,
+    token,
+    id: user.userid,
+    name: user.fullname,
+    email: user.email,
+    role: user.roleid,
+  };
+}
+
 // ================== Normal Login ==================
 
 export const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // ✅ Using new login SP
     const result = await client.query(
       "CALL ins.usp_login_user($1::VARCHAR, $2::JSON, $3::BOOLEAN, $4::TEXT);",
       [email, null, null, null]
@@ -93,35 +115,14 @@ export const loginUser = async (req, res) => {
       return res.status(400).json({ message: p_message });
     }
 
-    // Password check
     const isMatch = await bcrypt.compare(password, user.passwordhash);
     if (!isMatch) {
       return res.status(401).json({ message: "Incorrect password" });
     }
 
-    // Generate JWT
-    const token = jwt.sign(
-      {
-        id: user.userid,
-        email: user.email,
-        role: user.roleid,
-        name: user.fullname,
-      },
-      JWT_SECRET,
-      { expiresIn: "1h" }
-    );
+    const loginResponse = await handleUserLogin(user);
 
-    return res.status(200).json({
-      success: true,
-      message: `Welcome back ${user.fullname}`,
-      token,
-      id: user.userid,
-      name: user.fullname,
-      email: user.email,
-      role: user.roleid,
-      p_code: user.code,
-      p_message: user.message,
-    });
+    return res.status(200).json(loginResponse);
   } catch (error) {
     console.error("[ERROR] loginUser:", error);
     return res.status(500).json({ message: "Server error during login" });
@@ -177,10 +178,9 @@ export async function getGoogleLoginCallback(req, res) {
     const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
     const { data } = await oauth2.userinfo.get();
 
-        let user = await getUserByEmail(data.email);
+    let user = await getUserByEmail(data.email);
 
     if (!user) {
-      // user not in DB -> send to role selection
       const redirectUrl = `${process.env.FRONTEND_URL}/roledefault?email=${encodeURIComponent(
         data.email
       )}&firstName=${encodeURIComponent(data.given_name || "")}&lastName=${encodeURIComponent(
@@ -197,8 +197,9 @@ export async function getGoogleLoginCallback(req, res) {
       `&userId=${loginResponse.id}` +
       `&roleId=${loginResponse.role}` +
       `&firstName=${encodeURIComponent(user.firstname)}` +
-      `&lastName=${encodeURIComponent(user.lastname)}` +
-      `&email=${encodeURIComponent(user.email)}`;
+      `&lastName=${encodeURIComponent(user.lastname)}&email=${encodeURIComponent(
+        user.email
+      )}`;
 
     return res.redirect(redirectUrl);
   } catch (err) {
@@ -317,6 +318,7 @@ export async function getFacebookLoginCallback(req, res) {
     }
 
     let user = await getUserByEmail(fbUser.email);
+
     if (!user) {
       const redirectUrl = `${process.env.FRONTEND_URL}/roledefault?email=${encodeURIComponent(
         fbUser.email
@@ -326,19 +328,17 @@ export async function getFacebookLoginCallback(req, res) {
       return res.redirect(redirectUrl);
     }
 
-    const token = generateToken({
-      id: user.userid,
-      role: user.roleid,
-      firstName: user.firstname,
-      lastName: user.lastname,
-      email: user.email,
-    });
+    // ✅ Reuse normal login logic
+    const loginResponse = await handleUserLogin(user);
 
-    const redirectUrl = `${process.env.FRONTEND_URL}/login?token=${token}&userId=${user.userid}&roleId=${user.roleid}&firstName=${encodeURIComponent(
-      user.firstname
-    )}&lastName=${encodeURIComponent(user.lastname)}&email=${encodeURIComponent(
-      fbUser.email
-    )}`;
+    const redirectUrl = `${process.env.FRONTEND_URL}/login?` +
+      `token=${loginResponse.token}` +
+      `&userId=${loginResponse.id}` +
+      `&roleId=${loginResponse.role}` +
+      `&firstName=${encodeURIComponent(user.firstname)}` +
+      `&lastName=${encodeURIComponent(user.lastname)}&email=${encodeURIComponent(
+        user.email
+      )}`;
 
     res.redirect(redirectUrl);
   } catch (err) {
