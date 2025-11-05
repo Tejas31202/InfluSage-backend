@@ -17,20 +17,31 @@ async function getUserByEmail(email) {
     [email, null, null, null]
   );
 
-  const dbResponse = result.rows[0];
+  const dbResponse = result.rows?.[0];
   if (!dbResponse) return null;
 
-  const user = dbResponse.p_loginuser;
-  const p_status = dbResponse.p_status;
-  const p_message = dbResponse.p_message;
+  const { p_loginuser, p_status, p_message } = dbResponse;
 
-  if (!p_status || !user) {
-    console.warn(`[INFO] getUserByEmail failed for ${email}: ${p_message}`);
+  // ✅ If procedure explicitly says user not found
+  if (!p_status || !p_loginuser) {
+    console.warn(`[INFO] No user found for ${email}: ${p_message}`);
     return null;
+  }
+
+  // ✅ If p_loginuser is returned as JSON string (some SPs do this)
+  let user = p_loginuser;
+  if (typeof p_loginuser === "string") {
+    try {
+      user = JSON.parse(p_loginuser);
+    } catch (e) {
+      console.error("[ERROR] Failed to parse p_loginuser JSON:", e);
+      user = null;
+    }
   }
 
   return user;
 }
+
 
 async function createUser(data) {
   const { firstname, lastname, email, passwordhash, roleId } = data;
@@ -256,6 +267,7 @@ export async function setPasswordAfterGoogleSignup(req, res) {
     }
 
     const existingUser = await getUserByEmail(email);
+    console.log("existingUser:", existingUser);
     if (existingUser) {
       return res
         .status(400)
