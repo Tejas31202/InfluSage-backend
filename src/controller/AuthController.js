@@ -21,22 +21,21 @@ async function getUserByEmail(email) {
   if (!dbResponse) return null;
 
   const { p_loginuser, p_status, p_message } = dbResponse;
-
-  // ✅ If procedure explicitly says user not found
-  if (!p_status || !p_loginuser) {
-    console.warn(`[INFO] No user found for ${email}: ${p_message}`);
-    return null;
-  }
-
-  // ✅ If p_loginuser is returned as JSON string (some SPs do this)
   let user = p_loginuser;
-  if (typeof p_loginuser === "string") {
+
+  // ✅ Parse JSON if returned as string
+  if (typeof user === "string") {
     try {
-      user = JSON.parse(p_loginuser);
-    } catch (e) {
-      console.error("[ERROR] Failed to parse p_loginuser JSON:", e);
+      user = JSON.parse(user);
+    } catch {
       user = null;
     }
+  }
+
+  // ✅ Handle "NOTREGISTERED" code (user doesn't exist)
+  if (!user || user.code === "NOTREGISTERED" || !user.userid) {
+    console.warn(`[INFO] No user found for ${email}: ${user?.message || p_message}`);
+    return null;
   }
 
   return user;
