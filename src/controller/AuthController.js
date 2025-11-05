@@ -164,27 +164,27 @@ export async function getGoogleLoginCallback(req, res) {
     const { tokens } = await oauth2Client.getToken(code);
     oauth2Client.setCredentials(tokens);
 
-    const oauth2 = google.oauth2({
-      auth: oauth2Client,
-      version: "v2",
-    });
-
+    const oauth2 = google.oauth2({ auth: oauth2Client, version: "v2" });
     const { data } = await oauth2.userinfo.get();
 
+    console.log("🔹 Google user info:", data);
+
     if (!data.email) {
-      return res.status(400).json({ error: "No email found in Google profile" });
+      console.error("❌ No email in Google profile");
+      return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_email`);
     }
 
-    // ✅ Replace getUserByEmail with login SP
+    console.log("🔹 Checking login in DB for:", data.email);
+
     const result = await client.query(
       "SELECT * FROM ins.fn_get_loginpassword($1)",
       [data.email]
     );
 
-    const user = result.rows[0];
+    console.log("🔹 Query result:", result.rows);
 
+    const user = result.rows[0];
     if (!user) {
-      // new user — redirect to role selection
       const redirectUrl = `${process.env.FRONTEND_URL}/roledefault?email=${encodeURIComponent(
         data.email
       )}&firstName=${encodeURIComponent(data.given_name || "")}&lastName=${encodeURIComponent(
@@ -193,7 +193,10 @@ export async function getGoogleLoginCallback(req, res) {
       return res.redirect(redirectUrl);
     }
 
-    // ✅ Generate token
+    if (!process.env.JWT_SECRET) {
+      console.error("❌ Missing JWT_SECRET in env");
+    }
+
     const token = jwt.sign(
       {
         id: user.userid,
@@ -201,11 +204,10 @@ export async function getGoogleLoginCallback(req, res) {
         role: user.roleid,
         name: user.fullname,
       },
-      JWT_SECRET,
+      process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
 
-    // ✅ Redirect with full login response
     const redirectUrl = `${process.env.FRONTEND_URL}/login?` +
       `token=${token}` +
       `&userId=${user.userid}` +
@@ -218,10 +220,11 @@ export async function getGoogleLoginCallback(req, res) {
 
     return res.redirect(redirectUrl);
   } catch (error) {
-    console.error("Google Login Error:", error);
+    console.error("❌ Google Login Error:", error.message);
     return res.redirect(`${process.env.FRONTEND_URL}/login?error=google_login_failed`);
   }
 }
+
 
 
 // ================== Google Signup Set Password ==================
