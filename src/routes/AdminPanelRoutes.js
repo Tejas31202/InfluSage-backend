@@ -18,5 +18,5 @@ routes.get("/dashboard",authenticateUser(["Admin"]),getDashboardCountList);
 routes.get("/dashboard/user-requests",authenticateUser(["Admin"]),getRequestedUserList);
 routes.get("/dashboard/campaign-requests",authenticateUser(["Admin"]),getRequestedCampaignList);
 routes.post("/dashboard/approved-or-rejected",authenticateUser(["Admin"]),insertApprovedOrRejectedApplication);
-routes.get("/dashboard/user-detail",getUserDetails);
+routes.get("/dashboard/user-detail",authenticateUser(["Admin"]),getUserDetails);
 export default routes;

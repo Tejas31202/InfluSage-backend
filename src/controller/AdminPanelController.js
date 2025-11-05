@@ -273,7 +273,7 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
 //changes for getalluserdetails
 export const getUserDetails = async (req, res) => {
   try {
-    const p_userid = req.user?.id || req.body.p_userid;
+    const p_userid = req.query.p_userid || req.body.p_userid;
 
     if (!p_userid) {
       return res.status(400).json({
@@ -286,9 +286,7 @@ export const getUserDetails = async (req, res) => {
       [p_userid]
     );
 
-    console.log("AllDetails ==>", result);
-
-    const allDetails = result.rows[0].fn_get_userdetails;
+    const allDetails = result.rows[0].fn_get_userdetails[0];
 
     if (allDetails === 0 || !allDetails) {
       return res.status(404).json({
