@@ -74,7 +74,7 @@ export const completeUserProfile = async (req, res) => {
       const file = req.files.photo[0];
       const fileName = file.originalname;
       const newFileName = `${userId}_${username}_photo_${fileName}`;
-      const profileFolderPath = `influencers/${userId}_${username}/profile`;
+      const profileFolderPath = `Influencer/${userId}_${username}/Profile`;
       const supabasePath = `${profileFolderPath}/${newFileName}`;
 
       // Delete old photos (optional cleanup)
@@ -123,14 +123,14 @@ export const completeUserProfile = async (req, res) => {
      for (const file of req.files.portfolioFiles) {
     const fileName = file.originalname;
     const newFileName = `${fileName}`;
-    const supabasePath = `influencers/${userId}_${username}/portfolio/${newFileName}`;
+    const supabasePath = `Influencer/${userId}_${username}/Portfolio/${newFileName}`;
     const fileBuffer = file.buffer;
 
     try {
       // ✅ Step 1: Check if file already exists in Supabase
      const { data: existingFile, error: listError } = await supabase.storage
         .from("uploads")
-        .list(`influencers/${userId}_${username}/portfolio`);
+        .list(`Influencer/${userId}_${username}/Portfolio`);
 
       if (listError) {
         console.error("Supabase list error:", listError);
