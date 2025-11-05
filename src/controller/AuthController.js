@@ -177,9 +177,10 @@ export async function getGoogleLoginCallback(req, res) {
     const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
     const { data } = await oauth2.userinfo.get();
 
-    let user = await getUserByEmail(data.email);
+        let user = await getUserByEmail(data.email);
 
     if (!user) {
+      // user not in DB -> send to role selection
       const redirectUrl = `${process.env.FRONTEND_URL}/roledefault?email=${encodeURIComponent(
         data.email
       )}&firstName=${encodeURIComponent(data.given_name || "")}&lastName=${encodeURIComponent(
@@ -188,21 +189,18 @@ export async function getGoogleLoginCallback(req, res) {
       return res.redirect(redirectUrl);
     }
 
-    const token = generateToken({
-      id: user.userid,
-      role: user.roleid,
-      firstName: user.firstname,
-      lastName: user.lastname,
-      email: user.email,
-    });
+    // ✅ Reuse normal login logic
+    const loginResponse = await handleUserLogin(user);
 
-    const redirectUrl = `${process.env.FRONTEND_URL}/login?token=${token}&userId=${user.userid}&roleId=${user.roleid}&firstName=${encodeURIComponent(
-      user.firstname
-    )}&lastName=${encodeURIComponent(user.lastname)}&email=${encodeURIComponent(
-      user.email
-    )}`;
+    const redirectUrl = `${process.env.FRONTEND_URL}/login?` +
+      `token=${loginResponse.token}` +
+      `&userId=${loginResponse.id}` +
+      `&roleId=${loginResponse.role}` +
+      `&firstName=${encodeURIComponent(user.firstname)}` +
+      `&lastName=${encodeURIComponent(user.lastname)}` +
+      `&email=${encodeURIComponent(user.email)}`;
 
-    res.redirect(redirectUrl);
+    return res.redirect(redirectUrl);
   } catch (err) {
     console.error("[ERROR] Google login callback failed:", err);
     return res.status(500).json({ message: "Server error during Google login" });
