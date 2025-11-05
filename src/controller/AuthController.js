@@ -157,30 +157,34 @@ export async function getGoogleLoginPage(req, res) {
 }
 
 export async function getGoogleLoginCallback(req, res) {
-  const { code } = req.query;
-  const selectedRole = req.cookies["selected_role"];
-
-  if (!code) {
-    console.error("[ERROR] Invalid Google login attempt");
-    return res.status(401).json({ message: "Invalid Google login attempt" });
-  }
-
   try {
-    const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      `${process.env.BACKEND_URL}/auth/google/callback`
-    );
+    const code = req.query.code;
+    const selectedRole = req.query.roleid;
 
     const { tokens } = await oauth2Client.getToken(code);
     oauth2Client.setCredentials(tokens);
 
-    const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
+    const oauth2 = google.oauth2({
+      auth: oauth2Client,
+      version: "v2",
+    });
+
     const { data } = await oauth2.userinfo.get();
 
-    let user = await getUserByEmail(data.email);
+    if (!data.email) {
+      return res.status(400).json({ error: "No email found in Google profile" });
+    }
+
+    // ✅ Replace getUserByEmail with login SP
+    const result = await client.query(
+      "SELECT * FROM ins.fn_get_loginpassword($1)",
+      [data.email]
+    );
+
+    const user = result.rows[0];
 
     if (!user) {
+      // new user — redirect to role selection
       const redirectUrl = `${process.env.FRONTEND_URL}/roledefault?email=${encodeURIComponent(
         data.email
       )}&firstName=${encodeURIComponent(data.given_name || "")}&lastName=${encodeURIComponent(
@@ -189,24 +193,36 @@ export async function getGoogleLoginCallback(req, res) {
       return res.redirect(redirectUrl);
     }
 
-    // ✅ Reuse normal login logic
-    const loginResponse = await handleUserLogin(user);
+    // ✅ Generate token
+    const token = jwt.sign(
+      {
+        id: user.userid,
+        email: user.email,
+        role: user.roleid,
+        name: user.fullname,
+      },
+      JWT_SECRET,
+      { expiresIn: "1h" }
+    );
 
+    // ✅ Redirect with full login response
     const redirectUrl = `${process.env.FRONTEND_URL}/login?` +
-      `token=${loginResponse.token}` +
-      `&userId=${loginResponse.id}` +
-      `&roleId=${loginResponse.role}` +
+      `token=${token}` +
+      `&userId=${user.userid}` +
+      `&roleId=${user.roleid}` +
       `&firstName=${encodeURIComponent(user.firstname)}` +
-      `&lastName=${encodeURIComponent(user.lastname)}&email=${encodeURIComponent(
-        user.email
-      )}`;
+      `&lastName=${encodeURIComponent(user.lastname)}` +
+      `&email=${encodeURIComponent(user.email)}` +
+      `&p_code=${encodeURIComponent(user.p_code)}` +
+      `&p_message=${encodeURIComponent(user.p_message)}`;
 
     return res.redirect(redirectUrl);
-  } catch (err) {
-    console.error("[ERROR] Google login callback failed:", err);
-    return res.status(500).json({ message: "Server error during Google login" });
+  } catch (error) {
+    console.error("Google Login Error:", error);
+    return res.redirect(`${process.env.FRONTEND_URL}/login?error=google_login_failed`);
   }
 }
+
 
 // ================== Google Signup Set Password ==================
 
