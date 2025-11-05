@@ -157,16 +157,29 @@ export async function getGoogleLoginPage(req, res) {
 }
 
 export async function getGoogleLoginCallback(req, res) {
-  try {
-    const code = req.query.code;
-    const selectedRole = req.query.roleid;
+  const { code } = req.query;
+  const selectedRole = req.cookies["selected_role"];
 
+  if (!code) {
+    console.error("[ERROR] Invalid Google login attempt");
+    return res.status(401).json({ message: "Invalid Google login attempt" });
+  }
+
+  try {
+    // ✅ FIX: initialize oauth2Client
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      `${process.env.BACKEND_URL}/auth/google/callback`
+    );
+
+    // 🔹 Exchange code for tokens
     const { tokens } = await oauth2Client.getToken(code);
     oauth2Client.setCredentials(tokens);
 
-    const oauth2 = google.oauth2({ auth: oauth2Client, version: "v2" });
+    // 🔹 Get user info from Google
+    const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
     const { data } = await oauth2.userinfo.get();
-
     console.log("🔹 Google user info:", data);
 
     if (!data.email) {
@@ -174,17 +187,22 @@ export async function getGoogleLoginCallback(req, res) {
       return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_email`);
     }
 
-    console.log("🔹 Checking login in DB for:", data.email);
-
+    // 🔹 Call your new login SP instead of fn_get_loginpassword
+    console.log("🔹 Checking user login in DB:", data.email);
     const result = await client.query(
-      "SELECT * FROM ins.fn_get_loginpassword($1)",
-      [data.email]
+      "CALL ins.usp_login_user($1::VARCHAR, $2::JSON, $3::BOOLEAN, $4::TEXT);",
+      [data.email, null, null, null]
     );
 
-    console.log("🔹 Query result:", result.rows);
+    console.log("🔹 SP result:", result.rows);
 
-    const user = result.rows[0];
-    if (!user) {
+    const dbResponse = result.rows[0];
+    const user = dbResponse?.p_loginuser;
+    const p_status = dbResponse?.p_status;
+    const p_message = dbResponse?.p_message;
+
+    // 🔸 If user not found — redirect to role selection page
+    if (!user || user.code === "NOTREGISTERED") {
       const redirectUrl = `${process.env.FRONTEND_URL}/roledefault?email=${encodeURIComponent(
         data.email
       )}&firstName=${encodeURIComponent(data.given_name || "")}&lastName=${encodeURIComponent(
@@ -193,31 +211,31 @@ export async function getGoogleLoginCallback(req, res) {
       return res.redirect(redirectUrl);
     }
 
-    if (!process.env.JWT_SECRET) {
-      console.error("❌ Missing JWT_SECRET in env");
+    if (!p_status) {
+      console.error("❌ Login SP failed:", p_message);
+      return res.redirect(
+        `${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(p_message)}`
+      );
     }
 
-    const token = jwt.sign(
-      {
-        id: user.userid,
-        email: user.email,
-        role: user.roleid,
-        name: user.fullname,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "1h" }
-    );
+    // 🔹 Generate JWT token
+    const token = generateToken({
+      id: user.userid,
+      role: user.roleid,
+      firstName: user.firstname,
+      lastName: user.lastname,
+      email: user.email,
+    });
 
-    const redirectUrl = `${process.env.FRONTEND_URL}/login?` +
-      `token=${token}` +
-      `&userId=${user.userid}` +
-      `&roleId=${user.roleid}` +
-      `&firstName=${encodeURIComponent(user.firstname)}` +
-      `&lastName=${encodeURIComponent(user.lastname)}` +
-      `&email=${encodeURIComponent(user.email)}` +
-      `&p_code=${encodeURIComponent(user.p_code)}` +
-      `&p_message=${encodeURIComponent(user.p_message)}`;
+    const redirectUrl = `${process.env.FRONTEND_URL}/login?token=${token}&userId=${user.userid}&roleId=${user.roleid}&firstName=${encodeURIComponent(
+      user.firstname
+    )}&lastName=${encodeURIComponent(user.lastname)}&email=${encodeURIComponent(
+      user.email
+    )}&p_code=${encodeURIComponent(user.code)}&p_message=${encodeURIComponent(
+      user.message
+    )}`;
 
+    console.log("✅ Redirecting to:", redirectUrl);
     return res.redirect(redirectUrl);
   } catch (error) {
     console.error("❌ Google Login Error:", error.message);
