@@ -360,10 +360,11 @@ export async function getFacebookLoginCallback(req, res) {
 
   if (err || !code) {
     console.warn("[INFO] Facebook login canceled or invalid attempt");
-    return res.redirect(`${process.env.FRONTEND_URL}/login/`);
+    return res.redirect(`${process.env.FRONTEND_URL}/login?error=facebook_login_canceled`);
   }
 
   try {
+    // 🔹 Exchange code for access token
     const tokenRes = await axios.get(
       `https://graph.facebook.com/v23.0/oauth/access_token?` +
         `client_id=${process.env.FACEBOOK_APP_ID}` +
@@ -373,44 +374,87 @@ export async function getFacebookLoginCallback(req, res) {
     );
 
     const accessToken = tokenRes.data.access_token;
+
+    // 🔹 Fetch user info from Facebook
     const userRes = await axios.get(
       `https://graph.facebook.com/me?fields=first_name,last_name,email&access_token=${accessToken}`
     );
 
     const fbUser = userRes.data;
+    console.log("🔹 Facebook user info:", fbUser);
+
     if (!fbUser.email) {
-      return res
-        .status(400)
-        .json({ message: "Facebook login failed: no email found" });
+      console.error("❌ No email found in Facebook response");
+      return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_email`);
     }
 
-    let user = await getUserByEmail(fbUser.email);
+    // 🔹 Call login stored procedure
+    console.log("🔹 Checking user in DB:", fbUser.email);
+    const result = await client.query(
+      "CALL ins.usp_login_user($1::VARCHAR, $2::JSON, $3::BOOLEAN, $4::TEXT);",
+      [fbUser.email, null, null, null]
+    );
 
-    if (!user) {
+    const dbResponse = result.rows[0];
+    const user = dbResponse?.p_loginuser;
+    // ✅ Ensure fullname is always set
+if (user) {
+  user.fullname =
+    user.fullname || 
+    `${user.firstname || ""} ${user.lastname || ""}`.trim() || 
+    `${fbUser.first_name || ""} ${fbUser.last_name || ""}`.trim() || 
+    "User";
+}
+
+    const p_status = dbResponse?.p_status;
+    const p_message = dbResponse?.p_message;
+
+    // 🔸 If user is not registered — redirect to role selection
+    if (!user || user.code === "NOTREGISTERED") {
       const redirectUrl = `${process.env.FRONTEND_URL}/roledefault?email=${encodeURIComponent(
         fbUser.email
       )}&firstName=${encodeURIComponent(fbUser.first_name || "")}&lastName=${encodeURIComponent(
         fbUser.last_name || ""
       )}&roleId=${selectedRole || ""}`;
+      console.log("🔸 Redirecting to signup role page:", redirectUrl);
       return res.redirect(redirectUrl);
     }
 
-    // ✅ Reuse normal login logic
-    const loginResponse = await handleUserLogin(user);
+    if (!p_status) {
+      console.error("❌ Facebook login SP failed:", p_message);
+      return res.redirect(
+        `${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(p_message)}`
+      );
+    }
+
+    // 🔹 Generate JWT token
+    const token = generateToken({
+  id: user.userid,
+  role: user.roleid,
+  firstName: user.firstname || fbUser.first_name || "",
+  lastName: user.lastname || fbUser.last_name || "",
+  email: user.email,
+  name: user.fullname, // ✅ Include fullname
+});
+
 
     const redirectUrl = `${process.env.FRONTEND_URL}/login?` +
-      `token=${loginResponse.token}` +
-      `&userId=${loginResponse.id}` +
-      `&roleId=${loginResponse.role}` +
-      `&firstName=${encodeURIComponent(user.firstname)}` +
-      `&lastName=${encodeURIComponent(user.lastname)}&email=${encodeURIComponent(
-        user.email
-      )}`;
+  `token=${token}` +
+  `&userId=${user.userid}` +
+  `&roleId=${user.roleid}` +
+  `&firstName=${encodeURIComponent(user.firstname || fbUser.first_name || "")}` +
+  `&lastName=${encodeURIComponent(user.lastname || fbUser.last_name || "")}` +
+  `&email=${encodeURIComponent(user.email)}` +
+  `&name=${encodeURIComponent(user.fullname)}` + // ✅ send fullname
+  `&p_code=${encodeURIComponent(user.code)}` +
+  `&p_message=${encodeURIComponent(user.message)}`;
 
-    res.redirect(redirectUrl);
-  } catch (err) {
-    console.error("[ERROR] Facebook login callback failed:", err);
-    return res.redirect(`${process.env.FRONTEND_URL}/login/`);
+
+    console.log("✅ Redirecting to frontend:", redirectUrl);
+    return res.redirect(redirectUrl);
+  } catch (error) {
+    console.error("❌ Facebook Login Error:", error.message);
+    return res.redirect(`${process.env.FRONTEND_URL}/login?error=facebook_login_failed`);
   }
 }
 
