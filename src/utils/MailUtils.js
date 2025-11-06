@@ -8,16 +8,12 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-export async function sendingMail(to, subject, otp) {
+export async function sendingMail(to, subject,htmlContent) {
   await transporter.sendMail({
     from: process.env.EMAIL_USER,
     to,
     subject,
-    html: `
-      <h3>InfluSage Verification Code</h3>
-      <p>Your OTP is: <strong style="font-size:24px;">${otp}</strong></p>
-      <p>This code will expire in 10 minutes.</p>
-    `,
+    html:htmlContent,
   });
 }
 

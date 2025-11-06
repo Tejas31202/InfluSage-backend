@@ -64,3 +64,14 @@ export function campaignEmailHTML({ userName,campaignName,status }) {
     </div>
   `;
 }
+
+export function htmlContent({ otp }) {
+  return `
+      <div style="font-family: Arial, sans-serif;">
+        <h2>InfluSage Verification Code</h2>
+        <p>Your OTP is: <b>${otp}</b></p>
+        <p>This code expires in 1 minutes.</p>
+      </div>
+  `;
+}
+ 
