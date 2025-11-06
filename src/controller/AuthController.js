@@ -193,7 +193,7 @@ export async function getGoogleLoginCallback(req, res) {
     // 🔹 Get user info from Google
     const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
     const { data } = await oauth2.userinfo.get();
-    console.log("🔹 Google user info:", data);
+    // console.log("🔹 Google user info:", data);
 
     if (!data.email) {
       console.error("❌ No email in Google profile");
@@ -201,13 +201,13 @@ export async function getGoogleLoginCallback(req, res) {
     }
 
     // 🔹 Call your new login SP instead of fn_get_loginpassword
-    console.log("🔹 Checking user login in DB:", data.email);
+    // console.log("🔹 Checking user login in DB:", data.email);
     const result = await client.query(
       "CALL ins.usp_login_user($1::VARCHAR, $2::JSON, $3::BOOLEAN, $4::TEXT);",
       [data.email, null, null, null]
     );
 
-    console.log("🔹 SP result:", result.rows);
+    // console.log("🔹 SP result:", result.rows);
 
     const dbResponse = result.rows[0];
     const user = dbResponse?.p_loginuser;
@@ -264,7 +264,7 @@ const redirectUrl = `${process.env.FRONTEND_URL}/login?token=${token}&userId=${u
 )}`;
 
 
-    console.log("✅ Redirecting to:", redirectUrl);
+    // console.log("✅ Redirecting to:", redirectUrl);
     return res.redirect(redirectUrl);
   } catch (error) {
     console.error("❌ Google Login Error:", error.message);
@@ -285,7 +285,7 @@ export async function setPasswordAfterGoogleSignup(req, res) {
     }
 
     const existingUser = await getUserByEmail(email);
-    console.log("existingUser:", existingUser);
+    // console.log("existingUser:", existingUser);
     if (existingUser) {
       return res
         .status(400)
@@ -381,7 +381,7 @@ export async function getFacebookLoginCallback(req, res) {
     );
 
     const fbUser = userRes.data;
-    console.log("🔹 Facebook user info:", fbUser);
+    // console.log("🔹 Facebook user info:", fbUser);
 
     if (!fbUser.email) {
       console.error("❌ No email found in Facebook response");
@@ -389,7 +389,7 @@ export async function getFacebookLoginCallback(req, res) {
     }
 
     // 🔹 Call login stored procedure
-    console.log("🔹 Checking user in DB:", fbUser.email);
+    // console.log("🔹 Checking user in DB:", fbUser.email);
     const result = await client.query(
       "CALL ins.usp_login_user($1::VARCHAR, $2::JSON, $3::BOOLEAN, $4::TEXT);",
       [fbUser.email, null, null, null]
@@ -416,7 +416,7 @@ if (user) {
       )}&firstName=${encodeURIComponent(fbUser.first_name || "")}&lastName=${encodeURIComponent(
         fbUser.last_name || ""
       )}&roleId=${selectedRole || ""}`;
-      console.log("🔸 Redirecting to signup role page:", redirectUrl);
+      // console.log("🔸 Redirecting to signup role page:", redirectUrl);
       return res.redirect(redirectUrl);
     }
 
@@ -450,7 +450,7 @@ if (user) {
   `&p_message=${encodeURIComponent(user.message)}`;
 
 
-    console.log("✅ Redirecting to frontend:", redirectUrl);
+    // console.log("✅ Redirecting to frontend:", redirectUrl);
     return res.redirect(redirectUrl);
   } catch (error) {
     console.error("❌ Facebook Login Error:", error.message);

@@ -148,7 +148,7 @@ export const completeUserProfile = async (req, res) => {
           .from("uploads_UAT")
           .upload(supabasePath, fileBuffer, {
             contentType: file.mimetype,
-            upsert: false, // upsert false → prevent overwriting
+            upsert: true, // upsert false → prevent overwriting
           });
 
         if (uploadError) {
