@@ -232,21 +232,37 @@ export async function getGoogleLoginCallback(req, res) {
     }
 
     // 🔹 Generate JWT token
-    const token = generateToken({
-      id: user.userid,
-      role: user.roleid,
-      firstName: user.firstname,
-      lastName: user.lastname,
-      email: user.email,
-    });
+    // ✅ Ensure fullname
+if (user) {
+  user.fullname =
+    user.fullname ||
+    `${user.firstname || ""} ${user.lastname || ""}`.trim() ||
+    `${data.given_name || ""} ${data.family_name || ""}`.trim() ||
+    data.name ||
+    "User";
+}
 
-    const redirectUrl = `${process.env.FRONTEND_URL}/login?token=${token}&userId=${user.userid}&roleId=${user.roleid}&firstName=${encodeURIComponent(
-      user.firstname
-    )}&lastName=${encodeURIComponent(user.lastname)}&email=${encodeURIComponent(
-      user.email
-    )}&p_code=${encodeURIComponent(user.code)}&p_message=${encodeURIComponent(
-      user.message
-    )}`;
+// ✅ Generate JWT with proper fullname
+const token = generateToken({
+  id: user.userid,
+  role: user.roleid,
+  firstName: user.firstname || data.given_name || "",
+  lastName: user.lastname || data.family_name || "",
+  email: user.email,
+  name: user.fullname,
+});
+
+// ✅ Include fullname in redirect
+const redirectUrl = `${process.env.FRONTEND_URL}/login?token=${token}&userId=${user.userid}&roleId=${user.roleid}&firstName=${encodeURIComponent(
+  user.firstname || data.given_name || ""
+)}&lastName=${encodeURIComponent(
+  user.lastname || data.family_name || ""
+)}&email=${encodeURIComponent(user.email)}&name=${encodeURIComponent(
+  user.fullname
+)}&p_code=${encodeURIComponent(user.code)}&p_message=${encodeURIComponent(
+  user.message
+)}`;
+
 
     console.log("✅ Redirecting to:", redirectUrl);
     return res.redirect(redirectUrl);
