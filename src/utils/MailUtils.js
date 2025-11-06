@@ -7,13 +7,13 @@ dotenv.config();
 // Set API key from environment
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-export async function sendingMail(to, subject,htmlContent) {
+export async function sendingMailFormatForAdmin(to,subject,html){
   await transporter.sendMail({
     from: process.env.EMAIL_USER,
     to,
     subject,
-    html:htmlContent,
-  });
+    html
+  })
 }
 
 export const sendingMail = async (toEmail, subject, htmlContent) => {
