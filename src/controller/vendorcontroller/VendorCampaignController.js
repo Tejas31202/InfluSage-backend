@@ -98,6 +98,14 @@ export const finalizeCampaign = async (req, res) => {
     const finalPhotoFolder = `${finalFolderBase}/campaign_profile`;
     const finalPortfolioFolder = `${finalFolderBase}/campaign_portfolio`;
 
+    // ------------------- DELETE OLD PHOTO IF EXISTS -------------------
+    const { data: existingPhotos } = await supabase.storage.from("uploads").list(finalPhotoFolder);
+
+    if (existingPhotos?.length > 0) {
+        const oldPhotoPaths = existingPhotos.map((f) => `${finalPhotoFolder}/${f.name}`);
+        await supabase.storage.from("uploads").remove(oldPhotoPaths);
+    }
+
     // Move photo files
     const { data: tempPhotos } = await supabase.storage.from("uploads").list(`${baseTempFolder}/campaign_profile`);
     if (tempPhotos?.length > 0) {
