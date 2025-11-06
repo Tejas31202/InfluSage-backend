@@ -79,19 +79,19 @@ export const completeUserProfile = async (req, res) => {
 
       // Delete old photos (optional cleanup)
       const { data: existingFiles } = await supabase.storage
-        .from("uploads")
+        .from("uploads_UAT")
         .list(profileFolderPath);
       if (existingFiles?.length > 0) {
         const oldPaths = existingFiles.map(
           (f) => `${profileFolderPath}/${f.name}`
         );
-        await supabase.storage.from("uploads").remove(oldPaths);
+        await supabase.storage.from("uploads_UAT").remove(oldPaths);
       }
 
       // Upload new photo
       const fileBuffer = file.buffer;
       const { error: uploadError } = await supabase.storage
-        .from("uploads")
+        .from("uploads_UAT")
         .upload(supabasePath, fileBuffer, {
           contentType: file.mimetype,
           upsert: true,
@@ -103,7 +103,7 @@ export const completeUserProfile = async (req, res) => {
           .json({ message: "Failed to upload profile photo" });
 
       const { data: publicUrlData } = supabase.storage
-        .from("uploads")
+        .from("uploads_UAT")
         .getPublicUrl(supabasePath);
 
       const photoUrl = publicUrlData?.publicUrl;
@@ -129,7 +129,7 @@ export const completeUserProfile = async (req, res) => {
     try {
       // ✅ Step 1: Check if file already exists in Supabase
      const { data: existingFile, error: listError } = await supabase.storage
-        .from("uploads")
+        .from("uploads_UAT")
         .list(`Influencer/${userId}_${username}/Portfolio`);
 
       if (listError) {
@@ -145,7 +145,7 @@ export const completeUserProfile = async (req, res) => {
       } else {
         // ✅ Step 2: Upload only if not exists
         const { error: uploadError } = await supabase.storage
-          .from("uploads")
+          .from("uploads_UAT")
           .upload(supabasePath, fileBuffer, {
             contentType: file.mimetype,
             upsert: false, // upsert false → prevent overwriting
@@ -161,7 +161,7 @@ export const completeUserProfile = async (req, res) => {
 
       // ✅ Step 3: Get public URL (works both for existing & new)
       const { data: publicUrlData } = supabase.storage
-        .from("uploads")
+        .from("uploads_UAT")
         .getPublicUrl(supabasePath);
 
       uploadedFiles.push({ filepath: publicUrlData.publicUrl });

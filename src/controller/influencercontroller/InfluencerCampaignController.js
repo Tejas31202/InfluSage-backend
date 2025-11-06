@@ -102,7 +102,7 @@ export const applyNowCampaign = async (req, res) => {
     try {
       // ✅ Step 1: Check if file already exists in Supabase bucket
       const { data: existingFiles, error: listError } = await supabase.storage
-        .from("uploads")
+        .from("uploads_UAT")
         .list(`Influencer/${userFolder}/CampaignId_${campaignId}/ApplyCampaigns/`, {
           search: newFileName,
         });
@@ -120,7 +120,7 @@ export const applyNowCampaign = async (req, res) => {
 
       // ✅ Step 2: Upload if file doesn’t exist
       const { error: uploadError } = await supabase.storage
-        .from("uploads")
+        .from("uploads_UAT")
         .upload(uniqueFileName, fileBuffer, {
           contentType: file.mimetype,
           upsert: false, // ❌ no overwrite
@@ -135,7 +135,7 @@ export const applyNowCampaign = async (req, res) => {
 
       // ✅ Step 3: Get public URL for the uploaded file
       const { data: publicUrlData } = supabase.storage
-        .from("uploads")
+        .from("uploads_UAT")
         .getPublicUrl(uniqueFileName);
 
       uploadedFiles.push({ filepath: publicUrlData.publicUrl });
@@ -522,7 +522,7 @@ export const deleteApplyNowPortfolioFile = async (req, res) => {
 
     // Step 3: Supabase se file delete karo
     const { error: deleteError } = await supabase.storage
-      .from("uploads")
+      .from("uploads_UAT")
       .remove([relativeFilePath]);
 
     if (deleteError) {

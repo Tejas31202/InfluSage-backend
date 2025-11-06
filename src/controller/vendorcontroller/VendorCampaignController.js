@@ -99,22 +99,22 @@ export const finalizeCampaign = async (req, res) => {
     const finalPortfolioFolder = `${finalFolderBase}/campaign_portfolio`;
 
     // ------------------- DELETE OLD PHOTO IF EXISTS -------------------
-    const { data: existingPhotos } = await supabase.storage.from("uploads").list(finalPhotoFolder);
+    const { data: existingPhotos } = await supabase.storage.from("uploads_UAT").list(finalPhotoFolder);
 
     if (existingPhotos?.length > 0) {
         const oldPhotoPaths = existingPhotos.map((f) => `${finalPhotoFolder}/${f.name}`);
-        await supabase.storage.from("uploads").remove(oldPhotoPaths);
+        await supabase.storage.from("uploads_UAT").remove(oldPhotoPaths);
     }
 
     // Move photo files
-    const { data: tempPhotos } = await supabase.storage.from("uploads").list(`${baseTempFolder}/campaign_profile`);
+    const { data: tempPhotos } = await supabase.storage.from("uploads_UAT").list(`${baseTempFolder}/campaign_profile`);
     if (tempPhotos?.length > 0) {
       for (const file of tempPhotos) {
         const oldPath = `${baseTempFolder}/campaign_profile/${file.name}`;
         const newPath = `${finalPhotoFolder}/${file.name}`;
 
         const { data: fileData, error: downloadErr } = await supabase.storage
-          .from("uploads")
+          .from("uploads_UAT")
           .download(oldPath);
 
         if (downloadErr) {
@@ -122,20 +122,20 @@ export const finalizeCampaign = async (req, res) => {
           continue;
         }
 
-        await supabase.storage.from("uploads").upload(newPath, fileData, { upsert: true });
-        await supabase.storage.from("uploads").remove([oldPath]);
+        await supabase.storage.from("uploads_UAT").upload(newPath, fileData, { upsert: true });
+        await supabase.storage.from("uploads_UAT").remove([oldPath]);
       }
     }
 
     // Move portfolio files
-    const { data: tempPortfolios } = await supabase.storage.from("uploads").list(`${baseTempFolder}/campaign_portfolio`);
+    const { data: tempPortfolios } = await supabase.storage.from("uploads_UAT").list(`${baseTempFolder}/campaign_portfolio`);
     if (tempPortfolios?.length > 0) {
       for (const file of tempPortfolios) {
         const oldPath = `${baseTempFolder}/campaign_portfolio/${file.name}`;
         const newPath = `${finalPortfolioFolder}/${file.name}`;
 
         const { data: fileData, error: downloadErr } = await supabase.storage
-          .from("uploads")
+          .from("uploads_UAT")
           .download(oldPath);
 
         if (downloadErr) {
@@ -143,13 +143,13 @@ export const finalizeCampaign = async (req, res) => {
           continue;
         }
 
-        await supabase.storage.from("uploads").upload(newPath, fileData, { upsert: true });
-        await supabase.storage.from("uploads").remove([oldPath]);
+        await supabase.storage.from("uploads_UAT").upload(newPath, fileData, { upsert: true });
+        await supabase.storage.from("uploads_UAT").remove([oldPath]);
       }
     }
 
     // ✅ Clean up temp folders and Redis cache
-    await supabase.storage.from("uploads").remove([
+    await supabase.storage.from("uploads_UAT").remove([
       `${baseTempFolder}/campaign_profile`,
       `${baseTempFolder}/campaign_portfolio`,
     ]);
@@ -431,7 +431,7 @@ export const getProvidorContentTypes = async (req, res) => {
 //       const fileBuffer = file.buffer;
 
 //       const { error: uploadError } = await supabase.storage
-//         .from("uploads")
+//         .from("uploads_UAT")
 //         .upload(supabasePath, fileBuffer, {
 //           contentType: file.mimetype,
 //           upsert: true,
@@ -443,7 +443,7 @@ export const getProvidorContentTypes = async (req, res) => {
 //       }
 
 //       const { data: publicURL } = supabase.storage
-//         .from("uploads")
+//         .from("uploads_UAT")
 //         .getPublicUrl(supabasePath);
 
 //       campaignPhotoPath = publicURL.publicUrl;
@@ -459,7 +459,7 @@ export const getProvidorContentTypes = async (req, res) => {
 //           const fileBuffer = file.buffer;
 
 //           const { error: uploadError } = await supabase.storage
-//             .from("uploads")
+//             .from("uploads_UAT")
 //             .upload(filePath, fileBuffer, {
 //               contentType: file.mimetype,
 //               upsert: true,
@@ -469,7 +469,7 @@ export const getProvidorContentTypes = async (req, res) => {
 //             console.warn("⚠️ File upload failed:", uploadError.message);
 
 //           const { data: publicURL } = supabase.storage
-//             .from("uploads")
+//             .from("uploads_UAT")
 //             .getPublicUrl(filePath);
 
 //           return { filepath: publicURL.publicUrl };
@@ -676,57 +676,16 @@ export const upsertCampaign = async (req, res) => {
       const newFileName = file.originalname;
       const tempPhotoPath = `${tempPhotoFolder}/${newFileName}`;
 
-      const fileBuffer = file.buffer || fs.readFileSync(file.path);
-
-      const { error: uploadError } = await supabase.storage
-        .from("uploads")
-        .upload(supabasePath, fileBuffer, {
-          contentType: file.mimetype,
-          upsert: true,
-        });
-
-      if (uploadError) {
-        console.error("Upload error:", uploadError.message);
-        throw uploadError;
-      }
-
-      const { data: publicURL } = supabase.storage
-        .from("uploads")
-        .getPublicUrl(supabasePath);
-
-      campaignPhotoPath = publicURL.publicUrl;
-      p_campaignjson.photopath = campaignPhotoPath;
-    }
-    // Upload multiple files
-    if (req.files?.Files?.length > 0) {
-      campaignFiles = await Promise.all(
-        req.files.Files.map(async (file, index) => {
-          const ext = path.extname(file.originalname);
-          const newFileName = `${p_userid}_${username}_portfolio_file_${Date.now()}_${index}${ext}`;
-          const filePath = `vendors/${p_userid}_${username}/campaigns/${newFileName}`;
-          const fileBuffer = file.buffer;
-
-const { error } = await supabase.storage.from("uploads").upload(
+      const { error } = await supabase.storage.from("uploads_UAT").upload(
         tempPhotoPath,
         file.buffer,
-        { contentType: file.mimetype, upsert: true });
-
-          if (uploadError)
-            console.warn("⚠️ File upload failed:", uploadError.message);
-
-          const { data: publicURL } = supabase.storage
-            .from("uploads")
-            .getPublicUrl(filePath);
-
-          return { filepath: publicURL.publicUrl };
-        })
-
+        { contentType: file.mimetype, upsert: true }
       );
       if (error) throw new Error(`Photo upload failed: ${error.message}`);
 
       // // ✅ Only store filename in DB
       // p_campaignjson.photopath = newFileName;
-      const { data: publicData } = supabase.storage.from("uploads").getPublicUrl(tempPhotoPath);
+      const { data: publicData } = supabase.storage.from("uploads_UAT").getPublicUrl(tempPhotoPath);
         p_campaignjson.photopath = publicData.publicUrl; // store full URL for UI
     }
 
@@ -736,7 +695,7 @@ const { error } = await supabase.storage.from("uploads").upload(
         const newFileName = file.originalname;
         const tempPortfolioPath = `${tempPortfolioFolder}/${newFileName}`;
 
-        const { error } = await supabase.storage.from("uploads").upload(
+        const { error } = await supabase.storage.from("uploads_UAT").upload(
           tempPortfolioPath,
           file.buffer,
           { contentType: file.mimetype, upsert: true }
@@ -745,7 +704,7 @@ const { error } = await supabase.storage.from("uploads").upload(
 
         // // ✅ Only store filename in DB
         // campaignFiles.push({ filepath: newFileName });
-        const { data: publicData } = supabase.storage.from("uploads").getPublicUrl(tempPortfolioPath);
+        const { data: publicData } = supabase.storage.from("uploads_UAT").getPublicUrl(tempPortfolioPath);
         campaignFiles.push({filepath: publicData.publicUrl });
       }
     }
