@@ -32,11 +32,13 @@ async function getUserByEmail(email) {
     }
   }
 
-  // ✅ Handle "NOTREGISTERED" code (user doesn't exist)
   if (!user || user.code === "NOTREGISTERED" || !user.userid) {
     console.warn(`[INFO] No user found for ${email}: ${user?.message || p_message}`);
     return null;
   }
+
+  // ✅ Add fullname fallback
+  user.fullname = user.fullname || `${user.firstname || ""} ${user.lastname || ""}`.trim();
 
   return user;
 }
@@ -64,14 +66,16 @@ async function createUser(data) {
   return { p_code, p_message };
 }
 
-// ✅ Common login handler used by both manual + social login
+//  Common login handler used by both manual + social login
 async function handleUserLogin(user) {
+  const fullname = user.fullname || `${user.firstname || ""} ${user.lastname || ""}`.trim();
+
   const token = jwt.sign(
     {
       id: user.userid,
       email: user.email,
       role: user.roleid,
-      name: user.fullname,
+      name: fullname,
     },
     JWT_SECRET,
     { expiresIn: "1h" }
@@ -79,15 +83,14 @@ async function handleUserLogin(user) {
 
   return {
     success: true,
-    message: `Welcome back ${user.fullname}`,
+    message: `Welcome back ${fullname}`,
     token,
     id: user.userid,
-    name: user.fullname,
+    name: fullname,
     email: user.email,
     role: user.roleid,
   };
 }
-
 // ================== Normal Login ==================
 
 export const loginUser = async (req, res) => {
