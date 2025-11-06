@@ -1,6 +1,11 @@
+import { createClient } from '@supabase/supabase-js';
 import { client } from '../config/Db.js';
 // import authenticateUser from '../middleware/AuthMiddleware.js';
 
+// Create Supabase client once at the top
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 export const resolveUsername = async (req, res, next) => {
   const userId = req.user?.id || req.body?.userId;
@@ -38,14 +43,14 @@ export const resolveUsername = async (req, res, next) => {
 };
 
 export const startConversation = async (req, res) => {
-  const { p_campaignapplicationid} = req.body;
+  const { p_campaignapplicationid } = req.body;
 
-  if (!p_campaignapplicationid ) {
+  if (!p_campaignapplicationid) {
     return res.status(400).json({
       message: "campaignapplicationid  Id Require",
     });
   }
-  
+
 
   try {
     const result = await client.query(
@@ -76,17 +81,76 @@ export const startConversation = async (req, res) => {
   }
 };
 
-
-
 export const insertMessage = async (req, res) => {
-  const { p_conversationid, p_roleid, p_messages, p_replyid, p_messageid  } = req.body || {};
-
-  // Multiple file paths
+  const { p_conversationid, p_roleid, p_messages, p_replyid, p_messageid, campaignid, campaignName, influencerId, influencerName, vendorId, vendorName} = req.body || {};
+  // const influencerId = req.user?.id;
+  // const influencerName = req.user?.name;
   let p_filepaths = null;
   if (req.files && req.files.length > 0) {
-    p_filepaths = req.files
-      .map((file) => file.path.replace(/\\/g, "/"))
-      .join(",");
+    const uploadedUrls = [];
+
+    // Get role and user info
+    const roleId = req.user?.roleId || p_roleid;
+    const userId = req.user?.id;
+    const username = req.username || "user";
+
+    // Dynamic Folder Cretion
+
+    // let roleFolder;
+    // if (Number(roleId) === 1) roleFolder = "influencers";
+    // else if (Number(roleId) === 2) roleFolder = "vendors";
+    // else roleFolder = "others";
+
+    //Which Role Id Get In Console
+    // console.log("roleid==>", roleId)
+
+
+    for (const file of req.files) {
+      const newFileName = `${file.originalname}`;
+
+      let uniqueFileName = ""
+
+      //Dynamic create a Folder
+      // const uniqueFileName = `${roleFolder}/${userId}_${username}/campaign/${campaignid}_${campaignName}/chat/${newFileName}`;
+
+      //Created Folder Path For Vendor And Influencer saved in vendor side
+      if (Number(roleId) === 2) {
+        uniqueFileName = `Vendor/${userId}_${username}/Campaigns/${campaignid}_${campaignName}/Chat/${influencerId}_${influencerName}/${newFileName}`;
+      } else if ((Number(roleId) === 1)){
+        uniqueFileName = `Vendor/${vendorId}_${vendorName}/Campaigns/${campaignid}_${campaignName}/Chat/${userId}_${username}/${newFileName}`;
+      }
+
+      //If Role Id Not Match
+      //  else {
+      //   console.error("Invalid roleId: only 1 (Influencer) or 2 (Vendor) are allowed.");
+      //   uniqueFileName = null; // or handle it however you want
+      // }
+
+      //Vendor And Influencer Different Path For Save supabase
+      // storage vendor and influencer 
+      // if (Number(roleId) === 2) {
+      //   uniqueFileName = `Vendor/${userId}/Campaigns/${campaignid}_${campaignName}/Chat/Influencer_${influencerId}_${influencerName}/Message/${p_messageid || newFileName}`
+      // } else if (Number(roleId) === 1) { uniqueFileName = `Influencer/${userId}/Campaigns/${campaignid}_${campaignName}/Chat/Influencer_${influencerId}_${influencerName}/Message/${p_messageid || newFileName}` }
+
+      // Upload file to Supabase
+      const { data, error } = await supabase.storage
+        .from("uploads") // bucket name
+        .upload(uniqueFileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false,
+        });
+
+      if (error) throw error;
+
+      // Get public URL
+      const { data: publicData } = supabase.storage
+        .from("uploads")
+        .getPublicUrl(uniqueFileName);
+
+      uploadedUrls.push(publicData.publicUrl);
+    }
+
+    p_filepaths = uploadedUrls.join(",");
   } else if (req.body.p_filepath) {
     p_filepaths = req.body.p_filepath;
   }
@@ -117,7 +181,7 @@ export const insertMessage = async (req, res) => {
         null,
         null,
         p_replyid || null,
-        p_messageid  || null,
+        p_messageid || null,
       ]
     );
 
@@ -137,7 +201,6 @@ export const insertMessage = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
-
 
 //Get Conversations (Full)
 export const getConversationsdetails = async (req, res) => {
@@ -172,115 +235,6 @@ export const getConversationsdetails = async (req, res) => {
     });
   }
 };
-
-// Get Campaigns only
-// export const getCampaigns = async (req, res) => {
-//   try {
-//     const p_userid = req.user?.id;
-//     const { p_search = "" } = req.query || {};
-
-//     if (!p_userid) {
-//       return res.status(400).json({ message: "User ID is required." });
-//     }
-
-//     const result = await client.query(
-//       `SELECT * FROM ins.fn_get_conversationdetails($1::BIGINT, $2::TEXT)`,
-//       [p_userid, p_search]
-//     );
-
-//     if (!result?.rows?.length || !result.rows[0]?.fn_get_conversationdetails) {
-//       return res.status(404).json({ message: "No campaigns found" });
-//     }
-
-//     const campaigns = result.rows[0].fn_get_conversationdetails.map((row) => ({
-//       campaignid: row.campaignid,
-//       campaignname: row.campaignname,
-//       campaignphoto: row.campaignphoto,
-//     }));
-
-//     return res.status(200).json({
-//       message: "Campaigns fetched successfully",
-//       data: campaigns,
-//     });
-//   } catch (error) {
-//     console.error("Error fetching campaigns:", error);
-//     return res.status(500).json({
-//       message: "Failed to get campaigns",
-//       error: error.message,
-//     });
-//   }
-// };
-
-
-// // Get Influencers only
-// export const getInfluencers = async (req, res) => {
-//   try {
-//     const p_userid = req.user?.id;
-//     const { p_search = "" } = req.query || {};
-
-//     if (!p_userid) {
-//       return res.status(400).json({ message: "User ID is required." });
-//     }
-
-//     const result = await client.query(
-//       `SELECT * FROM ins.fn_get_conversationdetails($1::BIGINT, $2::TEXT)`,
-//       [p_userid, p_search]
-//     );
-
-//     if (!result?.rows?.length || !result.rows[0]?.fn_get_conversationdetails) {
-//       return res.status(404).json({ message: "No influencers found" });
-//     }
-
-//     // saare campaigns ke influencers ko ek array me merge karo
-//     const influencers = result.rows[0].fn_get_conversationdetails.flatMap(
-//       (row) => row.influencers || []
-//     );
-
-//     return res.status(200).json({
-//       message: "Influencers fetched successfully",
-//       data: influencers,
-//     });
-//   } catch (error) {
-//     console.error("Error fetching influencers:", error);
-//     return res.status(500).json({
-//       message: "Failed to get influencers",
-//       error: error.message,
-//     });
-//   }
-// };
-
-
-// export const getVendors = async (req, res) => {
-//   try {
-//     const p_userid = req.user?.id;
-//     const { p_search = "" } = req.query || {};
-//     if (!p_userid) {
-//       return res.status(400).json({ message: "User ID is required." });
-//     }
-//     const result = await client.query(
-//       `SELECT * FROM ins.fn_get_conversationdetails($1::BIGINT, $2::TEXT)`,
-//       [p_userid, p_search]
-//     );
-//     if (!result?.rows?.length || !result.rows[0]?.fn_get_conversationdetails) {
-//       return res.status(404).json({ message: "No vendors found" });
-//     }
-//     // saare campaigns ke vendors ko ek array me merge karo
-//     const vendors = result.rows[0].fn_get_conversationdetails.flatMap(
-//       (row) => row.vendors || []
-//     );
-//     return res.status(200).json({
-//       message: "Vendors fetched successfully",
-//       data: vendors,
-//     });
-//   } catch (error) {
-//     console.error("Error fetching vendors:", error);
-//     return res.status(500).json({
-//       message: "Failed to get vendors",
-//       error: error.message,
-//     });
-//   }
-// };
-
 
 export const getMessages = async (req, res) => {
   try {
@@ -328,42 +282,9 @@ export const getMessages = async (req, res) => {
   }
 };
 
-//..................DELETE MESSAGE.................
-// export const deleteMessage = async (req, res) => {
-//   try {
-//     const { p_messageid, p_userid } = req.body;
-
-//     if (!p_messageid || !p_userid) {
-//       return res
-//         .status(400)
-//         .json({ message: "Message ID and User ID are required." });
-//     }
-
-//     const result = await client.query(
-//       `SELECT * FROM ins.fn_delete_message($1::BIGINT, $2::BIGINT)`,
-//       [p_messageid, p_userid]
-//     );
-
-//     const response = result.rows[0].fn_delete_message;
-
-//     if (!response) {
-//       return res.status(400).json({ message: "Message could not be deleted." });
-//     }
-
-//     return res.status(200).json({
-//       message: "Message deleted successfully",
-//       data: response,
-//       source: "db",
-//     });
-//   } catch (error) {
-//     console.log("Failed to delete message", error);
-//     return res.status(500).json({ message: "Internal Server Error" });
-//   }
-// };
-
 export const updateUndoMessage = async (req, res) => {
   try {
-    const { p_messageid, p_roleid, p_action  } = req.body;
+    const { p_messageid, p_roleid, p_action } = req.body;
     if (!p_messageid || !p_roleid || !p_action) {
       return res
         .status(400)

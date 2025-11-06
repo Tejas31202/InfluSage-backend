@@ -72,9 +72,9 @@ export const completeUserProfile = async (req, res) => {
     // ---------------------------
     if (req.files?.photo?.[0]) {
       const file = req.files.photo[0];
-      const ext = path.extname(file.originalname);
-      const newFileName = `${userId}_${username}_photo_${Date.now()}${ext}`;
-      const profileFolderPath = `influencers/${userId}_${username}/profile`;
+      const fileName = file.originalname;
+      const newFileName = `${userId}_${username}_photo_${fileName}`;
+      const profileFolderPath = `Influencer/${userId}_${username}/Profile`;
       const supabasePath = `${profileFolderPath}/${newFileName}`;
 
       // Delete old photos (optional cleanup)
@@ -120,32 +120,55 @@ export const completeUserProfile = async (req, res) => {
     if (req.files?.portfolioFiles) {
       const uploadedFiles = [];
 
-      for (const [index, file] of req.files.portfolioFiles.entries()) {
-        const ext = path.extname(file.originalname);
-        const newFileName = `${userId}_${username}_portfolio_${Date.now()}_${index}${ext}`;
-        const supabasePath = `influencers/${userId}_${username}/portfolio/${newFileName}`;
-        const fileBuffer = file.buffer;
+     for (const file of req.files.portfolioFiles) {
+    const fileName = file.originalname;
+    const newFileName = `${fileName}`;
+    const supabasePath = `Influencer/${userId}_${username}/Portfolio/${newFileName}`;
+    const fileBuffer = file.buffer;
 
+    try {
+      // ✅ Step 1: Check if file already exists in Supabase
+     const { data: existingFile, error: listError } = await supabase.storage
+        .from("uploads")
+        .list(`Influencer/${userId}_${username}/Portfolio`);
+
+      if (listError) {
+        console.error("Supabase list error:", listError);
+      }
+
+      const fileAlreadyExists = existingFile?.some(
+        (f) => f.name === newFileName
+      );
+
+      if (fileAlreadyExists) {
+        res.status(400).json({message:`File already exists: ${fileName}, skipping upload.`});
+      } else {
+        // ✅ Step 2: Upload only if not exists
         const { error: uploadError } = await supabase.storage
           .from("uploads")
           .upload(supabasePath, fileBuffer, {
             contentType: file.mimetype,
-            upsert: true,
+            upsert: false, // upsert false → prevent overwriting
           });
 
         if (uploadError) {
           console.error("Supabase portfolio upload error:", uploadError);
-          return res
-            .status(500)
-            .json({ message: "Failed to upload portfolio files" });
+          return res.status(500).json({
+            message: "Failed to upload portfolio files",
+          });
         }
-
-        const { data: publicUrlData } = supabase.storage
-          .from("uploads")
-          .getPublicUrl(supabasePath);
-
-        uploadedFiles.push({ filepath: publicUrlData.publicUrl });
       }
+
+      // ✅ Step 3: Get public URL (works both for existing & new)
+      const { data: publicUrlData } = supabase.storage
+        .from("uploads")
+        .getPublicUrl(supabasePath);
+
+      uploadedFiles.push({ filepath: publicUrlData.publicUrl });
+    } catch (err) {
+      console.error("Portfolio file upload error:", err);
+    }
+  }
 
       if (portfoliojson) {
         try {

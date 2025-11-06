@@ -226,9 +226,9 @@ export const completeVendorProfile = async (req, res) => {
         return res.status(400).json({ message: "No valid file buffer found" });
       }
 
-      const ext = path.extname(file.originalname);
-      const newFileName = `${userId}_${username}_photo_${Date.now()}${ext}`;
-      const profileFolderPath = `vendors/${userId}_${username}/profile`;
+      const fileName =file.originalname;
+      const newFileName = `${userId}_${username}_photo_${fileName}`;
+      const profileFolderPath = `Vendor/${userId}_${username}/Profile`;
       const supabasePath = `${profileFolderPath}/${newFileName}`;
 
       // List & remove old profile photos (optional cleanup)

@@ -67,7 +67,9 @@ export const requestRegistration = async (req, res) => {
     await redisClient.setEx(`otp:${normalizedEmail}`, 300, otpCode);
 
     // Send OTP email
-    await sendingMail(normalizedEmail, "InflueSage OTP Verification", htmlContent({otp:otpCode}));
+
+    await sendingMail(normalizedEmail, "InflueSage OTP Verification",htmlContent({otp:otpCode}));
+
 
     res.status(200).json({
       message: "OTP sent to email. Complete verification to register.",
@@ -216,7 +218,8 @@ export const resendOtp = async (req, res) => {
     // console.log("Generated OTP:", otpCode);
 
     // Send Email with OTP
-    await sendingMail(email, "InflueSage OTP Verification - Resend", htmlContent({otp:otpCode}));
+
+    await sendingMail(email, "InflueSage OTP Verification - Resend",htmlContent({otp:otpCode}));
 
     // Store OTP in Redis with 120 sec expiry
     await redisClient.setEx(`otp:${email}`, 120, otpCode);

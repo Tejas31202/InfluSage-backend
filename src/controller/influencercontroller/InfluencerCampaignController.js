@@ -91,36 +91,59 @@ export const applyNowCampaign = async (req, res) => {
 
     // ✅ File upload to Supabase
     if (req.files && req.files.portfolioFiles) {
-      const uploadedFiles = [];
+  const uploadedFiles = [];
 
-      for (const [index, file] of req.files.portfolioFiles.entries()) {
-        const ext = path.extname(file.originalname);
-        const newFileName = `${userId}_${username}_${Date.now()}_${index}${ext}`;
-        const uniqueFileName = `influencers/${userFolder}/ApplyCampaigns/${newFileName}`;
-        // const fileBuffer = await fsPromises.readFile(file.path);
+  for (const file of req.files.portfolioFiles) {
+    const fileName = file.originalname;
+    const newFileName = `${fileName}`;
+    const uniqueFileName = `Influencer/${userFolder}/CampaignId_${campaignId}/ApplyCampaigns/${newFileName}`;
+    const fileBuffer = file.buffer;
 
-        const fileBuffer = file.buffer;
+    try {
+      // ✅ Step 1: Check if file already exists in Supabase bucket
+      const { data: existingFiles, error: listError } = await supabase.storage
+        .from("uploads")
+        .list(`Influencer/${userFolder}/CampaignId_${campaignId}/ApplyCampaigns/`, {
+          search: newFileName,
+        });
 
-        // Upload to Supabase
-        const { error: uploadError } = await supabase.storage
-          .from("uploads")
-          .upload(uniqueFileName, fileBuffer, {
-            contentType: file.mimetype,
-            upsert: true,
-          });
-
-        if (uploadError) {
-          console.error("Supabase upload error:", uploadError);
-          return res.status(500).json({ message: "Failed to upload file to cloud storage" });
-        }
-
-        // Get public URL
-        const { data: publicUrlData } = supabase.storage
-          .from("uploads")
-          .getPublicUrl(uniqueFileName);
-
-        uploadedFiles.push({ filepath: publicUrlData.publicUrl });
+      if (listError) {
+        console.error("Supabase list error:", listError);
+        return res.status(500).json({ message: "Error checking existing files" });
       }
+
+      const fileExists = existingFiles?.some((f) => f.name === newFileName);
+
+      if (fileExists) {
+       res.status(400).json({message:`File already exists: ${fileName}, skipping upload.`});
+      }
+
+      // ✅ Step 2: Upload if file doesn’t exist
+      const { error: uploadError } = await supabase.storage
+        .from("uploads")
+        .upload(uniqueFileName, fileBuffer, {
+          contentType: file.mimetype,
+          upsert: false, // ❌ no overwrite
+        });
+
+      if (uploadError) {
+        console.error("Supabase upload error:", uploadError);
+        return res
+          .status(500)
+          .json({ message: "Failed to upload file to cloud storage" });
+      }
+
+      // ✅ Step 3: Get public URL for the uploaded file
+      const { data: publicUrlData } = supabase.storage
+        .from("uploads")
+        .getPublicUrl(uniqueFileName);
+
+      uploadedFiles.push({ filepath: publicUrlData.publicUrl });
+    } catch (err) {
+      console.error("Upload error:", err);
+      return res.status(500).json({ message: "Unexpected upload error" });
+    }
+  }
 
       // Merge old + new filepaths
       if (applycampaignjson.filepaths && Array.isArray(applycampaignjson.filepaths)) {

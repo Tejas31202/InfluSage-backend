@@ -26,8 +26,8 @@ export const getUserStatusList = async (req, res) => {
   }
 };
 
-export const getCampaignStatusList=async (req,res)=>{
- try {
+export const getCampaignStatusList = async (req, res) => {
+  try {
     const result = await client.query(
       "SELECT * FROM ins.fn_get_campaignapprovalstatus();"
     );
@@ -202,6 +202,7 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
     const actionableMessages = [
       "User Approved.",
       "User Rejected.",
+      "User Blocked.",
       "Campaign Approved.",
       "Campaign Rejected.",
     ];
@@ -268,3 +269,67 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
+
+//changes for getalluserdetails
+export const getUserDetails = async (req, res) => {
+  try {
+    const p_userid = req.query.p_userid || req.body.p_userid;
+
+    if (!p_userid) {
+      return res.status(400).json({
+        message: "User ID is required to fetch user details.",
+      });
+    }
+
+    const result = await client.query(
+      "SELECT * FROM ins.fn_get_userdetails($1::bigint)",
+      [p_userid]
+    );
+
+    const allDetails = result.rows[0].fn_get_userdetails[0];
+
+    if (allDetails === 0 || !allDetails) {
+      return res.status(404).json({
+        message: "No user details found for the given ID.",
+      });
+    }
+
+    return res.status(200).json({
+      message: "User details fetched successfully.",
+      userDetails: allDetails,
+      source: "db",
+    });
+  } catch (error) {
+    console.error("Error in getUserDetails:", error);
+    return res.status(500).json({error: error.message});
+  }
+};
+
+
+export const getCampaignDetails = async (req, res) => {
+  try {
+    const p_campaignid  = req.query.p_campaignid  || req.body.p_campaignid;
+
+    if (!p_campaignid) {
+      return res.status(400).json({
+        message: "p_campaignid is required to fetch camapign details.",
+      });
+    }
+
+    const result = await client.query(
+      "select * from ins.fn_get_campaignmanagementdetails($1::bigint);",
+      [p_campaignid ]
+    );
+
+    const campaign = result.rows[0].fn_get_campaignmanagementdetails[0];
+    
+    return res.status(200).json({
+      message: "campaign details fetched successfully.",
+      campaignDetails: campaign,
+      source: "db",
+    });
+  } catch (error) {
+    return res.status(500).json({error: error.message});
+  }
+};
+

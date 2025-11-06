@@ -14,6 +14,7 @@ import VendorCampaignRoutes from './src/routes/vendorroutes/VendorCampaignRoutes
 import InfluencerCampaignRoutes from './src/routes/influencerroutes/InfluencerCampaignRoutes.js';
 import VendorBrowseInfluencerRoutes from './src/routes/vendorroutes/VendorBrowseInfluencerRoutes.js';
 import VendorOffersRoutes from './src/routes/vendorroutes/VendorOffersRoutes.js';
+import VendorDashboardRoutes from './src/routes/vendorroutes/VendorDashboardRoutes.js';
 import CommonRoutes from './src/routes/CommonRoutes.js';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -21,7 +22,7 @@ import ChatRoutes from './src/routes/ChatRoutes.js';
 import VendorMyCampaignRoutes from './src/routes/vendorroutes/VendorMyCampaignRoutes.js';
 import InfluencerMyCampaignRoutes from './src/routes/influencerroutes/InfluencerMyCampaignRoutes.js';
 import NotificationRoutes  from './src/routes/NotificationRoutes.js';
-import AdminPanelRoutes from './src/routes/AdminPanelRoutes.js'
+import AdminPanelRoutes from './src/routes/AdminPanelRoutes.js';
 
 dotenv.config();
 
@@ -64,6 +65,7 @@ app.use("/vendor", VendorCampaignRoutes);
 app.use("/vendor", VendorBrowseInfluencerRoutes);
 app.use("/vendor", VendorOffersRoutes);
 app.use("/vendor", VendorMyCampaignRoutes);
+app.use("/vendor",VendorDashboardRoutes);
 app.use("/chat", ChatRoutes);
 app.use("/new",NotificationRoutes);
 app.use("/admin",AdminPanelRoutes);
