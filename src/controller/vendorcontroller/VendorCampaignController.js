@@ -76,7 +76,6 @@ export const finalizeCampaign = async (req, res) => {
     await client.query("COMMIT");
 
     const { p_status, p_message, p_campaignid, p_campaignname } = result.rows[0] || {};
-    console.log("📦 SP Result:", result.rows[0]);
 
     if (!p_status) {
       return res.status(400).json({
