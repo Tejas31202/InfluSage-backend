@@ -94,12 +94,12 @@ export const finalizeCampaign = async (req, res) => {
     const finalPortfolioFolder = `${finalFolderBase}/campaign_portfolio`;
 
     // ------------------- DELETE OLD PHOTO IF EXISTS -------------------
-    const { data: existingPhotos } = await supabase.storage.from("uploads").list(finalPhotoFolder);
+    // const { data: existingPhotos } = await supabase.storage.from("uploads").list(finalPhotoFolder);
 
-    if (existingPhotos?.length > 0) {
-        const oldPhotoPaths = existingPhotos.map((f) => `${finalPhotoFolder}/${f.name}`);
-        await supabase.storage.from("uploads").remove(oldPhotoPaths);
-    }
+    // if (existingPhotos?.length > 0) {
+    //     const oldPhotoPaths = existingPhotos.map((f) => `${finalPhotoFolder}/${f.name}`);
+    //     await supabase.storage.from("uploads").remove(oldPhotoPaths);
+    // }
 
     // Move photo files
     const { data: tempPhotos } = await supabase.storage.from("uploads").list(`${baseTempFolder}/campaign_profile`);
@@ -634,7 +634,7 @@ export const upsertCampaign = async (req, res) => {
     const p_userid = req.user?.id || req.body.p_userid;
     const campaignId = req.body.campaignId || null;
     const isFinalSubmit = req.body.isFinalSubmit || false;
-    const p_statusname = req.body.p_statusname || "Draft";
+    const p_statusname = req.body.p_statusname ||null;
 
     if (!p_userid)
       return res.status(400).json({ message: "User ID is required" });
@@ -660,7 +660,7 @@ export const upsertCampaign = async (req, res) => {
     if (dbUser.rows[0]?.firstname) {
       username = dbUser.rows[0].firstname.trim();
     }
-  
+
     }
 
     // ---------------- HELPERS ----------------
@@ -694,7 +694,7 @@ export const upsertCampaign = async (req, res) => {
       const newFileName = file.originalname;
       const tempPhotoPath = `${tempPhotoFolder}/${newFileName}`;
 
-      const { error } = await supabase.storage.from("uploads").upload(
+      const { error } = await supabase.storage.from("uploads_UAT").upload(
         tempPhotoPath,
         file.buffer,
         { contentType: file.mimetype, upsert: true }
@@ -703,7 +703,7 @@ export const upsertCampaign = async (req, res) => {
 
       // // ✅ Only store filename in DB
       // p_campaignjson.photopath = newFileName;
-      const { data: publicData } = supabase.storage.from("uploads").getPublicUrl(tempPhotoPath);
+      const { data: publicData } = supabase.storage.from("uploads_UAT").getPublicUrl(tempPhotoPath);
         p_campaignjson.photopath = publicData.publicUrl; // store full URL for UI
     }
 
@@ -713,7 +713,7 @@ export const upsertCampaign = async (req, res) => {
         const newFileName = file.originalname;
         const tempPortfolioPath = `${tempPortfolioFolder}/${newFileName}`;
 
-        const { error } = await supabase.storage.from("uploads").upload(
+        const { error } = await supabase.storage.from("uploads_UAT").upload(
           tempPortfolioPath,
           file.buffer,
           { contentType: file.mimetype, upsert: true }
@@ -722,7 +722,7 @@ export const upsertCampaign = async (req, res) => {
 
         // // ✅ Only store filename in DB
         // campaignFiles.push({ filepath: newFileName });
-        const { data: publicData } = supabase.storage.from("uploads").getPublicUrl(tempPortfolioPath);
+        const { data: publicData } = supabase.storage.from("uploads_UAT").getPublicUrl(tempPortfolioPath);
         campaignFiles.push({filepath: publicData.publicUrl });
       }
     }
@@ -761,6 +761,48 @@ export const upsertCampaign = async (req, res) => {
         campaignParts: draftData,
       });
     }
+
+    // DB Call for edit only startdate and enddate 
+
+    const result = await client.query(
+      `CALL ins.usp_upsert_campaigndetails(
+        $1::BIGINT, 
+        $2::BIGINT, 
+        $3::varchar, 
+        $4::JSON, 
+        $5::JSON, 
+        $6::JSON, 
+        $7::JSON, 
+        $8::JSON, 
+        $9::JSON,
+        $10::boolean,
+        $11::TEXT,
+        $12::TEXT
+      )`,
+      [
+        p_userid,
+        campaignId,
+        p_statusname,
+        p_objectivejson||null ,
+        p_vendorinfojson||null ,
+        req.body.p_campaignjson,
+        p_campaigncategoyjson||null,
+        p_campaignfilejson||null,
+        p_contenttypejson||null,
+        null,
+        null,
+        null
+      ]
+    );
+
+    const { p_status, p_message, p_campaignid } = result.rows[0];
+
+    return res.status(200).json({
+      success: p_status,
+      message: p_message ,
+      campaignId: p_campaignid,
+      source: "db",
+    });
 
   } catch (err) {
     console.error("❌ upsertCampaign error:", err);
