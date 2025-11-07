@@ -815,6 +815,9 @@ export const upsertCampaign = async (req, res) => {
         JSON.stringify(finalData.p_campaigncategoyjson),
         JSON.stringify(finalData.p_campaignfilejson),
         JSON.stringify(finalData.p_contenttypejson),
+        null,
+        null,
+        null,
       ]
     );
 
