@@ -749,80 +749,85 @@ export const upsertCampaign = async (req, res) => {
       });
     }
 
-    // ---------------- FINAL SAVE TO DB ----------------
+    // ---------------- FINAL SAVE TO DATABASE ----------------
+    const existingDataResult = await client.query(
+      `SELECT * FROM ins.fn_get_campaigndetailsjson($1::BIGINT, $2::BIGINT)`,
+      [p_userid, campaignId]
+    );
+    const existingData = existingDataResult.rows[0] || {};
+
+    const mergeObjects = (oldObj, newObj) => ({ ...oldObj, ...newObj });
+
+    const finalData = {
+      p_objectivejson: mergeObjects(
+        existingData.p_objectivejson || {},
+        p_objectivejson
+      ),
+      p_vendorinfojson: mergeObjects(
+        existingData.p_vendorinfojson || {},
+        p_vendorinfojson
+      ),
+      p_campaignjson: mergeObjects(
+        existingData.p_campaignjson || {},
+        p_campaignjson
+      ),
+      p_campaigncategoyjson:
+        p_campaigncategoyjson.length > 0
+          ? p_campaigncategoyjson
+          : existingData.p_campaigncategoyjson || [],
+      p_campaignfilejson:
+        p_campaignfilejson.length || campaignFiles.length
+          ? [
+              ...(existingData.p_campaignfilejson || []),
+              ...p_campaignfilejson,
+              ...campaignFiles,
+            ]
+          : existingData.p_campaignfilejson || [],
+      p_contenttypejson:
+        p_contenttypejson.length > 0
+          ? p_contenttypejson
+          : existingData.p_contenttypejson || [],
+    };
+
+    // DB Call
     const result = await client.query(
       `CALL ins.usp_upsert_campaigndetails(
-        $1::BIGINT,
-        $2::BIGINT,
-        $3::VARCHAR,
-        $4::JSON,
-        $5::JSON,
-        $6::JSON,
-        $7::JSON,
-        $8::JSON,
+        $1::BIGINT, 
+        $2::BIGINT, 
+        $3::varchar, 
+        $4::JSON, 
+        $5::JSON, 
+        $6::JSON, 
+        $7::JSON, 
+        $8::JSON, 
         $9::JSON,
         $10::boolean,
         $11::TEXT,
-        $12::TEXT,
+        $12::TEXT
       )`,
       [
         p_userid,
         campaignId,
         p_statusname,
-        JSON.stringify(p_objectivejson),
-        JSON.stringify(p_vendorinfojson),
-        JSON.stringify(p_campaignjson),
-        JSON.stringify(p_campaigncategoyjson),
-        JSON.stringify([
-          ...(p_campaignfilejson || []),
-          ...(campaignFiles || []),
-        ]),
-        JSON.stringify(p_contenttypejson),
+        JSON.stringify(finalData.p_objectivejson),
+        JSON.stringify(finalData.p_vendorinfojson),
+        JSON.stringify(finalData.p_campaignjson),
+        JSON.stringify(finalData.p_campaigncategoyjson),
+        JSON.stringify(finalData.p_campaignfilejson),
+        JSON.stringify(finalData.p_contenttypejson),
       ]
     );
 
-    const {p_status,p_message, p_campaignid, p_campaignname } = result.rows[0] || {};
+    const { p_status, p_message, p_campaignid } = result.rows[0] || {};
 
-    // ---------------- MOVE FILES TO FINAL FOLDER ----------------
-    const finalPhotoFolder = `Vendor/${p_userid}_${username}/Campaigns/${p_campaignid}_${p_campaignname}/campaign_profile`;
-    const finalPortfolioFolder = `Vendor/${p_userid}_${username}/Campaigns/${p_campaignid}_${p_campaignname}/campaign_portfolio`;
-
-    // Move photo files
-    const { data: tempPhotos } = await supabase.storage.from("uploads").list(tempPhotoFolder);
-    if (tempPhotos?.length > 0) {
-      for (const file of tempPhotos) {
-        const oldPath = `${tempPhotoFolder}/${file.name}`;
-        const newPath = `${finalPhotoFolder}/${file.name}`;
-        const { data: fileData } = await supabase.storage.from("uploads").download(oldPath);
-        if (fileData) {
-          await supabase.storage.from("uploads").upload(newPath, fileData, { upsert: false });
-          await supabase.storage.from("uploads").remove([oldPath]);
-        }
-      }
-    }
-
-    // Move portfolio files
-    const { data: tempPortfolios } = await supabase.storage.from("uploads").list(tempPortfolioFolder);
-    if (tempPortfolios?.length > 0) {
-      for (const file of tempPortfolios) {
-        const oldPath = `${tempPortfolioFolder}/${file.name}`;
-        const newPath = `${finalPortfolioFolder}/${file.name}`;
-        const { data: fileData } = await supabase.storage.from("uploads").download(oldPath);
-        if (fileData) {
-          await supabase.storage.from("uploads").upload(newPath, fileData, { upsert: false });
-          await supabase.storage.from("uploads").remove([oldPath]);
-        }
-      }
-    }
-
-    // ✅ Clean up temporary folder and Redis cache
-    await supabase.storage.from("uploads").remove([baseTempFolder]);
+    // Delete draft after successful DB save
     await redisClient.del(redisKey);
 
-    // ---------------- RESPONSE ----------------
     return res.status(200).json({
-      p_status,
-      p_message
+      success: true,
+      message: p_message || "Campaign saved successfully",
+      campaignId: p_campaignid || campaignId,
+      source: "db",
     });
 
   } catch (err) {
