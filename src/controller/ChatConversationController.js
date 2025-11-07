@@ -82,8 +82,7 @@ export const startConversation = async (req, res) => {
 
 export const insertMessage = async (req, res) => {
   const { p_conversationid, p_roleid, p_messages, p_replyid, p_messageid, campaignid, campaignName, influencerId, influencerName, vendorId, vendorName} = req.body || {};
-  // const influencerId = req.user?.id;
-  // const influencerName = req.user?.name;
+
   let p_filepaths = null;
   if (req.files && req.files.length > 0) {
     const uploadedUrls = [];
@@ -93,24 +92,10 @@ export const insertMessage = async (req, res) => {
     const userId = req.user?.id;
     const username = req.username || "user";
 
-    // Dynamic Folder Cretion
-
-    // let roleFolder;
-    // if (Number(roleId) === 1) roleFolder = "influencers";
-    // else if (Number(roleId) === 2) roleFolder = "vendors";
-    // else roleFolder = "others";
-
-    //Which Role Id Get In Console
-    // console.log("roleid==>", roleId)
-
-
     for (const file of req.files) {
       const newFileName = `${file.originalname}`;
 
       let uniqueFileName = ""
-
-      //Dynamic create a Folder
-      // const uniqueFileName = `${roleFolder}/${userId}_${username}/campaign/${campaignid}_${campaignName}/chat/${newFileName}`;
 
       //Created Folder Path For Vendor And Influencer saved in vendor side
       if (Number(roleId) === 2) {
@@ -119,24 +104,12 @@ export const insertMessage = async (req, res) => {
         uniqueFileName = `Vendor/${vendorId}_${vendorName}/Campaigns/${campaignid}_${campaignName}/Chat/${userId}_${username}/${newFileName}`;
       }
 
-      //If Role Id Not Match
-      //  else {
-      //   console.error("Invalid roleId: only 1 (Influencer) or 2 (Vendor) are allowed.");
-      //   uniqueFileName = null; // or handle it however you want
-      // }
-
-      //Vendor And Influencer Different Path For Save supabase
-      // storage vendor and influencer 
-      // if (Number(roleId) === 2) {
-      //   uniqueFileName = `Vendor/${userId}/Campaigns/${campaignid}_${campaignName}/Chat/Influencer_${influencerId}_${influencerName}/Message/${p_messageid || newFileName}`
-      // } else if (Number(roleId) === 1) { uniqueFileName = `Influencer/${userId}/Campaigns/${campaignid}_${campaignName}/Chat/Influencer_${influencerId}_${influencerName}/Message/${p_messageid || newFileName}` }
-
       // Upload file to Supabase
       const { data, error } = await supabase.storage
         .from("uploads") // bucket name
         .upload(uniqueFileName, file.buffer, {
           contentType: file.mimetype,
-          upsert: false,
+          upsert: true, //Duplicate File
         });
 
       if (error) throw error;
