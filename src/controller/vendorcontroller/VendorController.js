@@ -44,7 +44,7 @@ export const requestRegistration = async (req, res) => {
       120, // Store for 120 seconds
       JSON.stringify({ firstName, lastName, email, roleId, passwordhash })
     );
-    await redisClient.setEx(`otp:${email}`, 120, otpCode);
+    await redisClient.setEx(`otp:${email}`, 60, otpCode);
 
     await sendingMail(email, "InflueSage OTP Verification", otpCode);
 

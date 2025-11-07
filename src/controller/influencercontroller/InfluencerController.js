@@ -64,7 +64,7 @@ export const requestRegistration = async (req, res) => {
     );
 
     // Store OTP in Redis (2 minutes expiry)
-    await redisClient.setEx(`otp:${normalizedEmail}`, 300, otpCode);
+    await redisClient.setEx(`otp:${normalizedEmail}`, 60, otpCode);
 
     // Send OTP email
 

@@ -242,6 +242,7 @@ export const getCampaign = async (req, res) => {
 export const deleteCampaignFile = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
+    const campaignId = req.body.campaignId || null;
     const filePathToDelete = req.body.filepath; // Supabase public file URL
     const bucketName = "uploads_UAT";
 
@@ -253,7 +254,7 @@ export const deleteCampaignFile = async (req, res) => {
     }
 
     // ---------------- 1️⃣ Update Redis ----------------
-    const redisKey = `getCampaign:${userId}`;
+    const redisKey = `getCampaign:${userId}${campaignId ? `:${campaignId}` : ""}`;
     let campaignData = await redisClient.get(redisKey);
     if (campaignData) {
       campaignData = JSON.parse(campaignData);
