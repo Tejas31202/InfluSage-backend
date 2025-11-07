@@ -29,30 +29,26 @@ export const completeUserProfile = async (req, res) => {
   // console.log("userId===>", userId);
   let username = "user";
 
-  // Prefer JWT payload (if available)
-  if (req.user?.firstName || req.user?.lastName) {
-    username = `${req.user.firstName || ""}_${req.user.lastName || ""}`.trim();
+  if (req.user?.name) {
+    // Split by space and take first word
+    username = req.user.name.split(" ")[0].trim();
   }
 
-  // Otherwise fallback to body fields (if sent from frontend)
-  else if (req.body?.firstName || req.body?.lastName) {
-    username = `${req.body.firstName || ""}_${req.body.lastName || ""}`.trim();
+  //  Fallback: from request body
+  else if (req.body?.firstName) {
+    username = req.body.firstName.trim();
   }
 
-  // If still missing, fetch from DB
+  // Final fallback: from DB
   else {
     const dbUser = await client.query(
-      "SELECT firstname, lastname FROM ins.users WHERE id=$1",
+      "SELECT firstname FROM ins.users WHERE id=$1",
       [userId]
     );
-    if (dbUser.rows[0]) {
-      username =
-        `${dbUser.rows[0].firstname || ""}_${
-          dbUser.rows[0].lastname || ""
-        }`.trim() || "user";
+    if (dbUser.rows[0]?.firstname) {
+      username = dbUser.rows[0].firstname.trim();
     }
   }
-
   const redisKey = `profile:${userId}`;
 
   try {
