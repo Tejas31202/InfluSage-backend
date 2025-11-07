@@ -749,6 +749,82 @@ export const upsertCampaign = async (req, res) => {
       });
     }
 
+    // ---------------- FINAL SAVE TO DB ----------------
+    const result = await client.query(
+      `CALL ins.usp_upsert_campaigndetails(
+        $1::BIGINT,
+        $2::BIGINT,
+        $3::VARCHAR,
+        $4::JSON,
+        $5::JSON,
+        $6::JSON,
+        $7::JSON,
+        $8::JSON,
+        $9::JSON,
+        $10::boolean,
+        $11::TEXT,
+        $12::TEXT,
+      )`,
+      [
+        p_userid,
+        campaignId,
+        p_statusname,
+        JSON.stringify(p_objectivejson),
+        JSON.stringify(p_vendorinfojson),
+        JSON.stringify(p_campaignjson),
+        JSON.stringify(p_campaigncategoyjson),
+        JSON.stringify([
+          ...(p_campaignfilejson || []),
+          ...(campaignFiles || []),
+        ]),
+        JSON.stringify(p_contenttypejson),
+      ]
+    );
+
+    const {p_status,p_message, p_campaignid, p_campaignname } = result.rows[0] || {};
+
+    // ---------------- MOVE FILES TO FINAL FOLDER ----------------
+    const finalPhotoFolder = `Vendor/${p_userid}_${username}/Campaigns/${p_campaignid}_${p_campaignname}/campaign_profile`;
+    const finalPortfolioFolder = `Vendor/${p_userid}_${username}/Campaigns/${p_campaignid}_${p_campaignname}/campaign_portfolio`;
+
+    // Move photo files
+    const { data: tempPhotos } = await supabase.storage.from("uploads").list(tempPhotoFolder);
+    if (tempPhotos?.length > 0) {
+      for (const file of tempPhotos) {
+        const oldPath = `${tempPhotoFolder}/${file.name}`;
+        const newPath = `${finalPhotoFolder}/${file.name}`;
+        const { data: fileData } = await supabase.storage.from("uploads").download(oldPath);
+        if (fileData) {
+          await supabase.storage.from("uploads").upload(newPath, fileData, { upsert: false });
+          await supabase.storage.from("uploads").remove([oldPath]);
+        }
+      }
+    }
+
+    // Move portfolio files
+    const { data: tempPortfolios } = await supabase.storage.from("uploads").list(tempPortfolioFolder);
+    if (tempPortfolios?.length > 0) {
+      for (const file of tempPortfolios) {
+        const oldPath = `${tempPortfolioFolder}/${file.name}`;
+        const newPath = `${finalPortfolioFolder}/${file.name}`;
+        const { data: fileData } = await supabase.storage.from("uploads").download(oldPath);
+        if (fileData) {
+          await supabase.storage.from("uploads").upload(newPath, fileData, { upsert: false });
+          await supabase.storage.from("uploads").remove([oldPath]);
+        }
+      }
+    }
+
+    // ✅ Clean up temporary folder and Redis cache
+    await supabase.storage.from("uploads").remove([baseTempFolder]);
+    await redisClient.del(redisKey);
+
+    // ---------------- RESPONSE ----------------
+    return res.status(200).json({
+      p_status,
+      p_message
+    });
+
   } catch (err) {
     console.error("❌ upsertCampaign error:", err);
     return res.status(500).json({
