@@ -27,29 +27,24 @@ const calculateProfileCompletion = (profileParts) => {
 export const completeUserProfile = async (req, res) => {
   const userId = req.user?.id || req.body?.userId;
   // console.log("userId===>", userId);
-  let username = "user";
+ let username = "user";
 
-  // Prefer JWT payload (if available)
-  if (req.user?.firstName || req.user?.lastName) {
-    username = `${req.user.firstName || ""}_${req.user.lastName || ""}`.trim();
+  if (req.user?.name) {
+    // Split by space and take first word
+    username = req.user.name.split(" ")[0].trim();
   }
-
-  // Otherwise fallback to body fields (if sent from frontend)
-  else if (req.body?.firstName || req.body?.lastName) {
-    username = `${req.body.firstName || ""}_${req.body.lastName || ""}`.trim();
+  //  Fallback: from request body
+  else if (req.body?.firstName) {
+    username = req.body.firstName.trim();
   }
-
-  // If still missing, fetch from DB
+  // Final fallback: from DB
   else {
     const dbUser = await client.query(
-      "SELECT firstname, lastname FROM ins.users WHERE id=$1",
+      "SELECT firstname FROM ins.users WHERE id=$1",
       [userId]
     );
-    if (dbUser.rows[0]) {
-      username =
-        `${dbUser.rows[0].firstname || ""}_${
-          dbUser.rows[0].lastname || ""
-        }`.trim() || "user";
+    if (dbUser.rows[0]?.firstname) {
+      username = dbUser.rows[0].firstname.trim();
     }
   }
 
@@ -480,7 +475,7 @@ export const deletePortfolioFile = async (req, res) => {
     }
 
     // 🔹 3️⃣ Supabase se delete (actual storage path nikalo)
-    const bucketName = "uploads";
+    const bucketName = "uploads_UAT";
 
     // Public URL ko relative storage path me convert karo
     const supabaseFilePath = filePathToDelete

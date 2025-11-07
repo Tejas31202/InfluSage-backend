@@ -51,30 +51,29 @@ export const applyNowCampaign = async (req, res) => {
 
     let username = "user";
 
-    // ✅ 1️⃣ Prefer JWT payload (if available)
-    if (req.user?.firstName || req.user?.lastName) {
-      username = `${req.user.firstName || ""}_${req.user.lastName || ""}`.trim();
+    if (req.user?.name) {
+      // Split by space and take first word
+      username = req.user.name.split(" ")[0].trim();
     }
 
-    // ✅ 2️⃣ Fallback to frontend body fields
-    else if (req.body?.firstName || req.body?.lastName) {
-      username = `${req.body.firstName || ""}_${req.body.lastName || ""}`.trim();
+    //  Fallback: from request body
+    else if (req.body?.firstName) {
+      username = req.body.firstName.trim();
     }
 
-    // ✅ 3️⃣ Final fallback: fetch from DB
+    // Final fallback: from DB
     else {
       const dbUser = await client.query(
-        "SELECT firstname, lastname FROM ins.users WHERE id=$1",
+        "SELECT firstname FROM ins.users WHERE id=$1",
         [userId]
       );
-      if (dbUser.rows[0]) {
-        username =
-          `${dbUser.rows[0].firstname || ""}_${dbUser.rows[0].lastname || ""}`.trim() || "user";
+      if (dbUser.rows[0]?.firstname) {
+        username = dbUser.rows[0].firstname.trim();
       }
     }
 
-    // Clean username to remove any special chars
-    username = username.replace(/\W+/g, "_");
+    // // Clean username to remove any special chars
+    // username = username.replace(/\W+/g, "_");
 
     // Unique folder name pattern
     const userFolder = `${userId}_${username}`;
@@ -181,7 +180,7 @@ export const applyNowCampaign = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
-
+ 
 
 //For Applied Campaign
 export const getUsersAppliedCampaigns = async (req, res) => {

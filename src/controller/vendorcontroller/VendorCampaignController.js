@@ -85,13 +85,8 @@ export const finalizeCampaign = async (req, res) => {
     }
 
     // ------------------- FILE MOVE LOGIC -------------------
- 
-    let username =req.user?.name
-    username = username
-         .trim()                    // remove leading/trailing spaces
-         .replace(/\s+/g, "_")      // replace spaces with underscores
-         .replace(/[^\w\-]/g, "")   // remove any special characters
-         .replace(/_+/g, "_");  
+
+    let username= req.user.name.split(" ")[0].trim();
 
     const baseTempFolder = `Vendor/${userId}_${username}/Campaigns/_temp`;
     const finalFolderBase = `Vendor/${userId}_${username}/Campaigns/${p_campaignid}_${p_campaignname}`;
@@ -247,7 +242,7 @@ export const deleteCampaignFile = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
     const filePathToDelete = req.body.filepath; // Supabase public file URL
-    const bucketName = "uploads";
+    const bucketName = "uploads_UAT";
 
     if (!userId || !filePathToDelete) {
       return res.status(400).json({
@@ -632,17 +627,26 @@ export const upsertCampaign = async (req, res) => {
 
     // ---------------- USERNAME ----------------
     let username = "user";
-    if (req.user?.firstName || req.user?.lastName) {
-      username = `${req.user.firstName || ""}_${req.user.lastName || ""}`.trim();
-    } else {
-      const dbUser = await client.query(
-        "SELECT firstname, lastname FROM ins.users WHERE id=$1",
-        [p_userid]
-      );
-      if (dbUser.rows[0]) {
-        username =
-          `${dbUser.rows[0].firstname || ""}_${dbUser.rows[0].lastname || ""}`.trim() || "user";
-      }
+     if (req.user?.name) {
+    // Split by space and take first word
+    username = req.user.name.split(" ")[0].trim();
+  }
+
+  //  Fallback: from request body
+  else if (req.body?.firstName) {
+    username = req.body.firstName.trim();
+  }
+
+  // Final fallback: from DB
+  else {
+    const dbUser = await client.query(
+      "SELECT firstname FROM ins.users WHERE id=$1",
+      [p_userid]
+    );
+    if (dbUser.rows[0]?.firstname) {
+      username = dbUser.rows[0].firstname.trim();
+    }
+
     }
 
     // ---------------- HELPERS ----------------

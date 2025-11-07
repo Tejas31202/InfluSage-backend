@@ -12,27 +12,26 @@ export const resolveUsername = async (req, res, next) => {
   let username = "user";
 
   try {
-    // Prefer JWT payload
-    if (req.user?.firstName || req.user?.lastName) {
-      username = `${req.user.firstName || ""}_${req.user.lastName || ""}`.trim();
-    }
-    // Fallback to request body
-    else if (req.body?.firstName || req.body?.lastName) {
-      username = `${req.body.firstName || ""}_${req.body.lastName || ""}`.trim();
-    }
-    // Fallback to DB
-    else if (userId) {
-      const dbUser = await client.query(
-        "SELECT firstname, lastname FROM ins.users WHERE id=$1",
-        [userId]
-      );
-      if (dbUser.rows[0]) {
-        username =
-          `${dbUser.rows[0].firstname || ""}_${dbUser.rows[0].lastname || ""}`.trim() ||
-          "user";
-      }
-    }
+   if (req.user?.name) {
+    // Split by space and take first word
+    username = req.user.name.split(" ")[0].trim();
+  }
 
+  //  Fallback: from request body
+  else if (req.body?.firstName) {
+    username = req.body.firstName.trim();
+  }
+
+  // Final fallback: from DB
+  else {
+    const dbUser = await client.query(
+      "SELECT firstname FROM ins.users WHERE id=$1",
+      [userId]
+    );
+    if (dbUser.rows[0]?.firstname) {
+      username = dbUser.rows[0].firstname.trim();
+    }
+  }
     req.username = username || "user";
     next();
   } catch (err) {
