@@ -301,14 +301,13 @@ export const getUserDetails = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in getUserDetails:", error);
-    return res.status(500).json({error: error.message});
+    return res.status(500).json({ error: error.message });
   }
 };
 
-
 export const getCampaignDetails = async (req, res) => {
   try {
-    const p_campaignid  = req.query.p_campaignid  || req.body.p_campaignid;
+    const p_campaignid = req.query.p_campaignid || req.body.p_campaignid;
 
     if (!p_campaignid) {
       return res.status(400).json({
@@ -318,18 +317,48 @@ export const getCampaignDetails = async (req, res) => {
 
     const result = await client.query(
       "select * from ins.fn_get_campaignmanagementdetails($1::bigint);",
-      [p_campaignid ]
+      [p_campaignid]
     );
 
     const campaign = result.rows[0].fn_get_campaignmanagementdetails[0];
-    
+
     return res.status(200).json({
       message: "campaign details fetched successfully.",
       campaignDetails: campaign,
       source: "db",
     });
   } catch (error) {
-    return res.status(500).json({error: error.message});
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+export const campaignBlockReason = async (req, res) => {
+  try {
+    const result = await client.query("SELECT * FROM ins.fn_get_campaignblockreason();");
+    
+    const BlockReason = result.rows;
+
+    return res.status(200).json({
+      message: "Campaign Block Reasons fetched successfully",
+      data:BlockReason
+    });
+  } catch (error) {
+    console.error("Error fetching Campaign Block Reason:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+export const userBlockReason = async (req, res) => {
+  try {
+    const result = await client.query("SELECT * FROM ins.fn_get_userblockreason();");
+
+    return res.status(200).json({
+      message: "User Block Reasons fetched successfully",
+      data: result.rows,
+    });
+  } catch (error) {
+    console.error("Error fetching User Block Reason:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
