@@ -75,3 +75,17 @@ export function htmlContent({ otp }) {
   `;
 }
  
+
+export const userProfileBlockEmailHTML = ({ userName }) => `
+  <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;border-radius:10px;">
+    <h2 style="color:#333;">Hello ${userName},</h2>
+    <p style="font-size:16px;color:#555;">
+      Your profile has been <strong>Blocked</strong> by our admin team.
+    </p>
+    <p style="font-size:15px;color:#555;">
+      If you believe this was done in error or wish to appeal, please contact our support team.
+    </p>
+    <br />
+    <p style="font-size:14px;color:#777;">– The InfluSage Team</p>
+  </div>
+`;
