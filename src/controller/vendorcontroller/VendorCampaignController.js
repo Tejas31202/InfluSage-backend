@@ -94,50 +94,33 @@ export const finalizeCampaign = async (req, res) => {
     const finalPortfolioFolder = `${finalFolderBase}/campaign_portfolio`;
 
     // ------------------- DELETE OLD PHOTO IF EXISTS -------------------
-    const { data: existingPhotos } = await supabase.storage.from("uploads_UAT").list(finalPhotoFolder);
+    // const { data: existingPhotos } = await supabase.storage.from("uploads_UAT").list(finalPhotoFolder);
 
-    if (existingPhotos?.length > 0) {
-        const oldPhotoPaths = existingPhotos.map((f) => `${finalPhotoFolder}/${f.name}`);
-        await supabase.storage.from("uploads_UAT").remove(oldPhotoPaths);
-    }
+    // if (existingPhotos?.length > 0) {
+    //     const oldPhotoPaths = existingPhotos.map((f) => `${finalPhotoFolder}/${f.name}`);
+    //     await supabase.storage.from("uploads_UAT").remove(oldPhotoPaths);
+    // }
 
     // Move photo files
-    const tempPhotoPath = `${baseTempFolder}/campaign_profile`;
-const { data: tempPhotos, error: listError } = await supabase.storage
-  .from("uploads_UAT")
-  .list(tempPhotoPath);
+    const { data: tempPhotos } = await supabase.storage.from("uploads_UAT").list(`${baseTempFolder}/campaign_profile`);
+    if (tempPhotos?.length > 0) {
+      for (const file of tempPhotos) {
+        const oldPath = `${baseTempFolder}/campaign_profile/${file.name}`;
+        const newPath = `${finalPhotoFolder}/${file.name}`;
 
-if (listError) console.warn("⚠️ Could not list temp photo folder:", listError.message);
+        const { data: fileData, error: downloadErr } = await supabase.storage
+          .from("uploads_UAT")
+          .download(oldPath);
 
-if (tempPhotos?.length > 0) {
-  for (const file of tempPhotos) {
-    const oldPath = `${tempPhotoPath}/${file.name}`;
-    const newPath = `${finalPhotoFolder}/${file.name}`;
+        if (downloadErr) {
+          console.warn("⚠️ Photo file download failed:", downloadErr.message);
+          continue;
+        }
 
-    const { data: fileData, error: downloadErr } = await supabase.storage
-      .from("uploads_UAT")
-      .download(oldPath);
-
-    if (downloadErr) {
-      console.warn("⚠️ Photo file download failed:", downloadErr.message);
-      continue;
+        await supabase.storage.from("uploads_UAT").upload(newPath, fileData, { upsert: true });
+        await supabase.storage.from("uploads_UAT").remove([oldPath]);
+      }
     }
-
-    const { error: uploadErr } = await supabase.storage
-      .from("uploads_UAT")
-      .upload(newPath, fileData, { upsert: true });
-
-    if (uploadErr) {
-      console.warn("⚠️ Upload to final photo folder failed:", uploadErr.message);
-      continue;
-    }
-
-    await supabase.storage.from("uploads_UAT").remove([oldPath]);
-    console.log(`✅ Moved photo file: ${file.name}`);
-  }
-} else {
-  console.log("⚠️ No temp campaign photos found to move.");
-}
 
     // Move portfolio files
     const { data: tempPortfolios } = await supabase.storage.from("uploads_UAT").list(`${baseTempFolder}/campaign_portfolio`);
