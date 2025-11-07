@@ -748,48 +748,9 @@ export const upsertCampaign = async (req, res) => {
         campaignParts: draftData,
       });
     }
+    
+    // DB Call for edit only startdate and enddate 
 
-    // ---------------- FINAL SAVE TO DATABASE ----------------
-    const existingDataResult = await client.query(
-      `SELECT * FROM ins.fn_get_campaigndetailsjson($1::BIGINT, $2::BIGINT)`,
-      [p_userid, campaignId]
-    );
-    const existingData = existingDataResult.rows[0] || {};
-
-    const mergeObjects = (oldObj, newObj) => ({ ...oldObj, ...newObj });
-
-    const finalData = {
-      p_objectivejson: mergeObjects(
-        existingData.p_objectivejson || {},
-        p_objectivejson
-      ),
-      p_vendorinfojson: mergeObjects(
-        existingData.p_vendorinfojson || {},
-        p_vendorinfojson
-      ),
-      p_campaignjson: mergeObjects(
-        existingData.p_campaignjson || {},
-        p_campaignjson
-      ),
-      p_campaigncategoyjson:
-        p_campaigncategoyjson.length > 0
-          ? p_campaigncategoyjson
-          : existingData.p_campaigncategoyjson || [],
-      p_campaignfilejson:
-        p_campaignfilejson.length || campaignFiles.length
-          ? [
-              ...(existingData.p_campaignfilejson || []),
-              ...p_campaignfilejson,
-              ...campaignFiles,
-            ]
-          : existingData.p_campaignfilejson || [],
-      p_contenttypejson:
-        p_contenttypejson.length > 0
-          ? p_contenttypejson
-          : existingData.p_contenttypejson || [],
-    };
-
-    // DB Call
     const result = await client.query(
       `CALL ins.usp_upsert_campaigndetails(
         $1::BIGINT, 
@@ -809,30 +770,26 @@ export const upsertCampaign = async (req, res) => {
         p_userid,
         campaignId,
         p_statusname,
-        JSON.stringify(finalData.p_objectivejson),
-        JSON.stringify(finalData.p_vendorinfojson),
-        JSON.stringify(finalData.p_campaignjson),
-        JSON.stringify(finalData.p_campaigncategoyjson),
-        JSON.stringify(finalData.p_campaignfilejson),
-        JSON.stringify(finalData.p_contenttypejson),
+        p_objectivejson||null ,
+        p_vendorinfojson||null ,
+        req.body.p_campaignjson,
+        p_campaigncategoyjson||null,
+        p_campaignfilejson||null,
+        p_contenttypejson||null,
         null,
         null,
-        null,
+        null
       ]
     );
 
-    const { p_status, p_message, p_campaignid } = result.rows[0] || {};
-
-    // Delete draft after successful DB save
-    await redisClient.del(redisKey);
+    const { p_status, p_message, p_campaignid } = result.rows[0];
 
     return res.status(200).json({
-      success: true,
-      message: p_message || "Campaign saved successfully",
-      campaignId: p_campaignid || campaignId,
+      success: p_status,
+      message: p_message ,
+      campaignId: p_campaignid,
       source: "db",
     });
-
   } catch (err) {
     console.error("❌ upsertCampaign error:", err);
     return res.status(500).json({
