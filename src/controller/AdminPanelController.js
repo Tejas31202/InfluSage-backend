@@ -450,7 +450,7 @@ export const blockInfluencerApplication = async (req, res) => {
 
     return res.status(200).json({ message: p_message, source: "db" });
   } catch (error) {
-    console.error("Error in insertApprovedOrRejectedApplication:", error);
+    console.error("Error in blockInfluencerApplication:", error);
     return res.status(500).json({ message: error.message });
   }
 };
