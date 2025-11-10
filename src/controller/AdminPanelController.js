@@ -3,6 +3,7 @@ import sendingMailFormatForAdmin  from '../utils/MailUtils.js';
 import {
   userProfileEmailHTML,
   campaignEmailHTML,
+  userProfileBlockEmailHTML
 } from "../utils/EmailTemplates.js";
 
 export const getUserStatusList = async (req, res) => {
@@ -333,3 +334,124 @@ export const getCampaignDetails = async (req, res) => {
   }
 };
 
+export const campaignBlockReason = async (req, res) => {
+  try {
+    const result = await client.query("SELECT * FROM ins.fn_get_campaignblockreason();");
+    
+    const BlockReason = result.rows;
+
+    return res.status(200).json({
+      message: "Campaign Block Reasons fetched successfully",
+      data:BlockReason
+    });
+  } catch (error) {
+    console.error("Error fetching Campaign Block Reason:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+export const userBlockReason = async (req, res) => {
+  try {
+    const result = await client.query("SELECT * FROM ins.fn_get_userblockreason();");
+
+    return res.status(200).json({
+      message: "User Block Reasons fetched successfully",
+      data: result.rows,
+    });
+  } catch (error) {
+    console.error("Error fetching User Block Reason:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+
+export const blockInfluencerApplication = async (req, res) => {
+  const p_adminid=req.user?.id||req.body.p_adminid;
+  const {p_userid,p_campaignid,p_objective } = req.body;
+
+  if (!p_userid && !p_campaignid) {
+    return res.status(400).json({
+      message:
+        "Required field missing: p_userid or p_campaignid must be specified.",
+    });
+  }
+  try {
+    const result = await client.query(
+      `CALL ins.usp_insert_entityblock(
+      $1::bigint,
+      $2::bigint,
+      $3::bigint,
+      $4::smallint,
+      $5::boolean,
+      $6::text);`,
+      [p_adminid,p_userid || null, p_campaignid || null,p_objective, null, null]
+    );
+
+    const actionableMessages = [
+      "User Blocked Successfully.",
+      "Campaign Blocked Successfully."
+    ];
+
+    const { p_status, p_message } = result.rows[0];
+    if (!actionableMessages.includes(p_message)) {
+      console.log("No email sent — DB message:", p_message);
+      return res
+        .status(200)
+        .json({ message: p_message, p_status, source: "db" });
+    }
+
+    if (p_userid && !p_campaignid) {
+      // Profile block
+      const userResult = await client.query(
+        "SELECT firstname, email FROM ins.users WHERE id = $1",
+        [p_userid]
+      );
+      const user = userResult.rows[0];
+
+      await sendingMailFormatForAdmin(
+        user.email,
+        `Your Profile blocked by influsage admin team`,
+        userProfileBlockEmailHTML({ userName: user.firstname})
+      );
+    } 
+    // else if (p_campaignid && !p_userid) {
+    //   // Campaign block
+    //   const campaignOwnerResult = await client.query(
+    //     `SELECT 
+    //       c.name AS campaignname,
+    //       u.firstname,
+    //       u.email
+    //     FROM ins.campaigns c
+    //     INNER JOIN ins.users u ON u.id = c.ownerid
+    //     WHERE c.id = $1`,
+    //     [p_campaignid]
+    //   );
+
+    //   const data = campaignOwnerResult.rows[0];
+
+    //   if (!data) {
+    //     return res.status(404).json({ message: "Campaign or owner not found" });
+    //   }
+
+    //   // Send email to campaign owner
+    //   await sendingMailFormatForAdmin(
+    //     data.email,
+    //     `Your Campaign blocked by influsage admin team`,
+    //     userProfileBlockEmailHTML({
+    //       userName: data.firstname,
+    //       campaignName: data.campaignname,
+    //       status: p_statusname,
+    //     })
+    //   );
+    // } else {
+    //   return res.status(400).json({
+    //     message: "Invalid request: provide either userId or campaignId",
+    //   });
+    // }
+
+    return res.status(200).json({ message: p_message, source: "db" });
+  } catch (error) {
+    console.error("Error in blockInfluencerApplication:", error);
+    return res.status(500).json({ message: error.message });
+  }
+};
