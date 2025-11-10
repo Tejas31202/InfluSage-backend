@@ -93,7 +93,9 @@ export const insertMessage = async (req, res) => {
     const username = req.username || "user";
 
     for (const file of req.files) {
-      const newFileName = `${file.originalname}`;
+      const timestamp = Date.now();
+      const newFileName = `${timestamp}_${file.originalname}`;
+      // const newFileName = `${file.originalname}`;
 
       let uniqueFileName = ""
 
@@ -106,17 +108,17 @@ export const insertMessage = async (req, res) => {
 
       // Upload file to Supabase
       const { data, error } = await supabase.storage
-        .from("uploads") // bucket name
+        .from("uploads_UAT") // bucket name
         .upload(uniqueFileName, file.buffer, {
           contentType: file.mimetype,
-          upsert: true, //Duplicate File
+          upsert: false, 
         });
 
       if (error) throw error;
 
       // Get public URL
       const { data: publicData } = supabase.storage
-        .from("uploads")
+        .from("uploads_UAT")
         .getPublicUrl(uniqueFileName);
 
       uploadedUrls.push(publicData.publicUrl);
