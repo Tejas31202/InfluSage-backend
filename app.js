@@ -39,7 +39,7 @@ app.use(
 app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
-    origin: ["https://influsage-uat.netlify.app"], // your Netlify URL
+    origin: ["https://influsage-mvp.netlify.app"], // your Netlify URL
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true, // if using cookies or auth headers
