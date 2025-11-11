@@ -79,8 +79,8 @@ export const finalizeCampaign = async (req, res) => {
 
     if (!p_status) {
       return res.status(400).json({
-        status: false,
-        message: p_message || "Failed to finalize campaign",
+        p_status,
+        message:p_message ,
       });
     }
 
