@@ -95,7 +95,7 @@ export const applyNowCampaign = async (req, res) => {
   for (const file of req.files.portfolioFiles) {
     const fileName = file.originalname;
     const newFileName = `${fileName}`;
-    const uniqueFileName = `Influencer/${userFolder}/CampaignId_${campaignId}/ApplyCampaigns/${newFileName}`;
+    const uniqueFileName = `Influencer/${userFolder}/Campaigns/${campaignId}/ApplyCampaigns/${newFileName}`;
     const fileBuffer = file.buffer;
 
     try {
