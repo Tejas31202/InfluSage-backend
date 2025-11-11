@@ -77,8 +77,8 @@ export const finalizeCampaign = async (req, res) => {
 
     if (!p_status) {
       return res.status(400).json({
-        status: false,
-        message: p_message || "Failed to finalize campaign",
+        p_status,
+        message:p_message ,
       });
     }
 
@@ -691,7 +691,7 @@ export const upsertCampaign = async (req, res) => {
       const newFileName = file.originalname;
       const tempPhotoPath = `${tempPhotoFolder}/${newFileName}`;
 
-      const { error } = await supabase.storage.from("uploads_UAT").upload(
+      const { error } = await supabase.storage.from("uploads").upload(
         tempPhotoPath,
         file.buffer,
         { contentType: file.mimetype, upsert: true }
@@ -700,7 +700,7 @@ export const upsertCampaign = async (req, res) => {
 
       // // ✅ Only store filename in DB
       // p_campaignjson.photopath = newFileName;
-      const { data: publicData } = supabase.storage.from("uploads_UAT").getPublicUrl(tempPhotoPath);
+      const { data: publicData } = supabase.storage.from("uploads").getPublicUrl(tempPhotoPath);
         p_campaignjson.photopath = publicData.publicUrl; // store full URL for UI
     }
 
@@ -710,7 +710,7 @@ export const upsertCampaign = async (req, res) => {
         const newFileName = file.originalname;
         const tempPortfolioPath = `${tempPortfolioFolder}/${newFileName}`;
 
-        const { error } = await supabase.storage.from("uploads_UAT").upload(
+        const { error } = await supabase.storage.from("uploads").upload(
           tempPortfolioPath,
           file.buffer,
           { contentType: file.mimetype, upsert: true }
@@ -719,7 +719,7 @@ export const upsertCampaign = async (req, res) => {
 
         // // ✅ Only store filename in DB
         // campaignFiles.push({ filepath: newFileName });
-        const { data: publicData } = supabase.storage.from("uploads_UAT").getPublicUrl(tempPortfolioPath);
+        const { data: publicData } = supabase.storage.from("uploads").getPublicUrl(tempPortfolioPath);
         campaignFiles.push({filepath: publicData.publicUrl });
       }
     }
