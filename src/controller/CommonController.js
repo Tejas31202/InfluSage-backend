@@ -86,7 +86,7 @@ export const getCategories = async (req, res) => {
 
     const result = await client.query("select * from ins.fn_get_categories();");
 
-    await redisClient.setEx(redisKey, 300, JSON.stringify(result.rows)); // TTL 5 mins
+    await redisClient.setEx(redisKey, 7200, JSON.stringify(result.rows)); // TTL 2h
 
     return res.status(200).json({
       categories: result.rows,

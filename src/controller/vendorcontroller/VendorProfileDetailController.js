@@ -37,8 +37,8 @@ export const getCompanySizes = async (req, res) => {
     }
 
     const result = await client.query("SELECT * FROM ins.fn_get_companysize()");
-
-    await redisClient.setEx(redisKey, 300, JSON.stringify(result.rows)); // TTL 5 mins
+    //Redis Store data for 1h -> 3600 sec
+    await redisClient.setEx(redisKey, 3600, JSON.stringify(result.rows)); // TTL 10 mins
 
     return res.status(200).json({
       companySizes: result.rows,
@@ -67,7 +67,7 @@ export const getInfluencerTiers = async (req, res) => {
       "SELECT * FROM ins.fn_get_influencertiers()"
     );
 
-    await redisClient.setEx(redisKey, 300, JSON.stringify(result.rows)); // TTL 5 mins
+    await redisClient.setEx(redisKey, 3600, JSON.stringify(result.rows)); // TTL 60 mins
 
     return res.status(200).json({
       influencerTiers: result.rows,
@@ -225,9 +225,9 @@ export const completeVendorProfile = async (req, res) => {
       }
 
       const fileName =file.originalname;
-      const newFileName = `${userId}_${username}_photo_${fileName}`;
-      const profileFolderPath = `Vendor/${userId}_${username}/Profile`;
-      const supabasePath = `${profileFolderPath}/${newFileName}`;
+      // const newFileName = `${userId}_${username}_photo_${fileName}`;
+      const profileFolderPath = `Vendor/${userId}/Profile`;
+      const supabasePath = `${profileFolderPath}/${fileName}`;
 
       // List & remove old profile photos (optional cleanup)
       const { data: existingFiles, error: listError } = await supabase.storage
@@ -369,7 +369,7 @@ export const completeVendorProfile = async (req, res) => {
         let redisData = existingRedis ? JSON.parse(existingRedis) : {};
         redisData = { ...redisData, ...mergedData };
 
-        await redisClient.set(redisKey, JSON.stringify(redisData));
+        await redisClient.setEx(redisKey,86400, JSON.stringify(redisData));
         return res.status(200).json({
           message: "Partial data saved in Redis (first-time user)",
           source: "redis",
@@ -432,7 +432,7 @@ export const getObjectives = async (req, res) => {
 
     const result = await client.query("SELECT * FROM ins.fn_get_objectives();");
 
-    await redisClient.setEx(redisKey, 300, JSON.stringify(result.rows)); // TTL: 5 mins
+    await redisClient.setEx(redisKey, 86400, JSON.stringify(result.rows)); // TTL: 24h
 
     return res.status(200).json({
       objectives: result.rows,

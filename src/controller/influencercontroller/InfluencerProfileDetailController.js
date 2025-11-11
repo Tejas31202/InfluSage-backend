@@ -69,9 +69,9 @@ export const completeUserProfile = async (req, res) => {
     if (req.files?.photo?.[0]) {
       const file = req.files.photo[0];
       const fileName = file.originalname;
-      const newFileName = `${userId}_${username}_photo_${fileName}`;
-      const profileFolderPath = `Influencer/${userId}_${username}/Profile`;
-      const supabasePath = `${profileFolderPath}/${newFileName}`;
+      // const newFileName = `${userId}_${username}_photo_${fileName}`;
+      const profileFolderPath = `Influencer/${userId}/Profile`;
+      const supabasePath = `${profileFolderPath}/${fileName}`;
 
       // Delete old photos (optional cleanup)
       const { data: existingFiles } = await supabase.storage
@@ -119,14 +119,14 @@ export const completeUserProfile = async (req, res) => {
      for (const file of req.files.portfolioFiles) {
     const fileName = file.originalname;
     const newFileName = `${fileName}`;
-    const supabasePath = `Influencer/${userId}_${username}/Portfolio/${newFileName}`;
+    const supabasePath = `Influencer/${userId}/Portfolio/${newFileName}`;
     const fileBuffer = file.buffer;
 
     try {
       // ✅ Step 1: Check if file already exists in Supabase
      const { data: existingFile, error: listError } = await supabase.storage
         .from("uploads")
-        .list(`Influencer/${userId}_${username}/Portfolio`);
+        .list(`Influencer/${userId}/Portfolio`);
 
       if (listError) {
         console.error("Supabase list error:", listError);
@@ -291,8 +291,8 @@ export const completeUserProfile = async (req, res) => {
         const existingRedis = await redisClient.get(redisKey);
         let redisData = existingRedis ? JSON.parse(existingRedis) : {};
         redisData = { ...redisData, ...mergedData };
-
-        await redisClient.set(redisKey, JSON.stringify(redisData));
+        //Redis store data for 24h->86400 sec
+        await redisClient.setEx(redisKey, 86400, JSON.stringify(redisData));
         return res.status(200).json({
           message: "Partial data saved in Redis (first-time user)",
           source: "redis",
@@ -460,8 +460,8 @@ export const deletePortfolioFile = async (req, res) => {
         profileData.portfoliojson = profileData.portfoliojson.filter(
           (file) => file.filepath !== filePathToDelete
         );
-
-        await redisClient.set(redisKey, JSON.stringify(profileData));
+        //Redis store data for 3h->10800sec
+        await redisClient.setEx(redisKey, 10800,JSON.stringify(profileData));
       }
     }
 

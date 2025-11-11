@@ -63,11 +63,11 @@ export const requestRegistration = async (req, res) => {
       })
     );
 
-    // Store OTP in Redis (2 minutes expiry)
+    // Store OTP in Redis (5 minutes expiry)
     await redisClient.setEx(`otp:${normalizedEmail}`, 300, otpCode);
 
     // Send OTP email
-    await sendingMail(normalizedEmail, "InflueSage OTP Verification",htmlContent({otp:otpCode}));
+    await sendingMail(normalizedEmail, "InflueSage OTP Verification", htmlContent({ otp: otpCode }));
 
     res.status(200).json({
       message: "OTP sent to email. Complete verification to register.",
@@ -209,6 +209,8 @@ export const resendOtp = async (req, res) => {
   const email = req.body.email.toLowerCase();
 
   try {
+    //For Previous Otp Expire
+    await redisClient.del(`otp:${email}`);
     // Generate OTP once only
     const otpCode = generateOTP();
 
@@ -216,10 +218,10 @@ export const resendOtp = async (req, res) => {
     // console.log("Generated OTP:", otpCode);
 
     // Send Email with OTP
-    await sendingMail(email, "InflueSage OTP Verification - Resend",htmlContent({otp:otpCode}));
+    await sendingMail(email, "InflueSage OTP Verification - Resend", htmlContent({ otp: otpCode }));
 
-    // Store OTP in Redis with 120 sec expiry
-    await redisClient.setEx(`otp:${email}`, 120, otpCode);
+    // Store OTP in Redis with 5 minsec expiry
+    await redisClient.setEx(`otp:${email}`, 300, otpCode);
 
     // Reset pendingUser TTL if user exists
     const userData = await redisClient.get(`pendingUser:${email}`);
@@ -256,7 +258,7 @@ export const forgotPassword = async (req, res) => {
     const resetToken = crypto.randomBytes(32).toString("hex");
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
-    await redisClient.setEx(`reset:${resetToken}`, 300, userId);
+    await redisClient.setEx(`reset:${resetToken}`, 600, userId);
 
     // Send Email with reset url
     await sendingMail(

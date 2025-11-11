@@ -54,8 +54,7 @@ export const finalizeCampaign = async (req, res) => {
         $8::JSON,
         $9::JSON,
         $10::boolean,
-        $11::TEXT,
-        $12::TEXT
+        $11::TEXT
       )`,
       [
         userId,
@@ -69,13 +68,12 @@ export const finalizeCampaign = async (req, res) => {
         JSON.stringify(campaignData.p_contenttypejson || {}),
         null,
         null,
-        null,
       ]
     );
 
     await client.query("COMMIT");
 
-    const { p_status, p_message, p_campaignid, p_campaignname } = result.rows[0] || {};
+    const { p_status, p_message, p_campaignid} = result.rows[0] || {};
 
     if (!p_status) {
       return res.status(400).json({
@@ -88,8 +86,8 @@ export const finalizeCampaign = async (req, res) => {
  
     let username= req.user.name.split(" ")[0].trim();
       
-    const baseTempFolder = `Vendor/${userId}_${username}/Campaigns/_temp`;
-    const finalFolderBase = `Vendor/${userId}_${username}/Campaigns/${p_campaignid}_${p_campaignname}`;
+    const baseTempFolder = `Vendor/${userId}/Campaigns/_temp`;
+    const finalFolderBase = `Vendor/${userId}/Campaigns/${p_campaignid}`;
     const finalPhotoFolder = `${finalFolderBase}/campaign_profile`;
     const finalPortfolioFolder = `${finalFolderBase}/campaign_portfolio`;
 
@@ -155,7 +153,6 @@ export const finalizeCampaign = async (req, res) => {
       status: true,
       message: p_message,
       campaignId: p_campaignid,
-      campaignName: p_campaignname,
     });
   } catch (error) {
     await client.query("ROLLBACK");
@@ -223,8 +220,8 @@ export const getCampaign = async (req, res) => {
 
     const fullData = result.rows[0];
 
-    // Cache DB data in Redis for next time
-    await redisClient.set(redisKey, JSON.stringify(fullData));
+    // Cache DB data in Redis for next time 1h->3600 sec
+    await redisClient.setEx(redisKey, 3600,JSON.stringify(fullData));
 
     return res.status(200).json({
       message: "Campaign data from DB",
@@ -277,8 +274,8 @@ export const deleteCampaignFile = async (req, res) => {
         );
 
         updatedFiles = campaignData.p_campaignfilejson;
-
-        await redisClient.set(redisKey, JSON.stringify(campaignData));
+        //Redis Store data for 1h->3600 sec
+        await redisClient.setEx(redisKey, 3600, JSON.stringify(campaignData));
       }
     }
 
@@ -682,7 +679,7 @@ export const upsertCampaign = async (req, res) => {
     const p_contenttypejson = cleanArray(req.body.p_contenttypejson);
 
     // ---------------- TEMP FOLDERS ----------------
-    const baseTempFolder = `Vendor/${p_userid}_${username}/Campaigns/_temp`;
+    const baseTempFolder = `Vendor/${p_userid}/Campaigns/_temp`;
     const tempPhotoFolder = `${baseTempFolder}/campaign_profile`;
     const tempPortfolioFolder = `${baseTempFolder}/campaign_portfolio`;
 
@@ -750,8 +747,8 @@ export const upsertCampaign = async (req, res) => {
       ],
       updated_at: new Date(),
     };
-
-    await redisClient.set(redisKey, JSON.stringify(draftData));
+    //Redis store data for 24h -> 86400 sec
+    await redisClient.setEx(redisKey,86400, JSON.stringify(draftData));
 
     // ---------------- DRAFT SAVE ONLY ----------------
     if (!isFinalSubmit) {
@@ -777,7 +774,6 @@ export const upsertCampaign = async (req, res) => {
         $9::JSON,
         $10::boolean,
         $11::TEXT,
-        $12::TEXT
       )`,
       [
         p_userid,
@@ -791,7 +787,6 @@ export const upsertCampaign = async (req, res) => {
         p_contenttypejson||null,
         null,
         null,
-        null
       ]
     );
 
