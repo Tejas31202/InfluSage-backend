@@ -111,10 +111,11 @@ export const updateApplicationStatus = async (req, res) => {
 
 export const getOfferDetails = async (req, res) => {
   const applicationId = req.params.applicationId;
+  const userId = req.user?.id || req.body.userId;
   try {
     const result = await client.query(
-      `select * from ins.fn_get_offerdetails($1::bigint);`,
-      [applicationId]
+      `select * from ins.fn_get_offerdetails($1::bigint, $2::bigint);`,
+      [userId, applicationId]
     );
 
     if (!result.rows) {
@@ -123,10 +124,14 @@ export const getOfferDetails = async (req, res) => {
 
     const offer = result.rows[0].fn_get_offerdetails[0];
 
+    if (!offer) {
+      return res.status(404).json({ message: "offer detail not found." });
+    }
+
     return res.status(200).json({
       data: offer,
       source: "db",
-    });
+    }); 
   } catch (error) {
     console.error("Error in get offer detail :", error.message);
     return res.status(500).json({ message: error.message });

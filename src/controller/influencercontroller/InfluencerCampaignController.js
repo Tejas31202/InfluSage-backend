@@ -76,7 +76,7 @@ export const applyNowCampaign = async (req, res) => {
     // username = username.replace(/\W+/g, "_");
 
     // Unique folder name pattern
-    const userFolder = `${userId}_${username}`;
+    const userFolder = `${userId}`;
 
     // ✅ Parse JSON from form-data
     let applycampaignjson = {};
@@ -509,7 +509,7 @@ export const deleteApplyNowPortfolioFile = async (req, res) => {
           );
 
         // Update Redis data
-        await redisClient.set(redisKey, JSON.stringify(campaignData));
+        await redisClient.setEx(redisKey,7200, JSON.stringify(campaignData));
       }
     }
 
