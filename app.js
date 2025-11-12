@@ -23,6 +23,7 @@ import VendorMyCampaignRoutes from './src/routes/vendorroutes/VendorMyCampaignRo
 import InfluencerMyCampaignRoutes from './src/routes/influencerroutes/InfluencerMyCampaignRoutes.js';
 import NotificationRoutes  from './src/routes/NotificationRoutes.js';
 import AdminPanelRoutes from './src/routes/AdminPanelRoutes.js';
+import UserAdminSupportChatRoutes from './src/routes/UserAdminSupportChatRoutes.js';
 
 dotenv.config();
 
@@ -63,6 +64,7 @@ app.use("/vendor",VendorDashboardRoutes);
 app.use("/chat", ChatRoutes);
 app.use("/new",NotificationRoutes);
 app.use("/admin",AdminPanelRoutes);
+app.use("/chat/support",UserAdminSupportChatRoutes)
 
 const PORT = process.env.BACKEND_PORT || 3001;
 
@@ -140,10 +142,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("messageRead", async ({ messageId, conversationId, role }) => {
-    // 1. Update DB: mark message as read by this role
-    // e.g. set readbyvendor = true if role === vendor, etc.
-
-    // 2. Broadcast updated read status to the room
+    
     io.to(`conversation_${conversationId}`).emit("updateMessageStatus", {
       messageId,
       readbyvendor: role === 1 ? true : undefined,
@@ -156,7 +155,7 @@ io.on("connection", (socket) => {
 // Edit message
 socket.on("editMessage", ({ id, content, file, conversationId, replyId }) => {
   if (!id || !conversationId) {
-    console.log("⚠️ Missing id or conversationId in editMessage", { id, conversationId });
+    console.log("Missing id or conversationId in editMessage", { id, conversationId });
     return;
   }
   io.to(conversationId).emit("editMessage", { id, content, file, replyId });
