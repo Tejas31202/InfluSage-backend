@@ -8,14 +8,13 @@ export const getRoles = async (req, res) => {
   try {
     const result = await client.query(`SELECT * from ins.fn_get_roles();`);
 
-    // rows array aayega roles ka
     return res.status(200).json({
       status: true,
       message: "Roles fetched successfully",
       roles: result.rows,
     });
   } catch (error) {
-    console.error("❌ Error fetching roles:", error);
+    console.error(" Error fetching roles:", error);
     return res.status(500).json({
       status: false,
       message: error.message,
@@ -103,7 +102,6 @@ export const getProviders = async (req, res) => {
     // DB function call
     const result = await client.query("SELECT * FROM ins.fn_get_providers()");
 
-    // console.log("providers", result.rows);
     const providers = result.rows;
 
     res.status(200).json({

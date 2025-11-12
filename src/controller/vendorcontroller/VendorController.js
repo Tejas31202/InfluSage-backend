@@ -38,7 +38,6 @@ export const requestRegistration = async (req, res) => {
     const passwordhash = await bcrypt.hash(password, 10);
     const otpCode = generateOTP();
 
-    // Store vendor data and hashed password in Redis for 120 seconds
     await redisClient.setEx(
       `pendingVendor:${email}`,
       120, // Store for 120 seconds

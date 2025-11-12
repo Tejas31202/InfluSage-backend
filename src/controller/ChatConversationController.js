@@ -179,7 +179,7 @@ export const insertMessage = async (req, res) => {
 //Get Conversations (Full)
 export const getConversationsdetails = async (req, res) => {
   try {
-    const p_userid = req.user?.id; // token se user id
+    const p_userid = req.user?.id;
     const { p_search = "" } = req.query || {};
 
     if (!p_userid) {

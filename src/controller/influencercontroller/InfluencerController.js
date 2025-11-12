@@ -47,10 +47,6 @@ export const requestRegistration = async (req, res) => {
     // Generate OTP once only
     const otpCode = generateOTP();
 
-    // ✅ Ab wahi OTP har jagah use hoga
-    // console.log("Generated OTP (for registration):", otpCode);
-
-    // Store user data in Redis (5 minutes expiry)
     await redisClient.setEx(
       `pendingUser:${normalizedEmail}`,
       300,
@@ -63,7 +59,7 @@ export const requestRegistration = async (req, res) => {
       })
     );
 
-    // Store OTP in Redis (2 minutes expiry)
+    // Store OTP in Redis
     await redisClient.setEx(`otp:${normalizedEmail}`, 300, otpCode);
 
     // Send OTP email
@@ -84,10 +80,7 @@ export const verifyOtpAndRegister = async (req, res) => {
   const { otp } = req.body;
 
   try {
-    // 🔍 Debug logs
-    // console.log(" Verifying OTP for:", email);
-    // console.log(" OTP received from user:", otp);
-
+    
     const storedOtp = await redisClient.get(`otp:${email}`);
     // console.log(" OTP stored in Redis:", storedOtp);
 
@@ -120,13 +113,11 @@ export const verifyOtpAndRegister = async (req, res) => {
     );
 
     const { p_code, p_message } = result.rows[0];
-    // console.log(" DB Response:", { p_code, p_message });
 
     // Clean up Redis
     await redisClient.del(`otp:${email}`);
     await redisClient.del(`pendingUser:${email}`);
-    // console.log(" Redis keys deleted for:", email);
-
+  
     return res.status(p_code).json({ message: p_message });
   } catch (error) {
     console.error(" OTP Verification & Registration Error:", error);
@@ -211,9 +202,6 @@ export const resendOtp = async (req, res) => {
   try {
     // Generate OTP once only
     const otpCode = generateOTP();
-
-    //  Yehi OTP sab jagah use hoga
-    // console.log("Generated OTP:", otpCode);
 
     // Send Email with OTP
     await sendingMail(email, "InflueSage OTP Verification - Resend",htmlContent({otp:otpCode}));

@@ -63,9 +63,8 @@ export const completeUserProfile = async (req, res) => {
       paymentjson = null,
     } = req.body || {};
 
-    // ---------------------------
     // 2 Handle photo upload
-    // ---------------------------
+
     if (req.files?.photo?.[0]) {
       const file = req.files.photo[0];
       const fileName = file.originalname;
@@ -123,7 +122,7 @@ export const completeUserProfile = async (req, res) => {
     const fileBuffer = file.buffer;
 
     try {
-      // ✅ Step 1: Check if file already exists in Supabase
+      // Step 1: Check if file already exists in Supabase
      const { data: existingFile, error: listError } = await supabase.storage
         .from("uploads")
         .list(`Influencer/${userId}_${username}/Portfolio`);
@@ -139,7 +138,7 @@ export const completeUserProfile = async (req, res) => {
       if (fileAlreadyExists) {
         res.status(400).json({message:`File already exists: ${fileName}, skipping upload.`});
       } else {
-        // ✅ Step 2: Upload only if not exists
+        // Step 2: Upload only if not exists
         const { error: uploadError } = await supabase.storage
           .from("uploads")
           .upload(supabasePath, fileBuffer, {
@@ -155,7 +154,7 @@ export const completeUserProfile = async (req, res) => {
         }
       }
 
-      // ✅ Step 3: Get public URL (works both for existing & new)
+      // Step 3: Get public URL (works both for existing & new)
       const { data: publicUrlData } = supabase.storage
         .from("uploads")
         .getPublicUrl(supabasePath);
@@ -217,7 +216,7 @@ export const completeUserProfile = async (req, res) => {
       existingUser?.p_socials !== null &&
       existingUser?.p_categories !== null
     ) {
-      // ✅ CASE A: User already has socials + categories → update in DB
+      //CASE A: User already has socials + categories → update in DB
       try {
         await client.query("BEGIN");
         const result = await client.query(
@@ -254,7 +253,7 @@ export const completeUserProfile = async (req, res) => {
         throw err;
       }
     } else {
-      // 1️⃣ Try to fetch Redis partials
+      // 1 Try to fetch Redis partials
       let redisData = {};
       const existingRedis = await redisClient.get(redisKey);
       if (existingRedis) {
@@ -265,13 +264,13 @@ export const completeUserProfile = async (req, res) => {
         }
       }
 
-      // 2️⃣ Merge Redis + current request body (request takes priority)
+      // 2 Merge Redis + current request body (request takes priority)
       const finalData = {
         ...redisData,
         ...mergedData,
       };
 
-      // 3️⃣ Check completeness AFTER merging
+      // 3 Check completeness AFTER merging
       const allPartsPresent =
         finalData.profilejson &&
         finalData.socialaccountjson &&
@@ -279,14 +278,14 @@ export const completeUserProfile = async (req, res) => {
         finalData.portfoliojson &&
         finalData.paymentjson;
 
-      // 4️⃣ Now update mergedData to be finalData going forward
+      // 4 Now update mergedData to be finalData going forward
       mergedData.profilejson = finalData.profilejson;
       mergedData.socialaccountjson = finalData.socialaccountjson;
       mergedData.categoriesjson = finalData.categoriesjson;
       mergedData.portfoliojson = finalData.portfoliojson;
       mergedData.paymentjson = finalData.paymentjson;
 
-      // ✅ CASE B: User new or incomplete → check Redis
+      // CASE B: User new or incomplete → check Redis
       if (!allPartsPresent) {
         const existingRedis = await redisClient.get(redisKey);
         let redisData = existingRedis ? JSON.parse(existingRedis) : {};
@@ -299,7 +298,7 @@ export const completeUserProfile = async (req, res) => {
         });
       }
 
-      // ✅ CASE C: All parts present → insert into DB
+      // CASE C: All parts present → insert into DB
       try {
         await client.query("BEGIN");
         const result = await client.query(
@@ -342,7 +341,7 @@ export const completeUserProfile = async (req, res) => {
       }
     }
   } catch (error) {
-    console.error("💥 Error in completeUserProfile:", error);
+    console.error(" Error in completeUserProfile:", error);
     return res.status(500).json({ message: error.message });
   }
 };
@@ -440,7 +439,7 @@ export const getUserNameByEmail = async (req, res) => {
 export const deletePortfolioFile = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
-    const filePathToDelete = req.body.filepath; // frontend se milega (public URL)
+    const filePathToDelete = req.body.filepath;
 
     if (!userId || !filePathToDelete) {
       return res
@@ -451,7 +450,7 @@ export const deletePortfolioFile = async (req, res) => {
     // Redis key
     const redisKey = `getInfluencerProfile:${userId}`;
 
-    // 🔹 1️⃣ Redis se data fetch
+    // 1 Redis se data fetch
     let profileData = await redisClient.get(redisKey);
     if (profileData) {
       profileData = JSON.parse(profileData);
@@ -465,17 +464,17 @@ export const deletePortfolioFile = async (req, res) => {
       }
     }
 
-    // 🔹 2️⃣ Local file delete
+    //  2 Local file delete
     const uploadDir = path.join(process.cwd(), "src", "uploads", "influencer");
     const fileName = path.basename(filePathToDelete);
     const fullPath = path.join(uploadDir, fileName);
 
     if (fs.existsSync(fullPath)) {
       fs.unlinkSync(fullPath);
-      console.log("✅ File deleted from local folder:", fullPath);
+      console.log(" File deleted from local folder:", fullPath);
     }
 
-    // 🔹 3️⃣ Supabase se delete (actual storage path nikalo)
+    // 3 Supabase se delete (actual storage path nikalo)
     const bucketName = "uploads";
 
     // Public URL ko relative storage path me convert karo
@@ -485,7 +484,7 @@ export const deletePortfolioFile = async (req, res) => {
 
     if (!supabaseFilePath) {
       console.warn(
-        "⚠️ Could not extract Supabase file path from URL:",
+        " Could not extract Supabase file path from URL:",
         filePathToDelete
       );
     } else {
@@ -494,9 +493,9 @@ export const deletePortfolioFile = async (req, res) => {
         .remove([supabaseFilePath]);
 
       if (supaError) {
-        console.error("❌ Supabase delete error:", supaError.message);
+        console.error(" Supabase delete error:", supaError.message);
       } else {
-        console.log("✅ File deleted from Supabase storage:", supabaseFilePath);
+        console.log("File deleted from Supabase storage:", supabaseFilePath);
       }
     }
 
@@ -507,7 +506,7 @@ export const deletePortfolioFile = async (req, res) => {
       portfolioFiles: profileData?.portfoliojson || [],
     });
   } catch (error) {
-    console.error("❌ deletePortfolioFile error:", error);
+    console.error(" deletePortfolioFile error:", error);
     return res.status(500).json({ status: false, message: error.message });
   }
 };

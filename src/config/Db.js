@@ -15,8 +15,8 @@ export const client = new Client({
 });
  
 client.connect()
-  .then(() => console.log("✅ Connected to PostgreSQL"))
-  .catch((err) => console.error("❌ PostgreSQL connection error:", err));
+  .then(() => console.log(" Connected to PostgreSQL"))
+  .catch((err) => console.error(" PostgreSQL connection error:", err));
  
 // ---------- Redis Client Setup ----------
 export const redisClient = redis.createClient({
@@ -24,8 +24,8 @@ export const redisClient = redis.createClient({
 });
  
 redisClient.connect()
-  .then(() => console.log("✅ Connected to Redis"))
-  .catch((err) => console.error("❌ Redis connection error:", err));
+  .then(() => console.log(" Connected to Redis"))
+  .catch((err) => console.error(" Redis connection error:", err));
  
 export default {
   client,

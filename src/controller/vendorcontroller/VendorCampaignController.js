@@ -113,7 +113,7 @@ export const finalizeCampaign = async (req, res) => {
           .download(oldPath);
 
         if (downloadErr) {
-          console.warn("⚠️ Photo file download failed:", downloadErr.message);
+          console.warn(" Photo file download failed:", downloadErr.message);
           continue;
         }
 
@@ -143,7 +143,7 @@ export const finalizeCampaign = async (req, res) => {
       }
     }
 
-    // ✅ Clean up temp folders and Redis cache
+    // Clean up temp folders and Redis cache
     await supabase.storage.from("uploads").remove([
       `${baseTempFolder}/campaign_profile`,
       `${baseTempFolder}/campaign_portfolio`,
@@ -159,7 +159,7 @@ export const finalizeCampaign = async (req, res) => {
     });
   } catch (error) {
     await client.query("ROLLBACK");
-    console.error("❌ finalizeCampaign error:", error);
+    console.error("finalizeCampaign error:", error);
     return res.status(500).json({
       status: false,
       message: "Error finalizing campaign",
@@ -181,8 +181,6 @@ export const getCampaign = async (req, res) => {
         ? `getCampaign:${userId}`
         : `getCampaign:${userId}:${campaignId}`;
 
-    // console.log("🧩 getCampaign called with:", { userId, campaignId, redisKey });
-
     if (campaignId === "01") {
       const cachedData = await redisClient.get(redisKey);
       if (cachedData) {
@@ -202,7 +200,6 @@ export const getCampaign = async (req, res) => {
 
     const cachedEditData = await redisClient.get(redisKey);
     if (cachedEditData) {
-      // console.log("Returning campaign data from Redis");
       return res.status(200).json({
         message: "Campaign data from Redis",
         campaignParts: JSON.parse(cachedEditData),
@@ -233,7 +230,7 @@ export const getCampaign = async (req, res) => {
     });
 
   } catch (err) {
-    console.error("❌ getCampaign error:", err);
+    console.error("getCampaign error:", err);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -252,12 +249,12 @@ export const deleteCampaignFile = async (req, res) => {
       });
     }
 
-    // ---------------- 1️⃣ Build Redis Key ----------------
+    // ---------------- 1 Build Redis Key ----------------
     const redisKey = campaignId
       ? `getCampaign:${userId}:${campaignId}`
       : `getCampaign:${userId}`;
 
-    // ---------------- 2️⃣ Update Redis ----------------
+    // ---------------- 2 Update Redis ----------------
     let campaignData = await redisClient.get(redisKey);
     let updatedFiles = [];
 
@@ -282,7 +279,7 @@ export const deleteCampaignFile = async (req, res) => {
       }
     }
 
-    // ---------------- 3️⃣ Convert public URL → Supabase Path ----------------
+    // ---------------- 3 Convert public URL → Supabase Path ----------------
     const supabaseFilePath = filePathToDelete
       .split(`/storage/v1/object/public/${bucketName}/`)[1]
       ?.trim();
@@ -294,7 +291,7 @@ export const deleteCampaignFile = async (req, res) => {
       });
     }
 
-    // ---------------- 4️⃣ Delete from Supabase Storage ----------------
+    // ---------------- 4 Delete from Supabase Storage ----------------
     const { error: deleteError } = await supabase.storage
       .from(bucketName)
       .remove([supabaseFilePath]);
@@ -307,7 +304,7 @@ export const deleteCampaignFile = async (req, res) => {
       });
     }
 
-    // ---------------- ✅ SUCCESS RESPONSE ----------------
+    // ----------------  SUCCESS RESPONSE ----------------
     return res.status(200).json({
       status: true,
       message: "File deleted successfully from Supabase & Redis",
@@ -701,7 +698,7 @@ export const upsertCampaign = async (req, res) => {
       );
       if (error) throw new Error(`Photo upload failed: ${error.message}`);
 
-      // // ✅ Only store filename in DB
+      // // Only store filename in DB
       // p_campaignjson.photopath = newFileName;
       const { data: publicData } = supabase.storage.from("uploads").getPublicUrl(tempPhotoPath);
         p_campaignjson.photopath = publicData.publicUrl; // store full URL for UI
@@ -720,7 +717,7 @@ export const upsertCampaign = async (req, res) => {
         );
         if (error) console.warn("⚠️ File upload failed:", error.message);
 
-        // // ✅ Only store filename in DB
+        // // Only store filename in DB
         // campaignFiles.push({ filepath: newFileName });
         const { data: publicData } = supabase.storage.from("uploads").getPublicUrl(tempPortfolioPath);
         campaignFiles.push({filepath: publicData.publicUrl });
@@ -805,7 +802,7 @@ export const upsertCampaign = async (req, res) => {
     });
 
   } catch (err) {
-    console.error("❌ upsertCampaign error:", err);
+    console.error("upsertCampaign error:", err);
     return res.status(500).json({
       success: false,
       message: "Error processing campaign",

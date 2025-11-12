@@ -37,11 +37,6 @@ export const browseAllInfluencer = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.p_userid ;
 
-    //Check For User Id Available OR Not
-    // if (!userId) {
-    //   return res.status(400).json({ message: "User ID is required." });
-    // }
-
     const {
       p_location,
       p_providers,
@@ -83,9 +78,6 @@ export const browseAllInfluencer = async (req, res) => {
 
     
     const influencers = result.rows[0].fn_get_influencerbrowse;
-
-    //Check For Data
-    // console.log("==>", influencers);
 
     if (influencers.length === 0) {
       return res.status(404).json({ message: "No influencers found." });
