@@ -40,10 +40,11 @@ export const requestRegistration = async (req, res) => {
 
     await redisClient.setEx(
       `pendingVendor:${email}`,
-      120, // Store for 120 seconds
+      300, // Store for 5 min
       JSON.stringify({ firstName, lastName, email, roleId, passwordhash })
     );
-    await redisClient.setEx(`otp:${email}`, 120, otpCode);
+    //store otp for 5 min
+    await redisClient.setEx(`otp:${email}`, 300, otpCode);
 
     await sendingMail(email, "InflueSage OTP Verification", otpCode);
 
@@ -158,12 +159,12 @@ export const resendOtp = async (req, res) => {
     // Send Email with OTP
     await sendingMail(email, "InflueSage OTP Verification - Resend", otpCode);
 
-    // Store OTP in Redis with 120 sec expiry
-    await redisClient.setEx(`otp:${email}`, 120, otpCode);
+    // Store OTP in Redis with 5 min expiry
+    await redisClient.setEx(`otp:${email}`, 300, otpCode);
 
     const vendorData = await redisClient.get(`pendingVendor:${email}`);
     if (vendorData) {
-      await redisClient.expire(`pendingVendor:${email}`, 120); // Reset TTL to 60 seconds
+      await redisClient.expire(`pendingVendor:${email}`, 300); // Reset TTL to 60 seconds
     }
 
     return res.status(200).json({ message: "OTP resent successfully." });
@@ -194,7 +195,7 @@ export const forgotPassword = async (req, res) => {
     const resetToken = crypto.randomBytes(32).toString("hex");
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
-    await redisClient.setEx(`reset:${resetToken}`, 300, vendorId);
+    await redisClient.setEx(`reset:${resetToken}`, 600, vendorId);
 
     // Send Email with reset url
     await sendingMail(

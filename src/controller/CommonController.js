@@ -85,7 +85,7 @@ export const getCategories = async (req, res) => {
 
     const result = await client.query("select * from ins.fn_get_categories();");
 
-    await redisClient.setEx(redisKey, 300, JSON.stringify(result.rows)); // TTL 5 mins
+    await redisClient.setEx(redisKey, 7200, JSON.stringify(result.rows)); // TTL 2h
 
     return res.status(200).json({
       categories: result.rows,
@@ -132,6 +132,33 @@ export const getInfluencerTiers = async (req, res) => {
     console.error("Error fetching getInfluencerTiers:", error);
     return res
       .status(500)
-      .json({ message: "Failed to fetch getInfluencerTiers" });
+      .json({ message: "Failed to fetch getInfluencerTiers", error: error.message, });
+  }
+};
+
+export const getUserNameAndPhoto = async (req, res) => {
+  try {
+    const p_userid  = req.user?.id || req.query.p_userid ;
+    console.log("p_userid==>",p_userid)
+
+    if (!p_userid ) {
+      return res.status(400).json({
+        message: "p_userid is required.",
+      });
+    }
+    const result = await client.query(
+      "SELECT * FROM ins.fn_get_userinfo($1::bigint);",
+      [p_userid ]
+    );
+
+    const userData = result.rows[0].fn_get_userinfo[0];
+
+    return res.status(200).json({
+      userData: userData,
+      source: "db",
+    });
+  } catch (error) {
+    console.error("Error fetching getUserNameAndPhoto:", error);
+    return res.status(500).json({ message: error.message });
   }
 };

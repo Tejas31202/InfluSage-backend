@@ -72,7 +72,11 @@ export const applyNowCampaign = async (req, res) => {
       }
     }
 
-    const userFolder = `${userId}_${username}`;
+    // // Clean username to remove any special chars
+    // username = username.replace(/\W+/g, "_");
+
+    // Unique folder name pattern
+    const userFolder = `${userId}`;
 
     // Parse JSON from form-data
     let applycampaignjson = {};
@@ -91,7 +95,7 @@ export const applyNowCampaign = async (req, res) => {
   for (const file of req.files.portfolioFiles) {
     const fileName = file.originalname;
     const newFileName = `${fileName}`;
-    const uniqueFileName = `Influencer/${userFolder}/CampaignId_${campaignId}/ApplyCampaigns/${newFileName}`;
+    const uniqueFileName = `Influencer/${userFolder}/Campaigns/${campaignId}/ApplyCampaigns/${newFileName}`;
     const fileBuffer = file.buffer;
 
     try {
@@ -505,7 +509,7 @@ export const deleteApplyNowPortfolioFile = async (req, res) => {
           );
 
         // Update Redis data
-        await redisClient.set(redisKey, JSON.stringify(campaignData));
+        await redisClient.setEx(redisKey,7200, JSON.stringify(campaignData));
       }
     }
 
