@@ -6,15 +6,15 @@ redisClient.connect().catch(console.error);
 
 export const getSubjectListByRole = async (req, res) => {
   try {
-    const roleId = req.user?.role || req.query.roleId;
+    const p_userid = req.user?.id || req.query.p_userid;
 
-    if (!roleId) {
-      return res.status(400).json({ message: "roleId is required." });
+    if (!p_userid) {
+      return res.status(400).json({ message: "User ID (p_userid) is required." });
     }
 
     const result = await client.query(
-      `SELECT * from ins.getSubjectListByRole($1::smallint);`,
-      [roleId]
+      `SELECT * FROM ins.fn_get_subjectlist($1::BIGINT);`,
+      [p_userid]
     );
     const subjectList = result.rows[0];
 
@@ -149,5 +149,237 @@ export const changeTicketStatus = async (req, res) => {
     return res.status(500).json({
       message: error.message,
     });
+  }
+};
+
+export const ViewAllTicketAdminSide =async (req,res)=>{
+  try{
+      const p_adminid = req.user?.id || req.body.p_adminid;
+
+    if (!p_adminid) {
+      return res.status(400).json({
+        message: "p_adminid is required.",
+      });
+    }
+
+    const result = await client.query(
+      "SELECT * FROM ins.getAllTicketsForAdmin($1::bigint);",
+      [p_adminid]
+    );
+
+    const allTickets = result.rows;
+
+    return res.status(200).json({
+      message: "All tickets fetched successfully.",
+      data: allTickets,
+    });
+  } catch (error) {
+    console.error("error in ViewAllTicketAdminSide:", error);
+    return res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+export const claimTicketByAdmin = async (req, res) => {
+  try {
+    const adminId = req.user?.id || req.body.adminId;
+    const ticketId = req.body.tikcketId;
+
+    if (!adminId) {
+      return res.status(400).json({
+        message: "adminId is required.",
+      });
+    }
+    if (!ticketId) {
+      return res.status(400).json({
+        message: "tikcketId is required.",
+      });
+    }
+
+    const result = await client.query(
+      `CALL ins.usp_changeTicketStatus(
+          $1::bigint,
+          $2::bigint,
+          $3::boolean,
+          $4::varchar
+         );`,
+      [adminId, ticketId, null, null]
+    );
+    const { p_status, p_message } = result.rows[0];
+    if (p_status) {
+      return res.status(200).json({
+        message: p_message,
+        p_status,
+      });
+    } else {
+      return res.status(400).json({ message: p_message, p_status });
+    }
+  } catch (error) {
+    console.error("error in claimTicketByAdmin:", error);
+    return res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+export const openChatByTicketIdForAdmin = async (req, res) => {
+  try {
+    const adminId = req.user?.id || req.body.adminId;
+    const ticketId = req.body.ticketId;
+
+    if (!adminId) {
+      return res.status(400).json({ message: "adminId is required." });
+    }
+    if (!ticketId) {
+      return res.status(400).json({ message: "ticketId is required." });
+    }
+
+    const result = await client.query(
+      `SELECT * FROM ins.openChatByTicketIdForAdmin(
+        $1::bigint,
+        $2::bigint,
+        $3::boolean,
+        $4::varchar
+      );`,
+      [adminId, ticketId, null, null]
+    );
+
+    const data = result.rows[0];
+
+    return res.status(200).json({
+      message: "Chat opened successfully for the claimed ticket.",
+      data: data,
+    });
+  } catch (error) {
+    console.error("error in openChatByTicketIdForAdmin:", error);
+    return res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+export const resolveTicketByAdmin = async (req, res) => {
+  try {
+    const adminId = req.user?.id||req.body.adminId;
+
+    const { ticketId } = req.body;
+      if (!adminId) {
+      return res.status(400).json({ message: "adminId is required." });
+    }
+    if (!ticketId) {
+      return res.status(400).json({ message: "ticketId is required." });
+    }
+    const result = await client.query(
+      "CALL ins.usp_resolveTicket($1::bigint,$2::bigint)",
+      [adminId, ticketId,null,null]
+    );
+   const { p_status, p_message } = result.rows[0];
+    if (p_status) {
+      return res.status(200).json({
+        message: p_message,
+        p_status,
+      });
+    } else {
+      return res.status(400).json({ message: p_message, p_status });
+    }
+  } catch (error) {
+    console.error("Error in resolveTicketByAdmin:", error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+export const supportMessageSend = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.body.userId;
+    const { tikcketId, p_roleid, p_messages } = req.body;
+    let p_filepaths = null;
+
+    // ✅ Validation
+    if (!userId || !tikcketId || !p_roleid) {
+      return res.status(400).json({
+        message: "userId, tikcketId, and p_roleid are required.",
+      });
+    }
+
+    // ✅ Map role id → string (for folder naming)
+    const roleName =
+      Number(p_roleid) === 1
+        ? "influencer"
+        : Number(p_roleid) === 2
+        ? "vendor"
+        : Number(p_roleid) === 4
+        ? "admin"
+        : "unknown";
+
+    // ✅ Handle single file upload (if exists)
+    if (req.file) {
+      const file = req.file;
+      const folderPath = `support_chat/ticket_${tikcketId}/`;
+      const timestamp = Date.now();
+      const fileName = `${roleName}Id_${userId}_${timestamp}_${file.originalname}`;
+
+      // Upload to Supabase
+      const { data, error } = await supabase.storage
+        .from("uploads")
+        .upload(`${folderPath}${fileName}`, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false,
+        });
+
+      if (error) {
+        console.error("Supabase upload error:", error);
+        return res.status(500).json({ message: "File upload failed." });
+      }
+
+      // Get public URL
+      const { data: publicUrlData } = supabase.storage
+        .from("uploads")
+        .getPublicUrl(`${folderPath}${fileName}`);
+
+      p_filepaths = publicUrlData.publicUrl;
+    }
+
+    //Insert message into DB (stored procedure)
+    const result = await client.query(
+      `
+      CALL ins.usp_upsert_message(
+        $1::bigint,
+        $2::bigint,
+        $3::smallint,
+        $4::text,
+        $5::text,
+        $6::boolean,
+        $7::text
+      )
+      `,
+      [
+        userId,
+        tikcketId,
+        p_roleid,
+        p_messages || null,
+        p_filepaths || null,
+        null,
+        null,
+      ]
+    );
+
+    const { p_status, p_message } = result.rows[0] || {};
+
+    if (p_status) {
+      return res.status(200).json({
+        message: p_message,
+        fileUrls: uploadedFiles,
+        p_status,
+      });
+    } else {
+      return res.status(400).json({
+        message: p_message,
+        p_status,
+      });
+    }
+  } catch (error) {
+    console.error("Error in supportMessageSend:", error);
+    return res.status(500).json({ message: error.message });
   }
 };

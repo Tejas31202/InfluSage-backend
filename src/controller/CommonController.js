@@ -139,7 +139,6 @@ export const getInfluencerTiers = async (req, res) => {
 export const getUserNameAndPhoto = async (req, res) => {
   try {
     const p_userid  = req.user?.id || req.query.p_userid ;
-    console.log("p_userid==>",p_userid)
 
     if (!p_userid ) {
       return res.status(400).json({
