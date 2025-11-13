@@ -3,7 +3,8 @@ import { sendingMailFormatForAdmin } from '../utils/MailUtils.js';
 import {
   userProfileEmailHTML,
   campaignEmailHTML,
-  userProfileBlockEmailHTML
+  userProfileBlockEmailHTML,
+  userProfileRejectEmailHTML
 } from "../utils/EmailTemplates.js";
 
 export const getUserStatusList = async (req, res) => {
@@ -451,6 +452,66 @@ export const blockInfluencerApplication = async (req, res) => {
     return res.status(200).json({ message: p_message, source: "db" });
   } catch (error) {
     console.error("Error in blockInfluencerApplication:", error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+export const rejectInfluencerProfile = async (req, res) => {
+  try {
+    const p_adminid = req.user?.id || req.body.p_adminid;
+
+    if (!p_adminid) {
+      return res.status(400).json({ message: "p_adminid is required." });
+    }
+    const { p_userid, p_text } = req.body;
+
+    if (!p_userid || !p_text) {
+      return res
+        .status(400)
+        .json({ message: "p_userid and p_text are required." });
+    }
+    // Store rejection info in DB
+    const result = await client.query(
+      `CALL ins.usp_upsert_userrejections(
+        $1::bigint,
+        $2::bigint,
+        $3::varchar,
+        $4::boolean,
+        $5::text
+      );`,
+      [p_adminid, p_userid, p_text, null, null]
+    );
+
+    const { p_status, p_message } = result.rows[0];
+
+    // Send rejection email if successful
+    if (p_status && p_message === "User rejection recorded successfully.") {
+      const userResult = await client.query(
+        "SELECT firstname, email FROM ins.users WHERE id = $1",
+        [p_userid]
+      );
+      const user = userResult.rows[0];
+
+      if (user?.email) {
+        await sendingMailFormatForAdmin(
+          user.email,
+          `Your profile has been rejected by the InfluSage Admin Team`,
+          userProfileRejectEmailHTML({
+            userName: user.firstname,
+            reason: p_text,
+          })
+        );
+      }
+      // Send success response
+      return res.status(200).json({
+        message: p_message,
+        p_status,
+      });
+    } else {
+      return res.status(400).json({ message: p_message, p_status });
+    }
+  } catch (error) {
+    console.error("Error in rejectInfluencerProfile:", error);
     return res.status(500).json({ message: error.message });
   }
 };
