@@ -24,43 +24,41 @@ const calculateProfileCompletion = (profileParts) => {
 };
 
 // Complete User Profile
+
 export const completeUserProfile = async (req, res) => {
   const userId = req.user?.id || req.body?.userId;
-  // const userpcode = req.user?.p_code ? req.user.p_code.toUpperCase() : null;
-  const userpcode = (req.user?.p_code || req.body?.p_code || "").toUpperCase();
-
-  const redisKey = `profile:${userId}`;
+  // console.log("userId===>", userId);
   let username = "user";
 
-  // ---------------------------
-  // Username fallback logic
-  // ---------------------------
-  if (req.user?.name) username = req.user.name.split(" ")[0].trim();
-  else if (req.body?.firstName) username = req.body.firstName.trim();
-  else {
-    const dbUser = await client.query("SELECT firstname FROM ins.users WHERE id=$1", [userId]);
-    if (dbUser.rows[0]?.firstname) username = dbUser.rows[0].firstname.trim();
+  // Prefer JWT payload (if available)
+  if (req.user?.firstName || req.user?.lastName) {
+    username = `${req.user.firstName || ""}_${req.user.lastName || ""}`.trim();
   }
+
+  // Otherwise fallback to body fields (if sent from frontend)
+  else if (req.body?.firstName || req.body?.lastName) {
+    username = `${req.body.firstName || ""}_${req.body.lastName || ""}`.trim();
+  }
+
+  // If still missing, fetch from DB
+  else {
+    const dbUser = await client.query(
+      "SELECT firstname, lastname FROM ins.users WHERE id=$1",
+      [userId]
+    );
+    if (dbUser.rows[0]) {
+      username =
+        `${dbUser.rows[0].firstname || ""}_${
+          dbUser.rows[0].lastname || ""
+        }`.trim() || "user";
+    }
+  }
+
+  const redisKey = `profile:${userId}`;
 
   try {
     // ---------------------------
-    // Helper functions
-    // ---------------------------
-    const safeParse = (data) => {
-      try {
-        return data ? JSON.parse(data) : null;
-      } catch {
-        return null;
-      }
-    };
-
-    const saveToRedis = async (data, message) => {
-      await redisClient.setEx(redisKey, 604800, JSON.stringify(data)); // 7 days
-      return res.status(200).json({ message: message || "Data saved in Redis", source: "redis" });
-    };
-
-    // ---------------------------
-    // Parse JSON fields
+    // 1 Parse JSON fields from req.body (safe)
     // ---------------------------
     const {
       profilejson = null,
@@ -71,149 +69,479 @@ export const completeUserProfile = async (req, res) => {
     } = req.body || {};
 
     // ---------------------------
-    // Handle photo upload
+    // 2 Handle photo upload
     // ---------------------------
     if (req.files?.photo?.[0]) {
       const file = req.files.photo[0];
       const fileName = file.originalname;
-      const profileFolderPath = `Influencer/${userId}/Profile`;
-      const supabasePath = `${profileFolderPath}/${fileName}`;
+      const newFileName = `${userId}_${username}_photo_${fileName}`;
+      const profileFolderPath = `Influencer/${userId}_${username}/Profile`;
+      const supabasePath = `${profileFolderPath}/${newFileName}`;
 
-      const { data: existingFiles } = await supabase.storage.from("uploads").list(profileFolderPath);
+      // Delete old photos (optional cleanup)
+      const { data: existingFiles } = await supabase.storage
+        .from("uploads")
+        .list(profileFolderPath);
       if (existingFiles?.length > 0) {
-        const oldPaths = existingFiles.map((f) => `${profileFolderPath}/${f.name}`);
+        const oldPaths = existingFiles.map(
+          (f) => `${profileFolderPath}/${f.name}`
+        );
         await supabase.storage.from("uploads").remove(oldPaths);
       }
 
+      // Upload new photo
+      const fileBuffer = file.buffer;
       const { error: uploadError } = await supabase.storage
         .from("uploads")
-        .upload(supabasePath, file.buffer, { contentType: file.mimetype, upsert: true });
-      if (uploadError) return res.status(500).json({ message: "Failed to upload profile photo" });
+        .upload(supabasePath, fileBuffer, {
+          contentType: file.mimetype,
+          upsert: true,
+        });
 
-      const { data: publicUrlData } = supabase.storage.from("uploads").getPublicUrl(supabasePath);
+      if (uploadError)
+        return res
+          .status(500)
+          .json({ message: "Failed to upload profile photo" });
+
+      const { data: publicUrlData } = supabase.storage
+        .from("uploads")
+        .getPublicUrl(supabasePath);
+
       const photoUrl = publicUrlData?.publicUrl;
-
       if (photoUrl) {
-        const parsedProfile = safeParse(profilejson) || {};
+        const parsedProfile = profilejson ? JSON.parse(profilejson) : {};
         parsedProfile.photopath = photoUrl;
         req.body.profilejson = JSON.stringify(parsedProfile);
       }
     }
 
     // ---------------------------
-    // Handle portfolio uploads
+    // 3 Handle portfolio uploads
     // ---------------------------
     if (req.files?.portfolioFiles) {
       const uploadedFiles = [];
 
-      for (const file of req.files.portfolioFiles) {
-        const fileName = file.originalname;
-        const supabasePath = `Influencer/${userId}/Portfolio/${fileName}`;
+     for (const file of req.files.portfolioFiles) {
+    const fileName = file.originalname;
+    const newFileName = `${fileName}`;
+    const supabasePath = `Influencer/${userId}_${username}/Portfolio/${newFileName}`;
+    const fileBuffer = file.buffer;
 
-        const { data: existingFiles } = await supabase.storage
-          .from("uploads")
-          .list(`Influencer/${userId}/Portfolio`);
+    try {
+      // ✅ Step 1: Check if file already exists in Supabase
+     const { data: existingFile, error: listError } = await supabase.storage
+        .from("uploads")
+        .list(`Influencer/${userId}_${username}/Portfolio`);
 
-        const alreadyExists = existingFiles?.some((f) => f.name === fileName);
-        if (!alreadyExists) {
-          const { error: uploadError } = await supabase.storage
-            .from("uploads")
-            .upload(supabasePath, file.buffer, { contentType: file.mimetype, upsert: false });
-          if (uploadError) return res.status(500).json({ message: "Failed to upload portfolio files" });
-        }
-
-        const { data: publicUrlData } = supabase.storage.from("uploads").getPublicUrl(supabasePath);
-        uploadedFiles.push({ filepath: publicUrlData.publicUrl });
+      if (listError) {
+        console.error("Supabase list error:", listError);
       }
 
+      const fileAlreadyExists = existingFile?.some(
+        (f) => f.name === newFileName
+      );
+
+      if (fileAlreadyExists) {
+        res.status(400).json({message:`File already exists: ${fileName}, skipping upload.`});
+      } else {
+        // ✅ Step 2: Upload only if not exists
+        const { error: uploadError } = await supabase.storage
+          .from("uploads")
+          .upload(supabasePath, fileBuffer, {
+            contentType: file.mimetype,
+            upsert: false, // upsert false → prevent overwriting
+          });
+
+        if (uploadError) {
+          console.error("Supabase portfolio upload error:", uploadError);
+          return res.status(500).json({
+            message: "Failed to upload portfolio files",
+          });
+        }
+      }
+
+      // ✅ Step 3: Get public URL (works both for existing & new)
+      const { data: publicUrlData } = supabase.storage
+        .from("uploads")
+        .getPublicUrl(supabasePath);
+
+      uploadedFiles.push({ filepath: publicUrlData.publicUrl });
+    } catch (err) {
+      console.error("Portfolio file upload error:", err);
+    }
+  }
+
       if (portfoliojson) {
-        const parsedPortfolio = safeParse(portfoliojson) || {};
-        const existingPaths = Array.isArray(parsedPortfolio.filepaths)
-          ? parsedPortfolio.filepaths.filter((p) => p?.filepath)
-          : [];
-        parsedPortfolio.filepaths = [...existingPaths, ...uploadedFiles];
-        req.body.portfoliojson = JSON.stringify(parsedPortfolio);
+        try {
+          const parsedPortfolio = JSON.parse(portfoliojson);
+          const existingPaths = Array.isArray(parsedPortfolio.filepaths)
+            ? parsedPortfolio.filepaths.filter((p) => p?.filepath)
+            : [];
+          parsedPortfolio.filepaths = [...existingPaths, ...uploadedFiles];
+          req.body.portfoliojson = JSON.stringify(parsedPortfolio);
+        } catch (err) {
+          console.error("Invalid portfoliojson:", err.message);
+        }
       }
     }
 
     // ---------------------------
-    // Merge body + Redis data
+    // 4 Merge incoming data (safe JSON.parse)
     // ---------------------------
+    const safeParse = (data) => {
+      try {
+        return data ? JSON.parse(data) : null;
+      } catch {
+        return null;
+      }
+    };
+
     const mergedData = {
-      ...(req.body.profilejson && { profilejson: safeParse(req.body.profilejson) }),
-      ...(socialaccountjson && { socialaccountjson: safeParse(socialaccountjson) }),
+      ...(req.body.profilejson && {
+        profilejson: safeParse(req.body.profilejson),
+      }),
+      ...(socialaccountjson && {
+        socialaccountjson: safeParse(socialaccountjson),
+      }),
       ...(categoriesjson && { categoriesjson: safeParse(categoriesjson) }),
-      ...(req.body.portfoliojson && { portfoliojson: safeParse(req.body.portfoliojson) }),
+      ...(req.body.portfoliojson && {
+        portfoliojson: safeParse(req.body.portfoliojson),
+      }),
       ...(paymentjson && { paymentjson: safeParse(paymentjson) }),
     };
 
-    const existingRedis = await redisClient.get(redisKey).catch(() => null);
-    const redisData = existingRedis ? safeParse(existingRedis) : {};
-    const finalData = { ...redisData, ...mergedData };
-
     // ---------------------------
-    // Handle different p_code states
+    // 5 Check existing profile from DB
     // ---------------------------
-    switch (userpcode) {
-      case "SUCCESS":
-        // Save in DB, clear Redis
+    const dbCheck = await client.query(
+      "SELECT * FROM ins.fn_get_userprofile($1)",
+      [userId]
+    );
+    const existingUser = dbCheck.rows[0];
+    if (
+      existingUser?.p_socials !== null &&
+      existingUser?.p_categories !== null
+    ) {
+      // ✅ CASE A: User already has socials + categories → update in DB
+      try {
         await client.query("BEGIN");
-        await client.query(
+        const result = await client.query(
           `CALL ins.usp_upsert_userprofile(
-            $1::bigint, $2::json, $3::json, $4::json, $5::json, $6::json, $7::boolean, $8::text
-          )`,
+                $1::bigint,
+                $2::json,
+                $3::json,
+                $4::json,
+                $5::json,
+                $6::json,
+                $7::boolean,
+                $8::text
+            )`,
           [
             userId,
-            JSON.stringify(finalData.profilejson),
-            JSON.stringify(finalData.socialaccountjson),
-            JSON.stringify(finalData.categoriesjson),
-            JSON.stringify(finalData.portfoliojson),
-            JSON.stringify(finalData.paymentjson),
+            JSON.stringify(mergedData.profilejson),
+            JSON.stringify(mergedData.socialaccountjson),
+            JSON.stringify(mergedData.categoriesjson),
+            JSON.stringify(mergedData.portfoliojson),
+            JSON.stringify(mergedData.paymentjson),
             null,
             null,
           ]
         );
         await client.query("COMMIT");
-        await redisClient.del(redisKey);
-        return res.status(200).json({ message: "Profile saved successfully (DB)", source: "db" });
 
-      case "BLOCKED":
-      case "APPROVALPENDING":
-        // Save only in Redis
-        return await saveToRedis(finalData, `User ${userpcode} — data saved in Redis.`);
+        const { p_status, p_message } = result.rows[0] || {};
+        return res.status(p_status ? 200 : 400).json({
+          message: p_message || "Profile updated successfully",
+          source: "db",
+        });
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+      }
+    } else {
+      // 1️⃣ Try to fetch Redis partials
+      let redisData = {};
+      const existingRedis = await redisClient.get(redisKey);
+      if (existingRedis) {
+        try {
+          redisData = JSON.parse(existingRedis);
+        } catch (e) {
+          console.warn("Redis data corrupted:", e);
+        }
+      }
 
-      case "REJECTED":
-        // Save in Redis first, then save in DB
-        await saveToRedis(finalData, `User ${userpcode} — data saved in Redis.`);
+      // 2️⃣ Merge Redis + current request body (request takes priority)
+      const finalData = {
+        ...redisData,
+        ...mergedData,
+      };
+
+      // 3️⃣ Check completeness AFTER merging
+      const allPartsPresent =
+        finalData.profilejson &&
+        finalData.socialaccountjson &&
+        finalData.categoriesjson &&
+        finalData.portfoliojson &&
+        finalData.paymentjson;
+
+      // 4️⃣ Now update mergedData to be finalData going forward
+      mergedData.profilejson = finalData.profilejson;
+      mergedData.socialaccountjson = finalData.socialaccountjson;
+      mergedData.categoriesjson = finalData.categoriesjson;
+      mergedData.portfoliojson = finalData.portfoliojson;
+      mergedData.paymentjson = finalData.paymentjson;
+
+      // ✅ CASE B: User new or incomplete → check Redis
+      if (!allPartsPresent) {
+        const existingRedis = await redisClient.get(redisKey);
+        let redisData = existingRedis ? JSON.parse(existingRedis) : {};
+        redisData = { ...redisData, ...mergedData };
+
+        await redisClient.set(redisKey, JSON.stringify(redisData));
+        return res.status(200).json({
+          message: "Partial data saved in Redis (first-time user)",
+          source: "redis",
+        });
+      }
+
+      // ✅ CASE C: All parts present → insert into DB
+      try {
         await client.query("BEGIN");
-        await client.query(
+        const result = await client.query(
           `CALL ins.usp_upsert_userprofile(
-            $1::bigint, $2::json, $3::json, $4::json, $5::json, $6::json, $7::boolean, $8::text
-          )`,
+        $1::bigint,
+        $2::json,
+        $3::json,
+        $4::json,
+        $5::json,
+        $6::json,
+        $7::boolean,
+        $8::text
+      )`,
           [
             userId,
-            JSON.stringify(finalData.profilejson),
-            JSON.stringify(finalData.socialaccountjson),
-            JSON.stringify(finalData.categoriesjson),
-            JSON.stringify(finalData.portfoliojson),
-            JSON.stringify(finalData.paymentjson),
+            JSON.stringify(mergedData.profilejson),
+            JSON.stringify(mergedData.socialaccountjson),
+            JSON.stringify(mergedData.categoriesjson),
+            JSON.stringify(mergedData.portfoliojson),
+            JSON.stringify(mergedData.paymentjson),
             null,
             null,
           ]
         );
         await client.query("COMMIT");
-        return res.status(200).json({ message: "Profile saved in DB after REJECTED state", source: "db" });
+        // await redisClient.del(redisKey);
 
-      default:
-        // Unknown p_code → Save only in Redis
-        return await saveToRedis(finalData, "Unknown p_code — saved in Redis.");
+        const { p_status, p_message } = result.rows[0] || {};
+        if (p_status === true) {
+          await redisClient.del(redisKey);
+        }
+
+        return res.status(p_status ? 200 : 400).json({
+          message: p_message || "Profile created successfully",
+          source: "db",
+        });
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+      }
     }
   } catch (error) {
-    await client.query("ROLLBACK").catch(() => { }); // fail-safe rollback
     console.error("💥 Error in completeUserProfile:", error);
-    return res.status(500).json({ message: "Internal server error", error: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
+
+// export const completeUserProfile = async (req, res) => {
+//   const userId = req.user?.id || req.body?.userId;
+//   // const userpcode = req.user?.p_code ? req.user.p_code.toUpperCase() : null;
+//   const userpcode = (req.user?.p_code || req.body?.p_code || "").toUpperCase();
+//   console.log("==>",userpcode)
+//   const redisKey = `profile:${userId}`;
+//   let username = "user";
+
+//   // ---------------------------
+//   // Username fallback logic
+//   // ---------------------------
+//   if (req.user?.name) username = req.user.name.split(" ")[0].trim();
+//   else if (req.body?.firstName) username = req.body.firstName.trim();
+//   else {
+//     const dbUser = await client.query("SELECT firstname FROM ins.users WHERE id=$1", [userId]);
+//     if (dbUser.rows[0]?.firstname) username = dbUser.rows[0].firstname.trim();
+//   }
+
+//   try {
+//     // ---------------------------
+//     // Helper functions
+//     // ---------------------------
+//     const safeParse = (data) => {
+//       try {
+//         return data ? JSON.parse(data) : null;
+//       } catch {
+//         return null;
+//       }
+//     };
+
+//     const saveToRedis = async (data, message) => {
+//       await redisClient.setEx(redisKey, 604800, JSON.stringify(data)); // 7 days
+//       return res.status(200).json({ message: message || "Data saved in Redis", source: "redis" });
+//     };
+
+//     // ---------------------------
+//     // Parse JSON fields
+//     // ---------------------------
+//     const {
+//       profilejson = null,
+//       socialaccountjson = null,
+//       categoriesjson = null,
+//       portfoliojson = null,
+//       paymentjson = null,
+//     } = req.body || {};
+
+//     // ---------------------------
+//     // Handle photo upload
+//     // ---------------------------
+//     if (req.files?.photo?.[0]) {
+//       const file = req.files.photo[0];
+//       const fileName = file.originalname;
+//       const profileFolderPath = `Influencer/${userId}/Profile`;
+//       const supabasePath = `${profileFolderPath}/${fileName}`;
+
+//       const { data: existingFiles } = await supabase.storage.from("uploads").list(profileFolderPath);
+//       if (existingFiles?.length > 0) {
+//         const oldPaths = existingFiles.map((f) => `${profileFolderPath}/${f.name}`);
+//         await supabase.storage.from("uploads").remove(oldPaths);
+//       }
+
+//       const { error: uploadError } = await supabase.storage
+//         .from("uploads")
+//         .upload(supabasePath, file.buffer, { contentType: file.mimetype, upsert: true });
+//       if (uploadError) return res.status(500).json({ message: "Failed to upload profile photo" });
+
+//       const { data: publicUrlData } = supabase.storage.from("uploads").getPublicUrl(supabasePath);
+//       const photoUrl = publicUrlData?.publicUrl;
+
+//       if (photoUrl) {
+//         const parsedProfile = safeParse(profilejson) || {};
+//         parsedProfile.photopath = photoUrl;
+//         req.body.profilejson = JSON.stringify(parsedProfile);
+//       }
+//     }
+
+//     // ---------------------------
+//     // Handle portfolio uploads
+//     // ---------------------------
+//     if (req.files?.portfolioFiles) {
+//       const uploadedFiles = [];
+
+//       for (const file of req.files.portfolioFiles) {
+//         const fileName = file.originalname;
+//         const supabasePath = `Influencer/${userId}/Portfolio/${fileName}`;
+
+//         const { data: existingFiles } = await supabase.storage
+//           .from("uploads")
+//           .list(`Influencer/${userId}/Portfolio`);
+
+//         const alreadyExists = existingFiles?.some((f) => f.name === fileName);
+//         if (!alreadyExists) {
+//           const { error: uploadError } = await supabase.storage
+//             .from("uploads")
+//             .upload(supabasePath, file.buffer, { contentType: file.mimetype, upsert: false });
+//           if (uploadError) return res.status(500).json({ message: "Failed to upload portfolio files" });
+//         }
+
+//         const { data: publicUrlData } = supabase.storage.from("uploads").getPublicUrl(supabasePath);
+//         uploadedFiles.push({ filepath: publicUrlData.publicUrl });
+//       }
+
+//       if (portfoliojson) {
+//         const parsedPortfolio = safeParse(portfoliojson) || {};
+//         const existingPaths = Array.isArray(parsedPortfolio.filepaths)
+//           ? parsedPortfolio.filepaths.filter((p) => p?.filepath)
+//           : [];
+//         parsedPortfolio.filepaths = [...existingPaths, ...uploadedFiles];
+//         req.body.portfoliojson = JSON.stringify(parsedPortfolio);
+//       }
+//     }
+
+//     // ---------------------------
+//     // Merge body + Redis data
+//     // ---------------------------
+//     const mergedData = {
+//       ...(req.body.profilejson && { profilejson: safeParse(req.body.profilejson) }),
+//       ...(socialaccountjson && { socialaccountjson: safeParse(socialaccountjson) }),
+//       ...(categoriesjson && { categoriesjson: safeParse(categoriesjson) }),
+//       ...(req.body.portfoliojson && { portfoliojson: safeParse(req.body.portfoliojson) }),
+//       ...(paymentjson && { paymentjson: safeParse(paymentjson) }),
+//     };
+
+//     const existingRedis = await redisClient.get(redisKey).catch(() => null);
+//     const redisData = existingRedis ? safeParse(existingRedis) : {};
+//     const finalData = { ...redisData, ...mergedData };
+
+//     // ---------------------------
+//     // Handle different p_code states
+//     // ---------------------------
+//     switch (userpcode) {
+//       case "SUCCESS":
+//         // Save in DB, clear Redis
+//         await client.query("BEGIN");
+//         await client.query(
+//           `CALL ins.usp_upsert_userprofile(
+//             $1::bigint, $2::json, $3::json, $4::json, $5::json, $6::json, $7::boolean, $8::text
+//           )`,
+//           [
+//             userId,
+//             JSON.stringify(finalData.profilejson),
+//             JSON.stringify(finalData.socialaccountjson),
+//             JSON.stringify(finalData.categoriesjson),
+//             JSON.stringify(finalData.portfoliojson),
+//             JSON.stringify(finalData.paymentjson),
+//             null,
+//             null,
+//           ]
+//         );
+//         await client.query("COMMIT");
+//         await redisClient.del(redisKey);
+//         return res.status(200).json({ message: "Profile saved successfully (DB)", source: "db" });
+
+//       case "BLOCKED":
+//       case "APPROVALPENDING":
+//         // Save only in Redis
+//         return await saveToRedis(finalData, `User ${userpcode} — data saved in Redis.`);
+
+//       case "REJECTED":
+//         // Save in Redis first, then save in DB
+//         await saveToRedis(finalData, `User ${userpcode} — data saved in Redis.`);
+//         await client.query("BEGIN");
+//         await client.query(
+//           `CALL ins.usp_upsert_userprofile(
+//             $1::bigint, $2::json, $3::json, $4::json, $5::json, $6::json, $7::boolean, $8::text
+//           )`,
+//           [
+//             userId,
+//             JSON.stringify(finalData.profilejson),
+//             JSON.stringify(finalData.socialaccountjson),
+//             JSON.stringify(finalData.categoriesjson),
+//             JSON.stringify(finalData.portfoliojson),
+//             JSON.stringify(finalData.paymentjson),
+//             null,
+//             null,
+//           ]
+//         );
+//         await client.query("COMMIT");
+//         return res.status(200).json({ message: "Profile saved in DB after REJECTED state", source: "db" });
+
+//       default:
+//         // Unknown p_code → Save only in Redis
+//         return await saveToRedis(finalData, "Unknown p_code — saved in Redis.");
+//     }
+//   } catch (error) {
+//     await client.query("ROLLBACK").catch(() => { }); // fail-safe rollback
+//     console.error("💥 Error in completeUserProfile:", error);
+//     return res.status(500).json({ message: "Internal server error", error: error.message });
+//   }
+// };
 
 // Get User Profile
 export const getUserProfile = async (req, res) => {
