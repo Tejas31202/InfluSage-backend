@@ -97,9 +97,8 @@ export async function getGoogleLoginCallback(req, res) {
         data.email
       )}&firstName=${encodeURIComponent(
         data.given_name || ""
-      )}&lastName=${encodeURIComponent(data.family_name || "")}&roleId=${
-        selectedRole || ""
-      }`;
+      )}&lastName=${encodeURIComponent(data.family_name || "")}&roleId=${selectedRole || ""
+        }`;
 
       return res.redirect(redirectUrl);
     }
@@ -113,13 +112,12 @@ export async function getGoogleLoginCallback(req, res) {
       email: user.email,
     });
 
-    const redirectUrl = `http://localhost:5173/login?token=${token}&userId=${
-      user.userid
-    }&roleId=${user.roleid}&firstName=${encodeURIComponent(
-      user.firstname
-    )}&lastName=${encodeURIComponent(user.lastname)}&email=${encodeURIComponent(
-      user.email
-    )}`;
+    const redirectUrl = `http://localhost:5173/login?token=${token}&userId=${user.userid
+      }&roleId=${user.roleid}&firstName=${encodeURIComponent(
+        user.firstname
+      )}&lastName=${encodeURIComponent(user.lastname)}&email=${encodeURIComponent(
+        user.email
+      )}`;
 
     res.redirect(redirectUrl);
   } catch (err) {
@@ -163,6 +161,7 @@ export async function setPasswordAfterGoogleSignup(req, res) {
       firstName: user.firstname,
       lastName: user.lastname,
       email: user.email,
+      p_code: user.p_code
     });
 
     return res.status(201).json({
@@ -230,10 +229,10 @@ export async function getFacebookLoginCallback(req, res) {
     // Exchange code for access token
     const tokenRes = await axios.get(
       `https://graph.facebook.com/v17.0/oauth/access_token?` +
-        `client_id=${process.env.FACEBOOK_APP_ID}` +
-        `&redirect_uri=http://localhost:3001/auth/facebook/callback` +
-        `&client_secret=${process.env.FACEBOOK_APP_SECRET}` +
-        `&code=${code}`
+      `client_id=${process.env.FACEBOOK_APP_ID}` +
+      `&redirect_uri=http://localhost:3001/auth/facebook/callback` +
+      `&client_secret=${process.env.FACEBOOK_APP_SECRET}` +
+      `&code=${code}`
     );
 
     const accessToken = tokenRes.data.access_token;
@@ -262,9 +261,8 @@ export async function getFacebookLoginCallback(req, res) {
         fbUser.email
       )}&firstName=${encodeURIComponent(
         fbUser.first_name || ""
-      )}&lastName=${encodeURIComponent(fbUser.last_name || "")}&roleId=${
-        selectedRole || ""
-      }`;
+      )}&lastName=${encodeURIComponent(fbUser.last_name || "")}&roleId=${selectedRole || ""
+        }`;
 
       return res.redirect(redirectUrl);
     }
@@ -280,13 +278,12 @@ export async function getFacebookLoginCallback(req, res) {
 
     // Redirect to frontend with token
 
-    const redirectUrl = `http://localhost:5173/login?token=${token}&userId=${
-      user.userid
-    }&roleId=${user.roleid}&firstName=${encodeURIComponent(
-      user.firstname
-    )}&lastName=${encodeURIComponent(user.lastname)}&email=${encodeURIComponent(
-      fbUser.email
-    )}`;
+    const redirectUrl = `http://localhost:5173/login?token=${token}&userId=${user.userid
+      }&roleId=${user.roleid}&firstName=${encodeURIComponent(
+        user.firstname
+      )}&lastName=${encodeURIComponent(user.lastname)}&email=${encodeURIComponent(
+        fbUser.email
+      )}`;
 
     res.redirect(redirectUrl);
   } catch (err) {
