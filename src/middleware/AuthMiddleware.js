@@ -63,6 +63,7 @@ const authenticateUser = (allowedRoles = []) => {
       req.user = {
         id: user.id,
         role: userRoleName,
+        p_code: decoded.p_code
       };
 
       next();

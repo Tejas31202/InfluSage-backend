@@ -110,6 +110,7 @@ export async function getGoogleLoginCallback(req, res) {
       firstName: user.firstname,
       lastName: user.lastname,
       email: user.email,
+      p_code:user.p_code
     });
 
     const redirectUrl = `http://localhost:5173/login?token=${token}&userId=${user.userid
@@ -174,6 +175,7 @@ export async function setPasswordAfterGoogleSignup(req, res) {
         firstName: user.firstname,
         lastName: user.lastname,
         email: user.email,
+        p_code: user.p_code
       },
     });
   } catch (err) {
@@ -274,6 +276,7 @@ export async function getFacebookLoginCallback(req, res) {
       firstName: user.firstname,
       lastName: user.lastname,
       email: user.email,
+      p_code:user.p_code
     });
 
     // Redirect to frontend with token
