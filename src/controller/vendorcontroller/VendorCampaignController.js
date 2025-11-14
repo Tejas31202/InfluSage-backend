@@ -84,7 +84,7 @@ export const finalizeCampaign = async (req, res) => {
 
     // ------------------- FILE MOVE LOGIC -------------------
  
-    let username= req.user.name.split(" ")[0].trim();
+    // let username= req.user.name.split(" ")[0].trim();
       
     const baseTempFolder = `Vendor/${userId}/Campaigns/_temp`;
     const finalFolderBase = `Vendor/${userId}/Campaigns/${p_campaignid}`;
