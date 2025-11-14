@@ -16,7 +16,7 @@ export const getSubjectListByRole = async (req, res) => {
       `SELECT * FROM ins.fn_get_subjectlist($1::BIGINT);`,
       [p_userid]
     );
-    const subjectList = result.rows[0];
+    const subjectList = result.rows[0].fn_get_subjectlist;
 
     return res.status(200).json({
       message: "Subject list fetched successfully",
@@ -32,25 +32,33 @@ export const getSubjectListByRole = async (req, res) => {
 
 export const createNewTicket = async (req, res) => {
   try {
-    const userId = req.user?.id || req.body.userId;
-    const { subjectId, priority, status, assign } = req.body;
+    const p_userid  = req.user?.id || req.body.p_userid ;
+
+    const {p_objectiveid, p_statusname} = req.body;
+
+    if (!p_userid) {
+      return res.status(400).json({
+        message: "p_userid is required.",
+      });
+    }
+    if (!p_objectiveid||!p_statusname) {
+      return res.status(400).json({
+        message: "p_objectiveid and p_statusname are required.",
+      });
+    }
 
     const result = await client.query(
-      `CALL ins.usp_createticketforinfluandvender(
+      `CALL ins.usp_upsert_usersupportticket(
       $1::bigint,
-      $2::bigint,
-      $3::varchar,
-      $4::varchar,
-      $5::bigint,
-      $6::boolean,
-      $7::varchar
+      $2::smallint,
+      $3::varchar(55),
+      $4::boolean,
+      $5::varchar
       );`,
       [
-        userId,
-        subjectId,
-        priority || null,
-        status || "Open",
-        assign || null,
+        p_userid ,
+        p_objectiveid,
+        p_statusname,
         null,
         null,
       ]
