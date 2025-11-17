@@ -13,7 +13,7 @@ import {
     campaignBlockReason,
     userBlockReason,
     blockInfluencerApplication,
-    rejectInfluencerProfile
+    adminRejectInfluencerOrCampaign
 } from '../controller/AdminPanelController.js';
 import authenticateUser from '../middleware/AuthMiddleware.js'
 
@@ -28,5 +28,5 @@ routes.get("/dashboard/campaign-detail",authenticateUser(["Admin"]),getCampaignD
 routes.get("/dashboard/campaign-block-reason",authenticateUser(["Admin"]),campaignBlockReason);
 routes.get("/dashboard/user-block-reason",authenticateUser(["Admin"]),userBlockReason);
 routes.post("/dashboard/profile-block",authenticateUser(["Admin"]),blockInfluencerApplication);
-routes.post("/dashboard/profile-reject",authenticateUser(["Admin"]),rejectInfluencerProfile);
+routes.post("/dashboard/reject/profile-or-campaign",authenticateUser(["Admin"]),adminRejectInfluencerOrCampaign);
 export default routes;

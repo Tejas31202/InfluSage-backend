@@ -4,7 +4,8 @@ import {
   userProfileEmailHTML,
   campaignEmailHTML,
   userProfileBlockEmailHTML,
-  userProfileRejectEmailHTML
+  userProfileRejectEmailHTML,
+  campaignRejectEmailHTML
 } from "../utils/EmailTemplates.js";
 
 export const getUserStatusList = async (req, res) => {
@@ -456,62 +457,127 @@ export const blockInfluencerApplication = async (req, res) => {
   }
 };
 
-export const rejectInfluencerProfile = async (req, res) => {
+export const adminRejectInfluencerOrCampaign = async (req, res) => {
   try {
     const p_adminid = req.user?.id || req.body.p_adminid;
 
     if (!p_adminid) {
       return res.status(400).json({ message: "p_adminid is required." });
     }
-    const { p_userid, p_text } = req.body;
+    const { p_userid, p_campaignid, p_text } = req.body;
 
-    if (!p_userid || !p_text) {
+    if (!p_userid && !p_campaignid) {
       return res
         .status(400)
-        .json({ message: "p_userid and p_text are required." });
+        .json({ message: "Please provide either p_userid or p_campaignid." });
+    }
+
+    if (!p_text) {
+      return res.status(400).json({ message: " p_text is required." });
     }
     // Store rejection info in DB
     const result = await client.query(
-      `CALL ins.usp_upsert_userrejections(
+      `CALL ins.usp_upsert_rejectentity(
         $1::bigint,
         $2::bigint,
-        $3::varchar,
-        $4::boolean,
-        $5::text
+        $3::bigint,
+        $4::varchar,
+        $5::boolean,
+        $6::varchar
       );`,
-      [p_adminid, p_userid, p_text, null, null]
+      [p_adminid, p_userid || null, p_campaignid || null, p_text, null, null]
     );
 
+    const actionableMessages = [
+      "User rejected successfully.",
+      "Campaign rejected successfully.",
+    ];
     const { p_status, p_message } = result.rows[0];
-
-    // Send rejection email if successful
-    if (p_status && p_message === "User rejection recorded successfully.") {
+    
+    if (!actionableMessages.includes(p_message)) {
+      return res
+        .status(200)
+        .json({ message: p_message, p_status, source: "db" });
+    }
+    //  1️⃣ Influencer Rejection
+    if (p_userid && !p_campaignid) {
       const userResult = await client.query(
         "SELECT firstname, email FROM ins.users WHERE id = $1",
         [p_userid]
       );
+
       const user = userResult.rows[0];
 
-      if (user?.email) {
-        await sendingMailFormatForAdmin(
-          user.email,
-          `Your profile has been rejected by the InfluSage Admin Team`,
-          userProfileRejectEmailHTML({
-            userName: user.firstname,
-            reason: p_text,
-          })
-        );
+      if (!user) {
+        return res.status(404).json({
+          message: "User not found.",
+        });
       }
-      // Send success response
+
+      // Send user profile rejection email
+      await sendingMailFormatForAdmin(
+        user.email,
+        `Your profile has been rejected by the InfluSage Admin Team`,
+        userProfileRejectEmailHTML({
+          userName: user.firstname,
+          reason: p_text,
+        })
+      );
+
       return res.status(200).json({
         message: p_message,
         p_status,
+        source: "db",
       });
-    } else {
-      return res.status(400).json({ message: p_message, p_status });
     }
+    // 2️⃣ CAMPAIGN REJECTION CASE
+
+    if (p_campaignid && !p_userid) {
+      const campaignOwnerResult = await client.query(
+        `SELECT 
+           c.name AS campaignname,
+           u.firstname,
+           u.email
+         FROM ins.campaigns c
+         INNER JOIN ins.users u ON u.id = c.ownerid
+         WHERE c.id = $1`,
+        [p_campaignid]
+      );
+
+      const campaignData = campaignOwnerResult.rows[0];
+
+      if (!campaignData) {
+        return res.status(404).json({
+          message: "Campaign or owner not found.",
+        });
+      }
+
+      // Send campaign rejection email
+      await sendingMailFormatForAdmin(
+        campaignData.email,
+        `Your campaign has been rejected by the InfluSage Admin Team`,
+        campaignRejectEmailHTML({
+          userName: campaignData.firstname,
+          campaignName: campaignData.campaignname,
+          reason: p_text,
+        })
+      );
+
+      return res.status(200).json({
+        message: p_message,
+        p_status,
+        source: "db",
+      });
+    }
+
+    return res.status(200).json({
+      message: p_message,
+      p_status,
+    });
   } catch (error) {
-    console.error("Error in rejectInfluencerProfile:", error);
-    return res.status(500).json({ message: error.message });
+    console.error("Error in adminRejectInfluencerOrCampaign:", error);
+    return res.status(500).json({
+      message: error.message,
+    });
   }
 };
