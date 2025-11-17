@@ -1,12 +1,5 @@
 import { client } from '../../config/Db.js';
-import redis from 'redis';
-
-import { Redis } from "@upstash/redis";
-
-export const redisClient = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-});
+import { redisClient } from "../../config/redis.js";
 
 export const getOffersForCampaign = async (req, res) => {
   try {

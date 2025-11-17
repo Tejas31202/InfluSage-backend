@@ -1,6 +1,6 @@
 import { client } from '../../config/Db.js';
 import { createClient } from '@supabase/supabase-js';
-import redis from 'redis';
+import { redisClient } from "../../config/redis.js";
 import path from 'path';
 import fs from 'fs';
 
@@ -9,12 +9,6 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-import { Redis } from "@upstash/redis";
-
-export const redisClient = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-});
 
 const calculateProfileCompletion = (profileParts) => {
   const partsArray = Object.values(profileParts);

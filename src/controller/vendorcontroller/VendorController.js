@@ -3,15 +3,8 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import {sendingMail} from '../../utils/MailUtils.js';
-import redis from 'redis';
 
-import { Redis } from "@upstash/redis";
-
-export const redisClient = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-});
-
+import { redisClient } from "../../config/redis.js";
 const JWT_SECRET = process.env.JWT_SECRET;
 
 // Utility: Check if email exists using stored procedure
@@ -43,12 +36,13 @@ export const requestRegistration = async (req, res) => {
     const otpCode = generateOTP();
 
     // Store vendor data and hashed password in Redis for 120 seconds
-    await redisClient.setEx(
-      `pendingVendor:${email}`,
-      120, // Store for 120 seconds
-      JSON.stringify({ firstName, lastName, email, roleId, passwordhash })
+    await redisClient.set(
+    `pendingVendor:${email}`,
+    JSON.stringify({ firstName, lastName, email, roleId, passwordhash }),
+    { ex: 120 }
     );
-    await redisClient.setEx(`otp:${email}`, 60, otpCode);
+
+    await redisClient.set(`otp:${email}`, otpCode, { ex: 60 });
 
     await sendingMail(email, "InflueSage OTP Verification", otpCode);
 
@@ -164,7 +158,7 @@ export const resendOtp = async (req, res) => {
     await sendingMail(email, "InflueSage OTP Verification - Resend", otpCode);
 
     // Store OTP in Redis with 120 sec expiry
-    await redisClient.setEx(`otp:${email}`, 120, otpCode);
+    await redisClient.set(`otp:${email}`, otpCode, { ex: 120 });
 
     const vendorData = await redisClient.get(`pendingVendor:${email}`);
     if (vendorData) {
@@ -199,7 +193,7 @@ export const forgotPassword = async (req, res) => {
     const resetToken = crypto.randomBytes(32).toString("hex");
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
-    await redisClient.setEx(`reset:${resetToken}`, 300, vendorId);
+    await redisClient.set(`reset:${resetToken}`, vendorId, { ex: 300 });
 
     // Send Email with reset url
     await sendingMail(

@@ -3,15 +3,8 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { sendingMail } from '../../utils/MailUtils.js';
-import redis from 'redis';
 import { htmlContent } from '../../utils/EmailTemplates.js';
-
-import { Redis } from "@upstash/redis";
-
-export const redisClient = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-});
+import { redisClient } from "../../config/redis.js";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -55,20 +48,21 @@ export const requestRegistration = async (req, res) => {
     // console.log("Generated OTP (for registration):", otpCode);
 
     // Store user data in Redis (5 minutes expiry)
-    await redisClient.setEx(
-      `pendingUser:${normalizedEmail}`,
-      300,
-      JSON.stringify({
-        firstName,
-        lastName,
-        email: normalizedEmail,
-        roleId,
-        passwordhash,
-      })
+    await redisClient.set(
+    `pendingUser:${normalizedEmail}`,
+    JSON.stringify({
+    firstName,
+    lastName,
+    email: normalizedEmail,
+    roleId,
+    passwordhash,
+    }),
+    { ex: 300 }
     );
 
+
     // Store OTP in Redis (2 minutes expiry)
-    await redisClient.setEx(`otp:${normalizedEmail}`, 60, otpCode);
+    await redisClient.set(`otp:${normalizedEmail}`, otpCode, { ex: 60 });
 
     // Send OTP email
 
@@ -226,7 +220,7 @@ export const resendOtp = async (req, res) => {
     await sendingMail(email, "InflueSage OTP Verification - Resend",htmlContent({otp:otpCode}));
 
     // Store OTP in Redis with 120 sec expiry
-    await redisClient.setEx(`otp:${email}`, 120, otpCode);
+    await redisClient.set(`otp:${email}`, otpCode, { ex: 120 });
 
     // Reset pendingUser TTL if user exists
     const userData = await redisClient.get(`pendingUser:${email}`);
@@ -263,7 +257,7 @@ export const forgotPassword = async (req, res) => {
     const resetToken = crypto.randomBytes(32).toString("hex");
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
-    await redisClient.setEx(`reset:${resetToken}`, 300, userId);
+    await redisClient.set(`reset:${resetToken}`, userId, { ex: 300 });
 
     // Send Email with reset url
     await sendingMail(

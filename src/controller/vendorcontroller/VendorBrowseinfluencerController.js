@@ -1,12 +1,6 @@
 import { client } from '../../config/Db.js';
-import redis from 'redis';
+import { redisClient } from "../../config/redis.js";
 
-import { Redis } from "@upstash/redis";
-
-export const redisClient = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-});
 
 //..................GET INFLUENCER BROWSE DETAILS...........
 export const getInfluencerBrowseDetails = async (req, res) => {

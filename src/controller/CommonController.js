@@ -1,12 +1,6 @@
 import { client } from '../config/Db.js';
-import redis from 'redis';
+import { redisClient } from "../config/redis.js";
 
-import { Redis } from "@upstash/redis";
-
-export const redisClient = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-});
 
 export const getRoles = async (req, res) => {
   try {
@@ -90,7 +84,7 @@ export const getCategories = async (req, res) => {
 
     const result = await client.query("select * from ins.fn_get_categories();");
 
-    await redisClient.setEx(redisKey, 300, JSON.stringify(result.rows)); // TTL 5 mins
+    await redisClient.set(redisKey, JSON.stringify(result.rows), { ex: 300 });
 
     return res.status(200).json({
       categories: result.rows,

@@ -1,5 +1,5 @@
 import { client } from '../../config/Db.js';
-import redis from 'redis';
+import { redisClient } from "../../config/redis.js";
 import path from 'path';
 
 import { createClient } from '@supabase/supabase-js';
@@ -9,12 +9,6 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-import { Redis } from "@upstash/redis";
-
-export const redisClient = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-});
 
 const calculateProfileCompletion = (profileParts) => {
   const partsArray = Object.values(profileParts);
@@ -42,7 +36,7 @@ export const getCompanySizes = async (req, res) => {
 
     const result = await client.query("SELECT * FROM ins.fn_get_companysize()");
 
-    await redisClient.setEx(redisKey, 300, JSON.stringify(result.rows)); // TTL 5 mins
+    await redisClient.set(redisKey, JSON.stringify(result.rows), { ex: 300 });// TTL 5 mins
 
     return res.status(200).json({
       companySizes: result.rows,
@@ -71,7 +65,7 @@ export const getInfluencerTiers = async (req, res) => {
       "SELECT * FROM ins.fn_get_influencertiers()"
     );
 
-    await redisClient.setEx(redisKey, 300, JSON.stringify(result.rows)); // TTL 5 mins
+    await redisClient.set(redisKey, JSON.stringify(result.rows), { ex: 300 }); // TTL: 5 mins
 
     return res.status(200).json({
       influencerTiers: result.rows,
@@ -433,7 +427,7 @@ export const getObjectives = async (req, res) => {
 
     const result = await client.query("SELECT * FROM ins.fn_get_objectives();");
 
-    await redisClient.setEx(redisKey, 300, JSON.stringify(result.rows)); // TTL: 5 mins
+    await redisClient.set(redisKey, JSON.stringify(result.rows), { ex: 300 }); // TTL 5 mins
 
     return res.status(200).json({
       objectives: result.rows,

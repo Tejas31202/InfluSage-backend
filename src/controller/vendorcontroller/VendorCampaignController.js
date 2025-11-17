@@ -1,6 +1,6 @@
 import { client } from '../../config/Db.js';
 import { createClient } from "@supabase/supabase-js";
-import redis from 'redis';
+import { redisClient } from "../../config/redis.js";
 import path from 'path';
 import fs from 'fs';
 import fsPromises from "fs/promises";
@@ -9,13 +9,6 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-import { Redis } from "@upstash/redis";
-
-export const redisClient = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-});
 
 // ---------------- FINALIZE Campaign ----------------
 export const finalizeCampaign = async (req, res) => {
