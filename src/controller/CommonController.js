@@ -77,14 +77,16 @@ export const getCategories = async (req, res) => {
 
     if (cachedData) {
       return res.status(200).json({
-        categories: JSON.parse(cachedData),
+        categories: cachedData,   // <-- Direct Object
         source: "redis",
       });
     }
 
     const result = await client.query("select * from ins.fn_get_categories();");
 
-    await redisClient.set(redisKey, JSON.stringify(result.rows), { ex: 300 });
+    // 
+    // ✔ Upstash automatically JSON store
+    await redisClient.set(redisKey, result.rows, { ex: 300 });
 
     return res.status(200).json({
       categories: result.rows,
@@ -95,6 +97,7 @@ export const getCategories = async (req, res) => {
     return res.status(500).json({ message: "Failed to fetch categories" });
   }
 };
+
 
 export const getProviders = async (req, res) => {
   try {
