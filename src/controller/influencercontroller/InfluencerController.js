@@ -50,7 +50,7 @@ export const requestRegistration = async (req, res) => {
     // Store user data in Redis (5 minutes expiry)
     await redisClient.set(
     `pendingUser:${normalizedEmail}`,
-    JSON.stringify({
+    ({
     firstName,
     lastName,
     email: normalizedEmail,
@@ -111,7 +111,7 @@ export const verifyOtpAndRegister = async (req, res) => {
     }
 
     const { firstName, lastName, roleId, passwordhash } =
-      JSON.parse(userDataStr);
+      (userDataStr);
 
     // Insert user into DB
     const result = await client.query(

@@ -38,7 +38,7 @@ export const requestRegistration = async (req, res) => {
     // Store vendor data and hashed password in Redis for 120 seconds
     await redisClient.set(
     `pendingVendor:${email}`,
-    JSON.stringify({ firstName, lastName, email, roleId, passwordhash }),
+    ({ firstName, lastName, email, roleId, passwordhash }),
     { ex: 120 }
     );
 

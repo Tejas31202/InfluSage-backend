@@ -198,7 +198,7 @@ export const getUsersAppliedCampaigns = async (req, res) => {
     const cachedData = await redisClient.get(redisKey);
     if (cachedData) {
       return res.status(200).json({
-        data: JSON.parse(cachedData),
+        data: (cachedData),
         source: "redis",
       });
     }
@@ -312,7 +312,7 @@ export const getSingleApplyCampaign = async (req, res) => {
     const cachedData = await redisClient.get(redisKey);
     if (cachedData) {
       return res.status(200).json({
-        data: JSON.parse(cachedData),
+        data: (cachedData),
         source: "redis",
       });
     }
@@ -371,7 +371,7 @@ export const getUserCampaignWithDetails = async (req, res) => {
     const cachedData = await redisClient.get(redisKey);
 
     if (cachedData) {
-      responseData.appliedDetails = JSON.parse(cachedData);
+      responseData.appliedDetails = (cachedData);
     } else {
       const appliedResult = await client.query(
         `SELECT ins.fn_get_campaignapplicationdetails($1,$2)`,
@@ -496,7 +496,7 @@ export const deleteApplyNowPortfolioFile = async (req, res) => {
     // Step 1: Redis se data fetch karo
     let campaignData = await redisClient.get(redisKey);
     if (campaignData) {
-      campaignData = JSON.parse(campaignData);
+      campaignData = (campaignData);
 
       // Redis se file remove karo
       if (campaignData.applycampaignjson?.filepaths) {
@@ -506,7 +506,7 @@ export const deleteApplyNowPortfolioFile = async (req, res) => {
           );
 
         // Update Redis data
-        await redisClient.set(redisKey, JSON.stringify(campaignData));
+        await redisClient.set(redisKey, (campaignData));
       }
     }
 

@@ -29,14 +29,14 @@ export const getCompanySizes = async (req, res) => {
 
     if (cachedData) {
       return res.status(200).json({
-        companySizes: JSON.parse(cachedData),
+        companySizes: (cachedData),
         source: "redis",
       });
     }
 
     const result = await client.query("SELECT * FROM ins.fn_get_companysize()");
 
-    await redisClient.set(redisKey, JSON.stringify(result.rows), { ex: 300 });// TTL 5 mins
+    await redisClient.set(redisKey, (result.rows), { ex: 300 });// TTL 5 mins
 
     return res.status(200).json({
       companySizes: result.rows,
@@ -56,7 +56,7 @@ export const getInfluencerTiers = async (req, res) => {
 
     if (cachedData) {
       return res.status(200).json({
-        influencerTiers: JSON.parse(cachedData),
+        influencerTiers: (cachedData),
         source: "redis",
       });
     }
@@ -65,7 +65,7 @@ export const getInfluencerTiers = async (req, res) => {
       "SELECT * FROM ins.fn_get_influencertiers()"
     );
 
-    await redisClient.set(redisKey, JSON.stringify(result.rows), { ex: 300 }); // TTL: 5 mins
+    await redisClient.set(redisKey, (result.rows), { ex: 300 }); // TTL: 5 mins
 
     return res.status(200).json({
       influencerTiers: result.rows,
@@ -112,7 +112,7 @@ export const getVendorProfile = async (req, res) => {
     const cachedData = await redisClient.get(redisKey);
 
     if (cachedData) {
-      const parsed = JSON.parse(cachedData);
+      const parsed = (cachedData);
 
       const profileParts = {
         p_profile: parsed.profilejson || {},
@@ -331,7 +331,7 @@ export const completeVendorProfile = async (req, res) => {
       const existingRedis = await redisClient.get(redisKey);
       if (existingRedis) {
         try {
-          redisData = JSON.parse(existingRedis);
+          redisData = (existingRedis);
         } catch (e) {
           console.warn("Redis data corrupted:", e);
         }
@@ -361,10 +361,10 @@ export const completeVendorProfile = async (req, res) => {
       // ✅ CASE B: User new or incomplete → check Redis
       if (!allPartsPresent) {
         const existingRedis = await redisClient.get(redisKey);
-        let redisData = existingRedis ? JSON.parse(existingRedis) : {};
+        let redisData = existingRedis ? (existingRedis) : {};
         redisData = { ...redisData, ...mergedData };
 
-        await redisClient.set(redisKey, JSON.stringify(redisData));
+        await redisClient.set(redisKey,(redisData));
         return res.status(200).json({
           message: "Partial data saved in Redis (first-time user)",
           source: "redis",
@@ -420,14 +420,14 @@ export const getObjectives = async (req, res) => {
 
     if (cachedData) {
       return res.status(200).json({
-        objectives: JSON.parse(cachedData),
+        objectives: (cachedData),
         source: "redis",
       });
     }
 
     const result = await client.query("SELECT * FROM ins.fn_get_objectives();");
 
-    await redisClient.set(redisKey, JSON.stringify(result.rows), { ex: 300 }); // TTL 5 mins
+    await redisClient.set(redisKey, (result.rows), { ex: 300 }); // TTL 5 mins
 
     return res.status(200).json({
       objectives: result.rows,

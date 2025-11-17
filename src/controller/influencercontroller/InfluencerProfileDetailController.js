@@ -256,7 +256,7 @@ export const completeUserProfile = async (req, res) => {
       const existingRedis = await redisClient.get(redisKey);
       if (existingRedis) {
         try {
-          redisData = JSON.parse(existingRedis);
+          redisData = (existingRedis);
         } catch (e) {
           console.warn("Redis data corrupted:", e);
         }
@@ -286,10 +286,10 @@ export const completeUserProfile = async (req, res) => {
       // ✅ CASE B: User new or incomplete → check Redis
       if (!allPartsPresent) {
         const existingRedis = await redisClient.get(redisKey);
-        let redisData = existingRedis ? JSON.parse(existingRedis) : {};
+        let redisData = existingRedis ? (existingRedis) : {};
         redisData = { ...redisData, ...mergedData };
 
-        await redisClient.set(redisKey, JSON.stringify(redisData));
+        await redisClient.set(redisKey, (redisData));
         return res.status(200).json({
           message: "Partial data saved in Redis (first-time user)",
           source: "redis",
@@ -353,7 +353,8 @@ export const getUserProfile = async (req, res) => {
     const cachedData = await redisClient.get(redisKey);
 
     if (cachedData) {
-      const parsed = JSON.parse(cachedData);
+      const parsed = 
+      (cachedData);
 
       const profileParts = {
         p_profile: parsed.profilejson || {},
@@ -451,14 +452,14 @@ export const deletePortfolioFile = async (req, res) => {
     // 🔹 1️⃣ Redis se data fetch
     let profileData = await redisClient.get(redisKey);
     if (profileData) {
-      profileData = JSON.parse(profileData);
+      profileData = (profileData);
 
       if (profileData.portfoliojson) {
         profileData.portfoliojson = profileData.portfoliojson.filter(
           (file) => file.filepath !== filePathToDelete
         );
 
-        await redisClient.set(redisKey, JSON.stringify(profileData));
+        await redisClient.set(redisKey, (profileData));
       }
     }
 
