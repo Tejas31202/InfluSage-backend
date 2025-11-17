@@ -27,6 +27,7 @@ export const finalizeCampaign = async (req, res) => {
       : `getCampaign:${userId}`;
 
     const cachedData = await redisClient.get(redisKey);
+
     if (!cachedData) {
       return res.status(404).json({
         message: "No campaign data found in Redis to finalize",
@@ -34,7 +35,10 @@ export const finalizeCampaign = async (req, res) => {
       });
     }
 
-    const campaignData = JSON.parse(cachedData);
+    // ❌ const campaignData = JSON.parse(cachedData);
+    // ✔ Already an object
+    const campaignData = cachedData;
+
 
     // --------------- BEGIN DB TRANSACTION ---------------
     await client.query("BEGIN");
@@ -182,10 +186,11 @@ export const getCampaign = async (req, res) => {
 
     if (campaignId === "01") {
       const cachedData = await redisClient.get(redisKey);
+
       if (cachedData) {
         return res.status(200).json({
           message: "Draft campaign from Redis",
-          campaignParts: JSON.parse(cachedData),
+          campaignParts: cachedData,   // ✔ No JSON.parse
           source: "redis",
         });
       }
@@ -195,14 +200,15 @@ export const getCampaign = async (req, res) => {
         campaignParts: {},
         source: "empty",
       });
+
     }
 
     const cachedEditData = await redisClient.get(redisKey);
+
     if (cachedEditData) {
-      // console.log("Returning campaign data from Redis");
       return res.status(200).json({
         message: "Campaign data from Redis",
-        campaignParts: JSON.parse(cachedEditData),
+        campaignParts: cachedEditData,  // ✔ No JSON.parse
         source: "redis",
       });
     }
@@ -715,7 +721,11 @@ export const upsertCampaign = async (req, res) => {
     const redisKey = `getCampaign:${p_userid}${campaignId ? `:${campaignId}` : ""}`;
     let existingDraft = {};
     const cached = await redisClient.get(redisKey);
-    if (cached) existingDraft = JSON.parse(cached);
+
+    // ❌ if (cached) existingDraft = JSON.parse(cached);
+    // ✔ Direct assign
+    if (cached) existingDraft = cached;
+
 
     const draftData = {
       p_objectivejson: { ...(existingDraft.p_objectivejson || {}), ...p_objectivejson },
