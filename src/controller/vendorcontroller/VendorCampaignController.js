@@ -259,7 +259,7 @@ export const deleteCampaignFile = async (req, res) => {
     const redisKey = `getCampaign:${userId}${campaignId ? `:${campaignId}` : ""}`;
     let campaignData = await redisClient.get(redisKey);
     if (campaignData) {
-      campaignData = JSON.parse(campaignData);
+      campaignData = (campaignData);
 
       // Remove deleted file from Redis cache
       if (campaignData.p_campaignfilejson) {
@@ -267,7 +267,7 @@ export const deleteCampaignFile = async (req, res) => {
           (file) => file.filepath !== filePathToDelete
         );
 
-        await redisClient.set(redisKey, JSON.stringify(campaignData));
+        await redisClient.set(redisKey, (campaignData));
       }
     }
 
