@@ -227,7 +227,7 @@ export const getCampaign = async (req, res) => {
     const fullData = result.rows[0];
 
     // Cache DB data in Redis for next time
-    await redisClient.set(redisKey, JSON.stringify(fullData));
+    await redisClient.set(redisKey, (fullData));
 
     return res.status(200).json({
       message: "Campaign data from DB",
@@ -745,7 +745,7 @@ export const upsertCampaign = async (req, res) => {
       updated_at: new Date(),
     };
 
-    await redisClient.set(redisKey, JSON.stringify(draftData));
+   await redisClient.set(redisKey, draftData);
 
     // ---------------- DRAFT SAVE ONLY ----------------
     if (!isFinalSubmit) {
