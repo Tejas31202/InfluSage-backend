@@ -26,15 +26,13 @@ export const finalizeCampaign = async (req, res) => {
       ? `getCampaign:${userId}:${campaignId}`
       : `getCampaign:${userId}`;
 
-    const cachedData = await redisClient.get(redisKey);
-    if (!cachedData) {
+    const campaignData = await redisClient.get(redisKey);
+      if (!campaignData) {
       return res.status(404).json({
-        message: "No campaign data found in Redis to finalize",
-        source: "redis",
+      message: "No campaign data found in Redis to finalize",
+      source: "redis",
       });
-    }
-
-    const campaignData = (cachedData);
+  }
 
     // --------------- BEGIN DB TRANSACTION ---------------
     await client.query("BEGIN");
@@ -185,7 +183,7 @@ export const getCampaign = async (req, res) => {
       if (cachedData) {
         return res.status(200).json({
           message: "Draft campaign from Redis",
-          campaignParts: (cachedData),
+          campaignParts: cachedData,
           source: "redis",
         });
       }
@@ -253,7 +251,7 @@ export const deleteCampaignFile = async (req, res) => {
     const redisKey = `getCampaign:${userId}${campaignId ? `:${campaignId}` : ""}`;
     let campaignData = await redisClient.get(redisKey);
     if (campaignData) {
-      campaignData = (campaignData);
+      // campaignData is already object
 
       // Remove deleted file from Redis cache
       if (campaignData.p_campaignfilejson) {
