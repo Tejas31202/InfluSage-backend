@@ -58,20 +58,21 @@ export const finalizeCampaign = async (req, res) => {
         $11::TEXT,
         $12::TEXT
       )`,
-      [
-        userId,
-        campaignId,
-        p_statusname,
-        JSON.stringify(campaignData.p_objectivejson || {}),
-        JSON.stringify(campaignData.p_vendorinfojson || {}),
-        JSON.stringify(campaignData.p_campaignjson || {}),
-        JSON.stringify(campaignData.p_campaigncategoyjson || {}),
-        JSON.stringify(campaignData.p_campaignfilejson || {}),
-        JSON.stringify(campaignData.p_contenttypejson || {}),
-        null,
-        null,
-        null,
+        [
+      userId,
+      campaignId,
+      p_statusname,
+      JSON.stringify(campaignData.p_objectivejson || {}),
+      JSON.stringify(campaignData.p_vendorinfojson || {}),
+      JSON.stringify(campaignData.p_campaignjson || {}),
+      JSON.stringify(campaignData.p_campaigncategoyjson || {}),
+      JSON.stringify(campaignData.p_campaignfilejson || {}),
+      JSON.stringify(campaignData.p_contenttypejson || {}),
+      false,     // BOOLEAN (must not be null)
+      "",        // TEXT (avoid NULL)
+      ""         // TEXT (avoid NULL)
       ]
+
     );
 
     await client.query("COMMIT");
