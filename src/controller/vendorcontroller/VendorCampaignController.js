@@ -1,6 +1,6 @@
 import { client } from '../../config/Db.js';
 import { createClient } from "@supabase/supabase-js";
-import { redisClient } from "../../config/redis.js";
+import { redisClient } from '../../config/redis.js';
 import path from 'path';
 import fs from 'fs';
 import fsPromises from "fs/promises";
@@ -27,7 +27,6 @@ export const finalizeCampaign = async (req, res) => {
       : `getCampaign:${userId}`;
 
     const cachedData = await redisClient.get(redisKey);
-
     if (!cachedData) {
       return res.status(404).json({
         message: "No campaign data found in Redis to finalize",
@@ -35,10 +34,7 @@ export const finalizeCampaign = async (req, res) => {
       });
     }
 
-    // ❌ const campaignData = JSON.parse(cachedData);
-    // ✔ Already an object
-    const campaignData = cachedData;
-
+    const campaignData = (cachedData);
 
     // --------------- BEGIN DB TRANSACTION ---------------
     await client.query("BEGIN");
@@ -58,21 +54,20 @@ export const finalizeCampaign = async (req, res) => {
         $11::TEXT,
         $12::TEXT
       )`,
-        [
-      userId,
-      campaignId,
-      p_statusname,
-      JSON.stringify(campaignData.p_objectivejson || {}),
-      JSON.stringify(campaignData.p_vendorinfojson || {}),
-      JSON.stringify(campaignData.p_campaignjson || {}),
-      JSON.stringify(campaignData.p_campaigncategoyjson || {}),
-      JSON.stringify(campaignData.p_campaignfilejson || {}),
-      JSON.stringify(campaignData.p_contenttypejson || {}),
-      false,     // BOOLEAN (must not be null)
-      "",        // TEXT (avoid NULL)
-      ""         // TEXT (avoid NULL)
+      [
+        userId,
+        campaignId,
+        p_statusname,
+        JSON.stringify(campaignData.p_objectivejson || {}),
+        JSON.stringify(campaignData.p_vendorinfojson || {}),
+        JSON.stringify(campaignData.p_campaignjson || {}),
+        JSON.stringify(campaignData.p_campaigncategoyjson || {}),
+        JSON.stringify(campaignData.p_campaignfilejson || {}),
+        JSON.stringify(campaignData.p_contenttypejson || {}),
+        null,
+        null,
+        null,
       ]
-
     );
 
     await client.query("COMMIT");
@@ -187,11 +182,10 @@ export const getCampaign = async (req, res) => {
 
     if (campaignId === "01") {
       const cachedData = await redisClient.get(redisKey);
-
       if (cachedData) {
         return res.status(200).json({
           message: "Draft campaign from Redis",
-          campaignParts: cachedData,   // ✔ No JSON.parse
+          campaignParts: (cachedData),
           source: "redis",
         });
       }
@@ -201,15 +195,14 @@ export const getCampaign = async (req, res) => {
         campaignParts: {},
         source: "empty",
       });
-
     }
 
     const cachedEditData = await redisClient.get(redisKey);
-
     if (cachedEditData) {
+      // console.log("Returning campaign data from Redis");
       return res.status(200).json({
         message: "Campaign data from Redis",
-        campaignParts: cachedEditData,  // ✔ No JSON.parse
+        campaignParts: (cachedEditData),
         source: "redis",
       });
     }
@@ -228,7 +221,7 @@ export const getCampaign = async (req, res) => {
     const fullData = result.rows[0];
 
     // Cache DB data in Redis for next time
-    await redisClient.set(redisKey, (fullData));
+    await redisClient.set(redisKey,(fullData));
 
     return res.status(200).json({
       message: "Campaign data from DB",
@@ -722,11 +715,7 @@ export const upsertCampaign = async (req, res) => {
     const redisKey = `getCampaign:${p_userid}${campaignId ? `:${campaignId}` : ""}`;
     let existingDraft = {};
     const cached = await redisClient.get(redisKey);
-
-    // ❌ if (cached) existingDraft = JSON.parse(cached);
-    // ✔ Direct assign
-    if (cached) existingDraft = cached;
-
+    if (cached) existingDraft = (cached);
 
     const draftData = {
       p_objectivejson: { ...(existingDraft.p_objectivejson || {}), ...p_objectivejson },
@@ -746,7 +735,7 @@ export const upsertCampaign = async (req, res) => {
       updated_at: new Date(),
     };
 
-   await redisClient.set(redisKey, draftData);
+    await redisClient.set(redisKey, (draftData));
 
     // ---------------- DRAFT SAVE ONLY ----------------
     if (!isFinalSubmit) {
