@@ -30,18 +30,18 @@ export const getSubjectListByRole = async (req, res) => {
   }
 };
 
-export const createNewTicket = async (req, res) => {
+export const createTicketAndUpdateStatus = async (req, res) => {
   try {
     const p_userid  = req.user?.id || req.body.p_userid ;
 
-    const {p_objectiveid, p_statusname} = req.body;
+    const {p_usersupportticketid ,p_objectiveid, p_statusname} = req.body;
 
     if (!p_userid) {
       return res.status(400).json({
         message: "p_userid is required.",
       });
     }
-    if (!p_objectiveid||!p_statusname) {
+    if (!p_objectiveid&&!p_statusname) {
       return res.status(400).json({
         message: "p_objectiveid and p_statusname are required.",
       });
@@ -50,21 +50,23 @@ export const createNewTicket = async (req, res) => {
     const result = await client.query(
       `CALL ins.usp_upsert_usersupportticket(
       $1::bigint,
-      $2::smallint,
-      $3::varchar(55),
-      $4::boolean,
-      $5::varchar
+      $2::bigint,
+      $3::smallint,
+      $4::varchar(10),
+      $5::boolean,
+      $6::varchar
       );`,
       [
-        p_userid ,
-        p_objectiveid,
+        p_userid,
+        p_usersupportticketid||null,
+        p_objectiveid||null,
         p_statusname,
         null,
         null,
       ]
     );
-
     const { p_status, p_message } = result.rows[0];
+    
     if (p_status) {
       return res.status(200).json({
         message: p_message,
@@ -74,7 +76,7 @@ export const createNewTicket = async (req, res) => {
       return res.status(400).json({ message: p_message, p_status });
     }
   } catch (error) {
-    console.error("error in createNewTicket:", error);
+    console.error("error in createTicketAndUpdateStatus:", error);
     return res.status(500).json({
       message: error.message,
     });
@@ -83,15 +85,26 @@ export const createNewTicket = async (req, res) => {
 
 export const viewAllTicketByUserId = async (req, res) => {
   try {
-    const userId = req.user?.id || req.query.userId;
-    if (!userId) {
-      return res.status(400).json({ message: "userId is required." });
+    const p_userid= req.user?.id || req.query.userId;
+  
+    if (!p_userid ) {
+      return res.status(400).json({ message: "p_userid  is required." });
     }
+    const {p_statuslabelid,p_search}=req.query;
+  
     const result = await client.query(
-      "SELECT * from ins.viewAllTicketByUserId($1::smallint);",
-      [userId]
+      `SELECT * FROM ins.fn_get_usersubjectlist(
+      $1::bigint,
+      $2::smallint,
+      $3::text
+      );`,
+      [
+        p_userid ,
+        p_statuslabelid,
+        p_search||null
+      ]
     );
-    const viewTicket = result.rows[0];
+    const viewTicket = result.rows[0].fn_get_usersubjectlist;
     return res.status(200).json({
       message: "Ticket list fetched successfully.",
       viewTicket: viewTicket,
@@ -129,107 +142,98 @@ export const openChatByTicketIdForUser = async (req, res) => {
   }
 };
 
-export const changeTicketStatus = async (req, res) => {
+// export const changeTicketStatus = async (req, res) => {
+//   try {
+//     const userId = req.user?.id || req.body.userId;
+//     const { ticketID, statusname } = req.body;
+//     const result = await client.query(
+//       `CALL ins.usp_changeTicketStatus(
+//           $1::bigint,
+//           $2::bigint,
+//           $3::varchar,
+//           $4::boolean,
+//           $5::varchar
+//          );`,
+//       [userId, ticketID, statusname || "close"]
+//     );
+//     const { p_status, p_message } = result.rows[0];
+//     if (p_status) {
+//       return res.status(200).json({
+//         message: p_message,
+//         p_status,
+//       });
+//     } else {
+//       return res.status(400).json({ message: p_message, p_status });
+//     }
+//   } catch (error) {
+//     console.error("error in changeTicketStatus:", error);
+//     return res.status(500).json({
+//       message: error.message,
+//     });
+//   }
+// };
+
+export const getTicketStatus = async (req, res) => {
   try {
-    const userId = req.user?.id || req.body.userId;
-    const { ticketID, statusname } = req.body;
     const result = await client.query(
-      `CALL ins.usp_changeTicketStatus(
-          $1::bigint,
-          $2::bigint,
-          $3::varchar,
-          $4::boolean,
-          $5::varchar
-         );`,
-      [userId, ticketID, statusname || "close"]
-    );
-    const { p_status, p_message } = result.rows[0];
-    if (p_status) {
-      return res.status(200).json({
-        message: p_message,
-        p_status,
-      });
-    } else {
-      return res.status(400).json({ message: p_message, p_status });
-    }
-  } catch (error) {
-    console.error("error in changeTicketStatus:", error);
-    return res.status(500).json({
-      message: error.message,
-    });
-  }
-};
-
-export const ViewAllTicketAdminSide =async (req,res)=>{
-  try{
-      const p_adminid = req.user?.id || req.body.p_adminid;
-
-    if (!p_adminid) {
-      return res.status(400).json({
-        message: "p_adminid is required.",
-      });
-    }
-
-    const result = await client.query(
-      "SELECT * FROM ins.getAllTicketsForAdmin($1::bigint);",
-      [p_adminid]
+      "SELECT * FROM ins.fn_get_usersupportticketstatus()"
     );
 
-    const allTickets = result.rows;
+    const status = result.rows;
 
     return res.status(200).json({
-      message: "All tickets fetched successfully.",
-      data: allTickets,
+      message: "Successfully retrieved ticket statuses",
+      status: status,
     });
   } catch (error) {
-    console.error("error in ViewAllTicketAdminSide:", error);
+    console.error("error in getTicketStatus:", error);
     return res.status(500).json({
       message: error.message,
     });
   }
 };
 
-export const claimTicketByAdmin = async (req, res) => {
-  try {
-    const adminId = req.user?.id || req.body.adminId;
-    const ticketId = req.body.tikcketId;
+// export const claimTicketByAdmin = async (req, res) => {
+//   try {
+//     const adminId = req.user?.id || req.body.adminId;
+//     const ticketId = req.body.tikcketId;
 
-    if (!adminId) {
-      return res.status(400).json({
-        message: "adminId is required.",
-      });
-    }
-    if (!ticketId) {
-      return res.status(400).json({
-        message: "tikcketId is required.",
-      });
-    }
+//     if (!adminId) {
+//       return res.status(400).json({
+//         message: "adminId is required.",
+//       });
+//     }
+//     if (!ticketId) {
+//       return res.status(400).json({
+//         message: "tikcketId is required.",
+//       });
+//     }
 
-    const result = await client.query(
-      `CALL ins.usp_changeTicketStatus(
-          $1::bigint,
-          $2::bigint,
-          $3::boolean,
-          $4::varchar
-         );`,
-      [adminId, ticketId, null, null]
-    );
-    const { p_status, p_message } = result.rows[0];
-    if (p_status) {
-      return res.status(200).json({
-        message: p_message,
-        p_status,
-      });
-    } else {
-      return res.status(400).json({ message: p_message, p_status });
-    }
-  } catch (error) {
-    console.error("error in claimTicketByAdmin:", error);
-    return res.status(500).json({
-      message: error.message,
-    });
-  }
-};
+//     const result = await client.query(
+//       `CALL ins.usp_changeTicketStatus(
+//           $1::bigint,
+//           $2::bigint,
+//           $3::boolean,
+//           $4::varchar
+//          );`,
+//       [adminId, ticketId, null, null]
+//     );
+//     const { p_status, p_message } = result.rows[0];
+//     if (p_status) {
+//       return res.status(200).json({
+//         message: p_message,
+//         p_status,
+//       });
+//     } else {
+//       return res.status(400).json({ message: p_message, p_status });
+//     }
+//   } catch (error) {
+//     console.error("error in claimTicketByAdmin:", error);
+//     return res.status(500).json({
+//       message: error.message,
+//     });
+//   }
+// };
 
 export const openChatByTicketIdForAdmin = async (req, res) => {
   try {
@@ -267,35 +271,35 @@ export const openChatByTicketIdForAdmin = async (req, res) => {
   }
 };
 
-export const resolveTicketByAdmin = async (req, res) => {
-  try {
-    const adminId = req.user?.id||req.body.adminId;
+// export const resolveTicketByAdmin = async (req, res) => {
+//   try {
+//     const adminId = req.user?.id||req.body.adminId;
 
-    const { ticketId } = req.body;
-      if (!adminId) {
-      return res.status(400).json({ message: "adminId is required." });
-    }
-    if (!ticketId) {
-      return res.status(400).json({ message: "ticketId is required." });
-    }
-    const result = await client.query(
-      "CALL ins.usp_resolveTicket($1::bigint,$2::bigint)",
-      [adminId, ticketId,null,null]
-    );
-   const { p_status, p_message } = result.rows[0];
-    if (p_status) {
-      return res.status(200).json({
-        message: p_message,
-        p_status,
-      });
-    } else {
-      return res.status(400).json({ message: p_message, p_status });
-    }
-  } catch (error) {
-    console.error("Error in resolveTicketByAdmin:", error);
-    return res.status(500).json({ message: error.message });
-  }
-};
+//     const { ticketId } = req.body;
+//       if (!adminId) {
+//       return res.status(400).json({ message: "adminId is required." });
+//     }
+//     if (!ticketId) {
+//       return res.status(400).json({ message: "ticketId is required." });
+//     }
+//     const result = await client.query(
+//       "CALL ins.usp_resolveTicket($1::bigint,$2::bigint)",
+//       [adminId, ticketId,null,null]
+//     );
+//    const { p_status, p_message } = result.rows[0];
+//     if (p_status) {
+//       return res.status(200).json({
+//         message: p_message,
+//         p_status,
+//       });
+//     } else {
+//       return res.status(400).json({ message: p_message, p_status });
+//     }
+//   } catch (error) {
+//     console.error("Error in resolveTicketByAdmin:", error);
+//     return res.status(500).json({ message: error.message });
+//   }
+// };
 
 export const supportMessageSend = async (req, res) => {
   try {
