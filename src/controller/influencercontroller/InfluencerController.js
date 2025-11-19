@@ -91,6 +91,7 @@ export const verifyOtpAndRegister = async (req, res) => {
     if (!storedOtp) {
       return res.status(400).json({ message: "OTP expired or not found." });
     }
+    console.log(" Comparing OTPs:", storedOtp, otp);
     if (storedOtp !== otp) {
       console.log(" OTP mismatch!");
       return res.status(400).json({ message: "Invalid OTP." });

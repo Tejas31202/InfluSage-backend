@@ -66,6 +66,8 @@ export const finalizeCampaign = async (req, res) => {
       ]
     );
 
+    console.log("DB finalize result:", result.rows[0]);
+
     await client.query("COMMIT");
 
     const { p_status, p_message, p_campaignid} = result.rows[0] || {};
