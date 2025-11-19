@@ -25,6 +25,7 @@ import NotificationRoutes  from './src/routes/NotificationRoutes.js';
 import AdminPanelRoutes from './src/routes/AdminPanelRoutes.js';
 import UserAdminSupportChatRoutes from './src/routes/UserAdminSupportChatRoutes.js';
 import { client } from "./src/config/Db.js";
+import VendorContractRoutes from './src/routes/vendorroutes/VendorContractRoutes.js';
 
 dotenv.config();
 
@@ -62,6 +63,7 @@ app.use("/vendor", VendorBrowseInfluencerRoutes);
 app.use("/vendor", VendorOffersRoutes);
 app.use("/vendor", VendorMyCampaignRoutes);
 app.use("/vendor",VendorDashboardRoutes);
+app.use("/vendor",VendorContractRoutes);
 app.use("/chat", ChatRoutes);
 app.use("/new",NotificationRoutes);
 app.use("/admin",AdminPanelRoutes);
