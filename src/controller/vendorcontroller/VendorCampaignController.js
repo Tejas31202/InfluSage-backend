@@ -770,7 +770,7 @@ export const upsertCampaign = async (req, res) => {
         $8::JSON, 
         $9::JSON,
         $10::boolean,
-        $11::TEXT,
+        $11::TEXT
       )`,
       [
         p_userid,
@@ -783,7 +783,7 @@ export const upsertCampaign = async (req, res) => {
         p_campaignfilejson||null,
         p_contenttypejson||null,
         null,
-        null,
+        null
       ]
     );
 
