@@ -218,7 +218,6 @@ export async function getGoogleLoginCallback(req, res) {
     if (!user || user.code === "NOTREGISTERED") {
       const redirectUrl = `${process.env.FRONTEND_URL}/roledefault?email=${encodeURIComponent(
         data.email
-<<<<<<< HEAD
       )}&firstName=${encodeURIComponent(data.given_name || "")}&lastName=${encodeURIComponent(
         data.family_name || ""
       )}&roleId=${selectedRole || ""}`;
@@ -242,32 +241,6 @@ if (user) {
     data.name ||
     "User";
 }
-=======
-      )}&firstName=${encodeURIComponent(
-        data.given_name || ""
-      )}&lastName=${encodeURIComponent(data.family_name || "")}&roleId=${selectedRole || ""
-        }`;
-
-      return res.redirect(redirectUrl);
-    }
-
-    //  user already exist -> JWT token generate
-    const token = generateToken({
-      id: user.userid,
-      role: user.roleid,
-      firstName: user.firstname,
-      lastName: user.lastname,
-      email: user.email,
-      p_code:user.p_code
-    });
-
-    const redirectUrl = `http://localhost:5173/login?token=${token}&userId=${user.userid
-      }&roleId=${user.roleid}&firstName=${encodeURIComponent(
-        user.firstname
-      )}&lastName=${encodeURIComponent(user.lastname)}&email=${encodeURIComponent(
-        user.email
-      )}`;
->>>>>>> main
 
 // ✅ Generate JWT with proper fullname
 const token = generateToken({
@@ -335,7 +308,6 @@ export async function setPasswordAfterGoogleSignup(req, res) {
       firstName: user.firstname,
       lastName: user.lastname,
       email: user.email,
-      p_code: user.p_code
     });
 
     return res.status(201).json({
@@ -348,7 +320,6 @@ export async function setPasswordAfterGoogleSignup(req, res) {
         firstName: user.firstname,
         lastName: user.lastname,
         email: user.email,
-        p_code: user.p_code
       },
     });
   } catch (err) {
@@ -395,19 +366,11 @@ export async function getFacebookLoginCallback(req, res) {
   try {
     // 🔹 Exchange code for access token
     const tokenRes = await axios.get(
-<<<<<<< HEAD
       `https://graph.facebook.com/v23.0/oauth/access_token?` +
         `client_id=${process.env.FACEBOOK_APP_ID}` +
         `&redirect_uri=${process.env.BACKEND_URL}/auth/facebook/callback` +
         `&client_secret=${process.env.FACEBOOK_APP_SECRET}` +
         `&code=${code}`
-=======
-      `https://graph.facebook.com/v17.0/oauth/access_token?` +
-      `client_id=${process.env.FACEBOOK_APP_ID}` +
-      `&redirect_uri=http://localhost:3001/auth/facebook/callback` +
-      `&client_secret=${process.env.FACEBOOK_APP_SECRET}` +
-      `&code=${code}`
->>>>>>> main
     );
 
     const accessToken = tokenRes.data.access_token;
@@ -450,18 +413,10 @@ if (user) {
     if (!user || user.code === "NOTREGISTERED") {
       const redirectUrl = `${process.env.FRONTEND_URL}/roledefault?email=${encodeURIComponent(
         fbUser.email
-<<<<<<< HEAD
       )}&firstName=${encodeURIComponent(fbUser.first_name || "")}&lastName=${encodeURIComponent(
         fbUser.last_name || ""
       )}&roleId=${selectedRole || ""}`;
       // console.log("🔸 Redirecting to signup role page:", redirectUrl);
-=======
-      )}&firstName=${encodeURIComponent(
-        fbUser.first_name || ""
-      )}&lastName=${encodeURIComponent(fbUser.last_name || "")}&roleId=${selectedRole || ""
-        }`;
-
->>>>>>> main
       return res.redirect(redirectUrl);
     }
 
@@ -474,7 +429,6 @@ if (user) {
 
     // 🔹 Generate JWT token
     const token = generateToken({
-<<<<<<< HEAD
   id: user.userid,
   role: user.roleid,
   firstName: user.firstname || fbUser.first_name || "",
@@ -482,18 +436,8 @@ if (user) {
   email: user.email,
   name: user.fullname, // ✅ Include fullname
 });
-=======
-      id: user.userid,
-      role: user.roleid,
-      firstName: user.firstname,
-      lastName: user.lastname,
-      email: user.email,
-      p_code:user.p_code
-    });
->>>>>>> main
 
 
-<<<<<<< HEAD
     const redirectUrl = `${process.env.FRONTEND_URL}/login?` +
   `token=${token}` +
   `&userId=${user.userid}` +
@@ -504,14 +448,6 @@ if (user) {
   `&name=${encodeURIComponent(user.fullname)}` + // ✅ send fullname
   `&p_code=${encodeURIComponent(user.code)}` +
   `&p_message=${encodeURIComponent(user.message)}`;
-=======
-    const redirectUrl = `http://localhost:5173/login?token=${token}&userId=${user.userid
-      }&roleId=${user.roleid}&firstName=${encodeURIComponent(
-        user.firstname
-      )}&lastName=${encodeURIComponent(user.lastname)}&email=${encodeURIComponent(
-        fbUser.email
-      )}`;
->>>>>>> main
 
 
     // console.log("✅ Redirecting to frontend:", redirectUrl);
@@ -521,7 +457,6 @@ if (user) {
     return res.redirect(`${process.env.FRONTEND_URL}/login?error=facebook_login_failed`);
   }
 }
-
 
 
 
