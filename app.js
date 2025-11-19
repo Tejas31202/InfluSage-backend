@@ -24,6 +24,7 @@ import InfluencerMyCampaignRoutes from './src/routes/influencerroutes/Influencer
 import NotificationRoutes  from './src/routes/NotificationRoutes.js';
 import AdminPanelRoutes from './src/routes/AdminPanelRoutes.js';
 import UserAdminSupportChatRoutes from './src/routes/UserAdminSupportChatRoutes.js';
+import { client } from "./src/config/Db.js";
 
 dotenv.config();
 
@@ -86,7 +87,7 @@ io.on("connection", (socket) => {
   console.log("🔗 User connected:", socket.id);
 
   // User registers
-  socket.on("register", (userId) => {
+  socket.on("register", async (userId) => {
     onlineUsers.set(userId, socket.id);
     socket.userId = userId;
 
@@ -97,6 +98,24 @@ io.on("connection", (socket) => {
     socket.emit("online-users", { userIds: [...onlineUsers.keys()] });
 
     console.log(`User ${userId} registered`);
+
+    // FETCH ALL NOTIFICATIONS FROM DB
+    try {
+      const notifs = await client.query(
+        `select * from ins.fn_get_notificationlist($1::bigint, $2::boolean)`,
+        [userId, null]
+      );
+
+      const result = notifs.rows[0]?.fn_get_notificationlist || [];
+
+      socket.emit("receiveAllNotifications", result);
+
+      console.log(`Sent ${result.length} notifications to user ${userId}`);
+    } catch (err) {
+      console.log("Notification fetch error", err);
+    }
+    
+
   });
 
   // Join room (conversation)
@@ -128,6 +147,52 @@ io.on("connection", (socket) => {
     socket.to(conversationId).emit("receiveMessage", message);
   });
 
+
+  
+// SOCKET.IO NOTIFICATION HANDLER
+socket.on("sendNotification", async ({ receiverId, type, extra }) => {
+  try {
+    // FETCH notification type info from DB
+    const typeRes = await client.query(
+      `SELECT id, title FROM ins.notifications WHERE type = $1 AND is_active = true`,
+      [type]
+    );
+
+    const notifType = typeRes.rows[0];
+    if (!notifType) {
+      console.log("Invalid notification type:", type);
+      return;
+    }
+
+    // SAVE to user notification table
+    await client.query(
+      `INSERT INTO ins.user_notifications(user_id, notification_id, extra_data, created_at)
+       VALUES($1, $2, $3, NOW())`,
+      [receiverId, notifType.id, JSON.stringify(extra)]
+    );
+
+    // Prepare notif object
+    const notifObj = {
+      id: notifType.id,
+      type,
+      title: notifType.title,
+      extra: extra || {},
+      createdAt: new Date(),
+    };
+
+    // Send live notification if user is online
+    const receiverSocket = onlineUsers.get(receiverId);
+    if (receiverSocket) {
+      io.to(receiverSocket).emit("receiveNotification", notifObj);
+      console.log(`LIVE Notification sent to user ${receiverId}`);
+    } else {
+      console.log(`User ${receiverId} OFFLINE — saved only`);
+    }
+  } catch (err) {
+    console.error("Error sending notification:", err);
+  }
+});
+
   // Disconnect
   socket.on("disconnect", () => {
     const userId = socket.userId;
@@ -150,8 +215,6 @@ io.on("connection", (socket) => {
     });
   });
 
-
-
 // Edit message
 socket.on("editMessage", ({ id, content, file, conversationId, replyId }) => {
   if (!id || !conversationId) {
@@ -163,7 +226,6 @@ socket.on("editMessage", ({ id, content, file, conversationId, replyId }) => {
 });
 
 });
-
 
 // Start server using HTTP server
 server.listen(PORT, () => {
