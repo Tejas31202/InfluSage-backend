@@ -49,8 +49,7 @@ export const finalizeCampaign = async (req, res) => {
         $8::JSON,
         $9::JSON,
         $10::boolean,
-        $11::TEXT,
-        $12::TEXT
+        $11::TEXT
       )`,
       [
         userId,
@@ -64,36 +63,35 @@ export const finalizeCampaign = async (req, res) => {
         JSON.stringify(campaignData.p_contenttypejson || {}),
         null,
         null,
-        null,
       ]
     );
 
     await client.query("COMMIT");
 
-    const { p_status, p_message, p_campaignid, p_campaignname } = result.rows[0] || {};
+    const { p_status, p_message, p_campaignid} = result.rows[0] || {};
 
     if (!p_status) {
       return res.status(400).json({
-        status: false,
-        message: p_message,
+        p_status,
+        message:p_message ,
       });
     }
 
     // ------------------- FILE MOVE LOGIC -------------------
-
-    let username= req.user.name.split(" ")[0].trim();
-
-    const baseTempFolder = `Vendor/${userId}_${username}/Campaigns/_temp`;
-    const finalFolderBase = `Vendor/${userId}_${username}/Campaigns/${p_campaignid}_${p_campaignname}`;
+ 
+    // let username= req.user.name.split(" ")[0].trim();
+      
+    const baseTempFolder = `Vendor/${userId}/Campaigns/_temp`;
+    const finalFolderBase = `Vendor/${userId}/Campaigns/${p_campaignid}`;
     const finalPhotoFolder = `${finalFolderBase}/campaign_profile`;
     const finalPortfolioFolder = `${finalFolderBase}/campaign_portfolio`;
 
     // ------------------- DELETE OLD PHOTO IF EXISTS -------------------
-    // const { data: existingPhotos } = await supabase.storage.from("uploads_UAT").list(finalPhotoFolder);
+    // const { data: existingPhotos } = await supabase.storage.from("uploads").list(finalPhotoFolder);
 
     // if (existingPhotos?.length > 0) {
     //     const oldPhotoPaths = existingPhotos.map((f) => `${finalPhotoFolder}/${f.name}`);
-    //     await supabase.storage.from("uploads_UAT").remove(oldPhotoPaths);
+    //     await supabase.storage.from("uploads").remove(oldPhotoPaths);
     // }
 
     // Move photo files
@@ -108,7 +106,7 @@ export const finalizeCampaign = async (req, res) => {
           .download(oldPath);
 
         if (downloadErr) {
-          console.warn("⚠️ Photo file download failed:", downloadErr.message);
+          console.warn(" Photo file download failed:", downloadErr.message);
           continue;
         }
 
@@ -150,11 +148,10 @@ export const finalizeCampaign = async (req, res) => {
       status: true,
       message: p_message,
       campaignId: p_campaignid,
-      campaignName: p_campaignname,
     });
   } catch (error) {
     await client.query("ROLLBACK");
-    console.error("❌ finalizeCampaign error:", error);
+    console.error("finalizeCampaign error:", error);
     return res.status(500).json({
       status: false,
       message: "Error finalizing campaign",
@@ -176,8 +173,6 @@ export const getCampaign = async (req, res) => {
         ? `getCampaign:${userId}`
         : `getCampaign:${userId}:${campaignId}`;
 
-    // console.log("🧩 getCampaign called with:", { userId, campaignId, redisKey });
-
     if (campaignId === "01") {
       const cachedData = await redisClient.get(redisKey);
       if (cachedData) {
@@ -197,7 +192,6 @@ export const getCampaign = async (req, res) => {
 
     const cachedEditData = await redisClient.get(redisKey);
     if (cachedEditData) {
-      // console.log("Returning campaign data from Redis");
       return res.status(200).json({
         message: "Campaign data from Redis",
         campaignParts: (cachedEditData),
@@ -228,7 +222,7 @@ export const getCampaign = async (req, res) => {
     });
 
   } catch (err) {
-    console.error("❌ getCampaign error:", err);
+    console.error("getCampaign error:", err);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -247,8 +241,12 @@ export const deleteCampaignFile = async (req, res) => {
       });
     }
 
-    // ---------------- 1️⃣ Update Redis ----------------
-    const redisKey = `getCampaign:${userId}${campaignId ? `:${campaignId}` : ""}`;
+    // ---------------- 1 Build Redis Key ----------------
+    const redisKey = campaignId
+      ? `getCampaign:${userId}:${campaignId}`
+      : `getCampaign:${userId}`;
+
+    // ---------------- 2 Update Redis ----------------
     let campaignData = await redisClient.get(redisKey);
     if (campaignData) {
       // campaignData is already object
@@ -616,7 +614,7 @@ export const upsertCampaign = async (req, res) => {
     const p_userid = req.user?.id || req.body.p_userid;
     const campaignId = req.body.campaignId || null;
     const isFinalSubmit = req.body.isFinalSubmit || false;
-    const p_statusname = req.body.p_statusname || "Draft";
+    const p_statusname = req.body.p_statusname ||null;
 
     if (!p_userid)
       return res.status(400).json({ message: "User ID is required" });
@@ -664,7 +662,7 @@ export const upsertCampaign = async (req, res) => {
     const p_contenttypejson = cleanArray(req.body.p_contenttypejson);
 
     // ---------------- TEMP FOLDERS ----------------
-    const baseTempFolder = `Vendor/${p_userid}_${username}/Campaigns/_temp`;
+    const baseTempFolder = `Vendor/${p_userid}/Campaigns/_temp`;
     const tempPhotoFolder = `${baseTempFolder}/campaign_profile`;
     const tempPortfolioFolder = `${baseTempFolder}/campaign_portfolio`;
 
@@ -683,7 +681,7 @@ export const upsertCampaign = async (req, res) => {
       );
       if (error) throw new Error(`Photo upload failed: ${error.message}`);
 
-      // // ✅ Only store filename in DB
+      // // Only store filename in DB
       // p_campaignjson.photopath = newFileName;
       const { data: publicData } = supabase.storage.from("uploads_UAT").getPublicUrl(tempPhotoPath);
         p_campaignjson.photopath = publicData.publicUrl; // store full URL for UI
@@ -702,7 +700,7 @@ export const upsertCampaign = async (req, res) => {
         );
         if (error) console.warn("⚠️ File upload failed:", error.message);
 
-        // // ✅ Only store filename in DB
+        // // Only store filename in DB
         // campaignFiles.push({ filepath: newFileName });
         const { data: publicData } = supabase.storage.from("uploads_UAT").getPublicUrl(tempPortfolioPath);
         campaignFiles.push({filepath: publicData.publicUrl });
@@ -759,7 +757,6 @@ export const upsertCampaign = async (req, res) => {
         $9::JSON,
         $10::boolean,
         $11::TEXT,
-        $12::TEXT
       )`,
       [
         p_userid,
@@ -773,7 +770,6 @@ export const upsertCampaign = async (req, res) => {
         p_contenttypejson||null,
         null,
         null,
-        null
       ]
     );
 
@@ -786,7 +782,7 @@ export const upsertCampaign = async (req, res) => {
       source: "db",
     });
   } catch (err) {
-    console.error("❌ upsertCampaign error:", err);
+    console.error("upsertCampaign error:", err);
     return res.status(500).json({
       success: false,
       message: "Error processing campaign",

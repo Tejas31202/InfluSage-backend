@@ -72,9 +72,9 @@ export const applyNowCampaign = async (req, res) => {
     // username = username.replace(/\W+/g, "_");
 
     // Unique folder name pattern
-    const userFolder = `${userId}_${username}`;
+    const userFolder = `${userId}`;
 
-    // ✅ Parse JSON from form-data
+    // Parse JSON from form-data
     let applycampaignjson = {};
     if (req.body.applycampaignjson) {
       try {
@@ -84,18 +84,18 @@ export const applyNowCampaign = async (req, res) => {
       }
     }
 
-    // ✅ File upload to Supabase
+    // File upload to Supabase
     if (req.files && req.files.portfolioFiles) {
   const uploadedFiles = [];
 
   for (const file of req.files.portfolioFiles) {
     const fileName = file.originalname;
     const newFileName = `${fileName}`;
-    const uniqueFileName = `Influencer/${userFolder}/CampaignId_${campaignId}/ApplyCampaigns/${newFileName}`;
+    const uniqueFileName = `Influencer/${userFolder}/Campaigns/${campaignId}/ApplyCampaigns/${newFileName}`;
     const fileBuffer = file.buffer;
 
     try {
-      // ✅ Step 1: Check if file already exists in Supabase bucket
+      // Step 1: Check if file already exists in Supabase bucket
       const { data: existingFiles, error: listError } = await supabase.storage
         .from("uploads_UAT")
         .list(`Influencer/${userFolder}/CampaignId_${campaignId}/ApplyCampaigns/`, {
@@ -113,12 +113,12 @@ export const applyNowCampaign = async (req, res) => {
        res.status(400).json({message:`File already exists: ${fileName}, skipping upload.`});
       }
 
-      // ✅ Step 2: Upload if file doesn’t exist
+      // Step 2: Upload if file doesn’t exist
       const { error: uploadError } = await supabase.storage
         .from("uploads_UAT")
         .upload(uniqueFileName, fileBuffer, {
           contentType: file.mimetype,
-          upsert: false, // ❌ no overwrite
+          upsert: false, 
         });
 
       if (uploadError) {
@@ -128,7 +128,7 @@ export const applyNowCampaign = async (req, res) => {
           .json({ message: "Failed to upload file to cloud storage" });
       }
 
-      // ✅ Step 3: Get public URL for the uploaded file
+      // Step 3: Get public URL for the uploaded file
       const { data: publicUrlData } = supabase.storage
         .from("uploads_UAT")
         .getPublicUrl(uniqueFileName);
@@ -148,7 +148,7 @@ export const applyNowCampaign = async (req, res) => {
       }
     }
 
-    // ✅ Save data in DB via stored procedure
+    // Save data in DB via stored procedure
     const result = await client.query(
       `CALL ins.usp_insert_campaignapplication(
         $1::bigint,
@@ -308,7 +308,7 @@ export const getSingleApplyCampaign = async (req, res) => {
     const { campaignId } = req.params;
     const redisKey = `applyCampaign:${userId}:${campaignId}`;
 
-    // 1️⃣ Try cache first
+    // 1 Try cache first
     const cachedData = await redisClient.get(redisKey);
     if (cachedData) {
       return res.status(200).json({
@@ -317,7 +317,7 @@ export const getSingleApplyCampaign = async (req, res) => {
       });
     }
 
-    // 2️⃣ If not in Redis → fetch from DB (❌ don't save in Redis)
+    // 2 If not in Redis → fetch from DB (❌ don't save in Redis)
     const result = await client.query(
       `SELECT ins.fn_get_campaignapplicationdetails($1,$2)`,
       [userId, campaignId]
@@ -327,7 +327,7 @@ export const getSingleApplyCampaign = async (req, res) => {
       return res.status(404).json({ message: "No applied campaigns found." });
     }
 
-    // 3️⃣ Just return DB response directly
+    // 3 Just return DB response directly
     return res.status(200).json({
       data: result.rows[0]?.fn_get_campaignapplicationdetails,
       source: "db",
@@ -355,7 +355,7 @@ export const getUserCampaignWithDetails = async (req, res) => {
       appliedDetails: null,
     };
 
-    // 1️⃣ Get campaign details (from DB)
+    // 1 Get campaign details (from DB)
     const campaignResult = await client.query(
       "select * from ins.fn_get_campaignbrowsedetails($1::bigint,$2::bigint)",
       [userId, campaignId]
@@ -366,7 +366,7 @@ export const getUserCampaignWithDetails = async (req, res) => {
         campaignResult.rows[0].fn_get_campaignbrowsedetails;
     }
 
-    // 2️⃣ Get applied campaign details (check Redis first)
+    // 2 Get applied campaign details (check Redis first)
     const redisKey = `applyCampaign:${userId}:${campaignId}`;
     const cachedData = await redisClient.get(redisKey);
 
@@ -384,10 +384,10 @@ export const getUserCampaignWithDetails = async (req, res) => {
       }
     }
 
-    // 3️⃣ Return combined response
+    // 3 Return combined response
     return res.status(200).json({ data: responseData });
   } catch (error) {
-    console.error("❌ Error fetching campaign with details:", error.message);
+    console.error("Error fetching campaign with details:", error.message);
     return res
       .status(500)
       .json({ status: false, message: "Internal Server Error" });
@@ -440,7 +440,6 @@ export const browseCampaigns = async (req, res) => {
         p_search,
       ]
     );
-
     return res.json(result.rows[0].fn_get_campaignbrowse);
   } catch (error) {
     console.error("Error browsing campaigns:", error.message);
@@ -510,7 +509,7 @@ export const deleteApplyNowPortfolioFile = async (req, res) => {
       }
     }
 
-    // Step 2: Supabase file path nikalna (public URL se relative path)
+    // Step 2: Supabase file path from (public URL se relative path)
     // Example: https://xyz.supabase.co/storage/v1/object/public/uploads/influencers/1234_Tejas/Applycampains/file.png
     const supabaseBaseURL = `${SUPABASE_URL}/storage/v1/object/public/uploads/`;
     const relativeFilePath = filePath.replace(supabaseBaseURL, "");

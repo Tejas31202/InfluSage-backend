@@ -101,9 +101,9 @@ export const insertMessage = async (req, res) => {
 
       //Created Folder Path For Vendor And Influencer saved in vendor side
       if (Number(roleId) === 2) {
-        uniqueFileName = `Vendor/${userId}_${username}/Campaigns/${campaignid}_${campaignName}/Chat/${influencerId}_${influencerName}/${newFileName}`;
+        uniqueFileName = `Vendor/${userId}/Campaigns/${campaignid}/Chat/${influencerId}/${newFileName}`;
       } else if ((Number(roleId) === 1)){
-        uniqueFileName = `Vendor/${vendorId}_${vendorName}/Campaigns/${campaignid}_${campaignName}/Chat/${userId}_${username}/${newFileName}`;
+        uniqueFileName = `Vendor/${vendorId}/Campaigns/${campaignid}/Chat/${userId}/${newFileName}`;
       }
 
       // Upload file to Supabase
@@ -180,7 +180,7 @@ export const insertMessage = async (req, res) => {
 //Get Conversations (Full)
 export const getConversationsdetails = async (req, res) => {
   try {
-    const p_userid = req.user?.id; // token se user id
+    const p_userid = req.user?.id;
     const { p_search = "" } = req.query || {};
 
     if (!p_userid) {
@@ -256,6 +256,7 @@ export const getMessages = async (req, res) => {
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
 
 export const updateUndoMessage = async (req, res) => {
   try {

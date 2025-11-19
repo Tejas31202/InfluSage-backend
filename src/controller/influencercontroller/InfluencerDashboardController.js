@@ -49,7 +49,6 @@ export const getInfluencerProfileCompletionPercentage = async (req, res) => {
 export const getToDoList = async (req, res) => {
   try {
     const p_userid = req.user?.id || req.body.p_userid;
-    // const p_todolistid = req.body.p_todolistid||null;
     const result = await client.query(
       "select * from ins.fn_get_todolist($1::bigint,$2::bigint);",
       [p_userid, null]

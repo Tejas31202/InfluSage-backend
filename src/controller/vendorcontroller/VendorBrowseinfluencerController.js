@@ -35,11 +35,6 @@ export const browseAllInfluencer = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.p_userid ;
 
-    //Check For User Id Available OR Not
-    // if (!userId) {
-    //   return res.status(400).json({ message: "User ID is required." });
-    // }
-
     const {
       p_location,
       p_providers,
@@ -82,9 +77,6 @@ export const browseAllInfluencer = async (req, res) => {
     
     const influencers = result.rows[0].fn_get_influencerbrowse;
 
-    //Check For Data
-    // console.log("==>", influencers);
-
     if (influencers.length === 0) {
       return res.status(404).json({ message: "No influencers found." });
     }
@@ -101,12 +93,20 @@ export const browseAllInfluencer = async (req, res) => {
 };
 //................Add Favourite Influencer................
 export const addFavouriteInfluencer = async (req, res) => {
-  const { p_userId, p_influencerId } = req.body;
+   const userId = req.user?.id;  // ||  req.body.userId;
+  const { p_influencerId } = req.body;
 
-  if (!p_userId || !p_influencerId) {
+  if (!userId) {
     return res.status(400).json({
       status: false,
-      message: "Missing userId or influencerId",
+      message: "Missing userId",
+    });
+  }
+  
+  if (!p_influencerId) {
+    return res.status(400).json({
+      status: false,
+      message: "Missing InfluencerId",
     });
   }
 
@@ -118,7 +118,7 @@ export const addFavouriteInfluencer = async (req, res) => {
         $3::boolean,
         $4::text
       )`,
-      [p_userId, p_influencerId, null, null]
+      [userId, p_influencerId, null, null]
     );
 
     const { p_status, p_message } = result.rows[0];

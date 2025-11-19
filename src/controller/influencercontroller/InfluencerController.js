@@ -84,10 +84,7 @@ export const verifyOtpAndRegister = async (req, res) => {
   const { otp } = req.body;
 
   try {
-    // 🔍 Debug logs
-    // console.log(" Verifying OTP for:", email);
-    // console.log(" OTP received from user:", otp);
-
+    
     const storedOtp = await redisClient.get(`otp:${email}`);
     // console.log(" OTP stored in Redis:", storedOtp);
 
@@ -120,13 +117,11 @@ export const verifyOtpAndRegister = async (req, res) => {
     );
 
     const { p_code, p_message } = result.rows[0];
-    // console.log(" DB Response:", { p_code, p_message });
 
     // Clean up Redis
     await redisClient.del(`otp:${email}`);
     await redisClient.del(`pendingUser:${email}`);
-    // console.log(" Redis keys deleted for:", email);
-
+  
     return res.status(p_code).json({ message: p_message });
   } catch (error) {
     console.error(" OTP Verification & Registration Error:", error);
@@ -175,13 +170,14 @@ export const loginUser = async (req, res) => {
       return res.status(401).json({ message: "Incorrect password" });
     }
 
-    // Generate JWT token
+    //Generate JWT token
     const token = jwt.sign(
       {
         id: user.userid,
         email: email,
         role: user.roleid,
         name: user.fullname,
+        p_code:user.code
       },
       JWT_SECRET,
       { expiresIn: "1h" }
@@ -209,11 +205,10 @@ export const resendOtp = async (req, res) => {
   const email = req.body.email.toLowerCase();
 
   try {
+    //For Previous Otp Expire
+    await redisClient.del(`otp:${email}`);
     // Generate OTP once only
     const otpCode = generateOTP();
-
-    //  Yehi OTP sab jagah use hoga
-    // console.log("Generated OTP:", otpCode);
 
     // Send Email with OTP
 

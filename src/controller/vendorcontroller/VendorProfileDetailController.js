@@ -191,11 +191,12 @@ export const completeVendorProfile = async (req, res) => {
       username = dbUser.rows[0].firstname.trim();
     }
   }
+  
   const redisKey = `vendorprofile:${userId}`;
 
   try {
     // ---------------------------
-    // 1️⃣ Parse JSON fields from req.body (safe)
+    // 1 Parse JSON fields from req.body (safe)
     // ---------------------------
     const {
       profilejson = null,
@@ -209,7 +210,7 @@ export const completeVendorProfile = async (req, res) => {
     let updatedProfileJson = profilejson ? JSON.parse(profilejson) : {};
 
     // ---------------------------
-    // 2️⃣ Handle Profile Photo Upload (Debug + Safe Upload)
+    // 2 Handle Profile Photo Upload (Debug + Safe Upload)
     // ---------------------------
     if (req.file) {
       const file = req.file;
@@ -220,9 +221,9 @@ export const completeVendorProfile = async (req, res) => {
       }
 
       const fileName =file.originalname;
-      const newFileName = `${userId}_${username}_photo_${fileName}`;
-      const profileFolderPath = `Vendor/${userId}_${username}/Profile`;
-      const supabasePath = `${profileFolderPath}/${newFileName}`;
+      // const newFileName = `${userId}_${username}_photo_${fileName}`;
+      const profileFolderPath = `Vendor/${userId}/Profile`;
+      const supabasePath = `${profileFolderPath}/${fileName}`;
 
       // List & remove old profile photos (optional cleanup)
       const { data: existingFiles, error: listError } = await supabase.storage
@@ -280,7 +281,7 @@ export const completeVendorProfile = async (req, res) => {
     };
 
     // ---------------------------
-    // 5️⃣ Check existing profile from DB
+    // 5 Check existing profile from DB
     // ---------------------------
     const dbCheck = await client.query(
       `SELECT * FROM ins.fn_get_vendorprofile($1::BIGINT)`,
@@ -289,7 +290,7 @@ export const completeVendorProfile = async (req, res) => {
     const existingUser = dbCheck.rows[0];
 
     // ---------------------------
-    // 6️⃣ Logic based on existing profile
+    // 6 Logic based on existing profile
     // ---------------------------
     if (
       existingUser?.p_categories !== null &&
@@ -326,7 +327,7 @@ export const completeVendorProfile = async (req, res) => {
         throw err;
       }
     } else {
-      // 1️⃣ Try to fetch Redis partials
+      // 1 Try to fetch Redis partials
       let redisData = {};
       const existingRedis = await redisClient.get(redisKey);
       if (existingRedis) {
@@ -337,13 +338,13 @@ export const completeVendorProfile = async (req, res) => {
         }
       }
 
-      // 2️⃣ Merge Redis + current request body (request takes priority)
+      // 2 Merge Redis + current request body (request takes priority)
       const finalData = {
         ...redisData,
         ...mergedData,
       };
 
-      // 3️⃣ Check completeness AFTER merging
+      // 3 Check completeness AFTER merging
       const allPartsPresent =
         finalData.profilejson &&
         finalData.categoriesjson &&
@@ -351,14 +352,14 @@ export const completeVendorProfile = async (req, res) => {
         finalData.objectivesjson &&
         finalData.paymentjson;
 
-      // 4️⃣ Now update mergedData to be finalData going forward
+      // 4 Now update mergedData to be finalData going forward
       mergedData.profilejson = finalData.profilejson;
       mergedData.categoriesjson = finalData.categoriesjson;
       mergedData.providersjson = finalData.providersjson;
       mergedData.objectivesjson = finalData.objectivesjson;
       mergedData.paymentjson = finalData.paymentjson;
 
-      // ✅ CASE B: User new or incomplete → check Redis
+      //  CASE B: User new or incomplete → check Redis
       if (!allPartsPresent) {
         const existingRedis = await redisClient.get(redisKey);
         let redisData = existingRedis ? (existingRedis) : {};
@@ -371,7 +372,7 @@ export const completeVendorProfile = async (req, res) => {
         });
       }
 
-      // ✅ CASE C: All parts present → insert into DB
+      //  CASE C: All parts present → insert into DB
       try {
         await client.query("BEGIN");
         const result = await client.query(

@@ -162,7 +162,7 @@ export const resendOtp = async (req, res) => {
 
     const vendorData = await redisClient.get(`pendingVendor:${email}`);
     if (vendorData) {
-      await redisClient.expire(`pendingVendor:${email}`, 120); // Reset TTL to 60 seconds
+      await redisClient.expire(`pendingVendor:${email}`, 300); // Reset TTL to 60 seconds
     }
 
     return res.status(200).json({ message: "OTP resent successfully." });
