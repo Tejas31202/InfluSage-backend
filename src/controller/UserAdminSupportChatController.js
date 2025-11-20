@@ -47,10 +47,22 @@ export const createTicketAndUpdateStatus = async (req, res) => {
         message: "p_userid is required.",
       });
     }
-    if (!p_objectiveid && !p_statusname) {
-      return res.status(400).json({
-        message: "p_objectiveid and p_statusname are required.",
-      });
+    // Case 1: Creating a new ticket → requires objective + status
+    if (!p_usersupportticketid) {
+      if (!p_objectiveid || !p_statusname) {
+        return res.status(400).json({
+          message: "To create a ticket, p_objectiveid and p_statusname are required.",
+        });
+      }
+    }
+
+    // Case 2: Updating ticket status → requires ticketId + status
+    if (p_usersupportticketid) {
+      if (!p_statusname) {
+        return res.status(400).json({
+          message: "To update status, p_usersupportticketid and p_statusname are required.",
+        });
+      }
     }
 
     const result = await client.query(
@@ -123,25 +135,37 @@ export const viewAllTicketByUserId = async (req, res) => {
   }
 };
 
-export const openChatByTicketIdForUser = async (req, res) => {
+export const openChatByTicketId = async (req, res) => {
   try {
-    const userId = req.user?.id || req.body.userId;
-    const ticketID = req.body.ticketID;
+    const p_userid  = req.user?.id || req.query.p_userid;
+    const p_usersupportticketid  = req.params.p_usersupportticketid;
+    const {p_limit,p_offset}=req.query;
 
+    if(!p_usersupportticketid){
+      return res.status(400).json({ message: "p_usersupportticketid is required." });
+    }
     const result = await client.query(
-      `SELECT * from ins.openChatByTicketIdForUser(
-      $1::smallint,
-      $2::smallint
+      `SELECT * FROM ins.fn_get_usersupportticketmessages(
+      $1::bigint,
+      $2::bigint,
+      $3::integer,
+      $4::integer  
       );`,
-      [userId, ticketID]
+      [
+        p_usersupportticketid,
+        p_userid,
+        p_limit||20,
+        p_offset||0
+      ]
     );
-    const data = result.rows[0];
+    
+    const data = result.rows[0].fn_get_usersupportticketmessages;
     return res.status(200).json({
       message: "Chat opened successfully for the selected ticket.",
       data: data,
     });
   } catch (error) {
-    console.error("error in openChatByTicketIdForUser:", error);
+    console.error("error in openChatByTicketId:", error);
     return res.status(500).json({
       message: error.message,
     });
@@ -168,52 +192,22 @@ export const getTicketStatus = async (req, res) => {
   }
 };
 
-export const openChatByTicketIdForAdmin = async (req, res) => {
-  try {
-    const adminId = req.user?.id || req.body.adminId;
-    const ticketId = req.body.ticketId;
-
-    if (!adminId) {
-      return res.status(400).json({ message: "adminId is required." });
-    }
-    if (!ticketId) {
-      return res.status(400).json({ message: "ticketId is required." });
-    }
-
-    const result = await client.query(
-      `SELECT * FROM ins.openChatByTicketIdForAdmin(
-        $1::bigint,
-        $2::bigint,
-        $3::boolean,
-        $4::varchar
-      );`,
-      [adminId, ticketId, null, null]
-    );
-
-    const data = result.rows[0];
-
-    return res.status(200).json({
-      message: "Chat opened successfully for the claimed ticket.",
-      data: data,
-    });
-  } catch (error) {
-    console.error("error in openChatByTicketIdForAdmin:", error);
-    return res.status(500).json({
-      message: error.message,
-    });
-  }
-};
-
 export const sendSupportMessage = async (req, res) => {
   try {
     const p_senderid = req.user?.id || req.body.p_senderid;
     const { p_usersupportticketid, p_messages, p_replyid } = req.body;
 
-    if (!p_senderid || !p_usersupportticketid || !p_messages) {
+    if (!p_senderid || !p_usersupportticketid ) {
       return res.status(400).json({
-        message: "p_senderid , p_usersupportticketid,p_messages are required.",
+        message: "p_senderid , p_usersupportticketid are required.",
       });
     }
+
+    if (!p_messages && !req.file) {
+      return res.status(400).json({
+        message: "Either a p_messages or an attachment is required.",
+      });
+     }
 
     // ----------------- FILE HANDLING -----------------
     let filePaths = [];
