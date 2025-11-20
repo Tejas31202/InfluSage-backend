@@ -164,6 +164,15 @@ export const completeUserProfile = async (req, res) => {
     const redisData = existingRedis ? safeParse(existingRedis) : {};
     const finalData = { ...redisData, ...mergedData };
 
+    // Define the required profile parts
+    const requiredParts = ["profilejson", "socialaccountjson", "categoriesjson", "portfoliojson", "paymentjson"];
+ 
+    // Count how many parts are filled
+    const completedParts = requiredParts.filter((k) => finalData[k]);
+ 
+    // Check if all parts are complete
+    const isFullyCompleted = completedParts.length === requiredParts.length;
+
     // ---------------------------
     // Handle different p_code states
     // ---------------------------
