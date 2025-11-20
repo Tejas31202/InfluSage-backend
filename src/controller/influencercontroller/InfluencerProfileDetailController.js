@@ -63,8 +63,8 @@ export const completeUserProfile = async (req, res) => {
     // };
 
     const saveToRedis = async (data) => {
-      await redisClient.setEx(redisKey, 604800, JSON.stringify(data));
-    };
+  await redisClient.set(redisKey, JSON.stringify(data), { ex: 604800 });
+};
 
 
     // ---------------------------
