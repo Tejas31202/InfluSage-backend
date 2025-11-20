@@ -161,6 +161,16 @@ export const completeUserProfile = async (req, res) => {
     const redisData = existingRedis ? safeParse(existingRedis) : {};
     const finalData = { ...redisData, ...mergedData };
 
+    // Define the required profile parts
+    const requiredParts = ["profilejson", "socialaccountjson", "categoriesjson", "portfoliojson", "paymentjson"];
+
+    // Count how many parts are filled
+    const completedParts = requiredParts.filter((k) => finalData[k]);
+
+    // Check if all parts are complete
+    const isFullyCompleted = completedParts.length === requiredParts.length;
+
+
     // ---------------------------
     // Handle different p_code states
     // ---------------------------
@@ -170,8 +180,8 @@ export const completeUserProfile = async (req, res) => {
         await client.query("BEGIN");
         await client.query(
           `CALL ins.usp_upsert_userprofile(
-            $1::bigint, $2::json, $3::json, $4::json, $5::json, $6::json, $7::boolean, $8::text
-          )`,
+              $1::bigint, $2::json, $3::json, $4::json, $5::json, $6::json, $7::boolean, $8::text
+            )`,
           [
             userId,
             JSON.stringify(finalData.profilejson),
@@ -201,13 +211,25 @@ export const completeUserProfile = async (req, res) => {
         console.log(userpcode)
         // Save in Redis first, then save in DB
         // await saveToRedis(finalData, `User ${userpcode} — data saved in Redis.`);
-        await saveToRedis(finalData);
+        // await saveToRedis(finalData);
+
+        if (!isFullyCompleted) {
+          // Incomplete profile → save in Redis
+          await saveToRedis(finalData);
+
+          return res.status(200).json({
+            message: "Profile incomplete, saved temporarily in Redis",
+            source: "redis",
+            profileCompletion: (completedParts.length / requiredParts.length) * 100,
+            userpcode // use the p_code from DB or user object
+          });
+        }
 
         await client.query("BEGIN");
         const result = await client.query(
           `CALL ins.usp_upsert_userprofile(
-            $1::bigint, $2::json, $3::json, $4::json, $5::json, $6::json, $7::boolean, $8::text
-          )`,
+              $1::bigint, $2::json, $3::json, $4::json, $5::json, $6::json, $7::boolean, $8::text
+            )`,
           [
             userId,
             JSON.stringify(finalData.profilejson),
