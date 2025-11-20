@@ -24,17 +24,17 @@ const calculateProfileCompletion = (profileParts) => {
 //New Code With Changes 
 export const completeUserProfile = async (req, res) => {
   const userId = req.user?.id || req.body?.userId;
-
+ 
   console.log(req.user)
   // const userpcode = req.user?.p_code ? req.user.p_code.toUpperCase() : null;
   const userpcode = req.user?.p_code
-
+ 
   if (!userId) {
     return res.status(400).json({ message: "User not authenticated" });
   }
   const redisKey = `profile:${userId}`;
   let username = "user";
-
+ 
   // ---------------------------
   // Username fallback logic
   // ---------------------------
@@ -44,7 +44,7 @@ export const completeUserProfile = async (req, res) => {
     const dbUser = await client.query("SELECT firstname FROM ins.users WHERE id=$1", [userId]);
     if (dbUser.rows[0]?.firstname) username = dbUser.rows[0].firstname.trim();
   }
-
+ 
   try {
     // ---------------------------
     // Helper functions
@@ -56,17 +56,17 @@ export const completeUserProfile = async (req, res) => {
         return null;
       }
     };
-
+ 
     // const saveToRedis = async (data, message) => {
     //   await redisClient.setEx(redisKey, 604800, JSON.stringify(data)); // 7 days
     //   return res.status(200).json({ message: message || "Data saved in Redis", source: "redis" });
     // };
-
+ 
     const saveToRedis = async (data) => {
-  await redisClient.set(redisKey, JSON.stringify(data), { ex: 604800 });
-};
-
-
+      await redisClient.set(redisKey, JSON.stringify(data), { ex: 604800 });
+    };
+ 
+ 
     // ---------------------------
     // Parse JSON fields
     // ---------------------------
@@ -77,7 +77,7 @@ export const completeUserProfile = async (req, res) => {
       portfoliojson = null,
       paymentjson = null,
     } = req.body || {};
-
+ 
     // ---------------------------
     // Handle photo upload
     // ---------------------------
@@ -86,47 +86,42 @@ export const completeUserProfile = async (req, res) => {
       const fileName = file.originalname;
       const profileFolderPath = `Influencer/${userId}/Profile`;
       const supabasePath = `${profileFolderPath}/${fileName}`;
-
-      // Delete old photos (optional cleanup)
-      const { data: existingFiles } = await supabase.storage
-        .from(process.env.SUPABASE_BUCKET)
-        .list(profileFolderPath);
+ 
+      const { data: existingFiles } = await supabase.storage.from(process.env.SUPABASE_BUCKET).list(profileFolderPath);
       if (existingFiles?.length > 0) {
-        const oldPaths = existingFiles.map(
-          (f) => `${profileFolderPath}/${f.name}`
-        );
+        const oldPaths = existingFiles.map((f) => `${profileFolderPath}/${f.name}`);
         await supabase.storage.from(process.env.SUPABASE_BUCKET).remove(oldPaths);
       }
-
+ 
       const { error: uploadError } = await supabase.storage
         .from(process.env.SUPABASE_BUCKET)
         .upload(supabasePath, file.buffer, { contentType: file.mimetype, upsert: true });
       if (uploadError) return res.status(500).json({ message: "Failed to upload profile photo" });
-
+ 
       const { data: publicUrlData } = supabase.storage.from(process.env.SUPABASE_BUCKET).getPublicUrl(supabasePath);
       const photoUrl = publicUrlData?.publicUrl;
-
+ 
       if (photoUrl) {
         const parsedProfile = safeParse(profilejson) || {};
         parsedProfile.photopath = photoUrl;
         req.body.profilejson = JSON.stringify(parsedProfile);
       }
     }
-
+ 
     // ---------------------------
     // Handle portfolio uploads
     // ---------------------------
     if (req.files?.portfolioFiles) {
       const uploadedFiles = [];
-
+ 
       for (const file of req.files.portfolioFiles) {
         const fileName = file.originalname;
         const supabasePath = `Influencer/${userId}/Portfolio/${fileName}`;
-
-     const { data: existingFiles} = await supabase.storage
-        .from(process.env.SUPABASE_BUCKET)
-        .list(`Influencer/${userId}/Portfolio`);
-
+ 
+        const { data: existingFiles } = await supabase.storage
+          .from(process.env.SUPABASE_BUCKET)
+          .list(`Influencer/${userId}/Portfolio`);
+ 
         const alreadyExists = existingFiles?.some((f) => f.name === fileName);
         if (!alreadyExists) {
           const { error: uploadError } = await supabase.storage
@@ -134,11 +129,11 @@ export const completeUserProfile = async (req, res) => {
             .upload(supabasePath, file.buffer, { contentType: file.mimetype, upsert: false });
           if (uploadError) return res.status(500).json({ message: "Failed to upload portfolio files" });
         }
-
+ 
         const { data: publicUrlData } = supabase.storage.from(process.env.SUPABASE_BUCKET).getPublicUrl(supabasePath);
         uploadedFiles.push({ filepath: publicUrlData.publicUrl });
       }
-
+ 
       if (portfoliojson) {
         const parsedPortfolio = safeParse(portfoliojson) || {};
         const existingPaths = Array.isArray(parsedPortfolio.filepaths)
@@ -148,7 +143,7 @@ export const completeUserProfile = async (req, res) => {
         req.body.portfoliojson = JSON.stringify(parsedPortfolio);
       }
     }
-
+ 
     // ---------------------------
     // Merge body + Redis data
     // ---------------------------
@@ -159,11 +154,11 @@ export const completeUserProfile = async (req, res) => {
       ...(req.body.portfoliojson && { portfoliojson: safeParse(req.body.portfoliojson) }),
       ...(paymentjson && { paymentjson: safeParse(paymentjson) }),
     };
-
+ 
     const existingRedis = await redisClient.get(redisKey).catch(() => null);
     const redisData = existingRedis ? safeParse(existingRedis) : {};
     const finalData = { ...redisData, ...mergedData };
-
+ 
     // Define the required profile parts
     const requiredParts = ["profilejson", "socialaccountjson", "categoriesjson", "portfoliojson", "paymentjson"];
  
@@ -172,7 +167,8 @@ export const completeUserProfile = async (req, res) => {
  
     // Check if all parts are complete
     const isFullyCompleted = completedParts.length === requiredParts.length;
-
+ 
+ 
     // ---------------------------
     // Handle different p_code states
     // ---------------------------
@@ -182,8 +178,8 @@ export const completeUserProfile = async (req, res) => {
         await client.query("BEGIN");
         await client.query(
           `CALL ins.usp_upsert_userprofile(
-            $1::bigint, $2::json, $3::json, $4::json, $5::json, $6::json, $7::boolean, $8::text
-          )`,
+              $1::bigint, $2::json, $3::json, $4::json, $5::json, $6::json, $7::boolean, $8::text
+            )`,
           [
             userId,
             JSON.stringify(finalData.profilejson),
@@ -198,7 +194,7 @@ export const completeUserProfile = async (req, res) => {
         await client.query("COMMIT");
         await redisClient.del(redisKey);
         return res.status(200).json({ message: "Profile saved successfully (DB)", source: "db" });
-
+ 
       case "BLOCKED":
       case "APPROVALPENDING":
         // Save only in Redis
@@ -207,14 +203,14 @@ export const completeUserProfile = async (req, res) => {
           message: `User ${userpcode} is not allowed to proceed.`
         });
       // added code 403
-
+ 
       case "REJECTED":
       case "PENDINGPROFILE":
         console.log(userpcode)
         // Save in Redis first, then save in DB
         // await saveToRedis(finalData, `User ${userpcode} — data saved in Redis.`);
         // await saveToRedis(finalData);
-
+ 
         if (!isFullyCompleted) {
           // Incomplete profile → save in Redis
           await saveToRedis(finalData);
@@ -226,12 +222,12 @@ export const completeUserProfile = async (req, res) => {
             userpcode // use the p_code from DB or user object
           });
         }
-
+ 
         await client.query("BEGIN");
         const result = await client.query(
           `CALL ins.usp_upsert_userprofile(
-            $1::bigint, $2::json, $3::json, $4::json, $5::json, $6::json, $7::boolean, $8::text
-          )`,
+              $1::bigint, $2::json, $3::json, $4::json, $5::json, $6::json, $7::boolean, $8::text
+            )`,
           [
             userId,
             JSON.stringify(finalData.profilejson),
@@ -252,19 +248,19 @@ export const completeUserProfile = async (req, res) => {
           data: result.rows[0],
           source: "db"
         });
-
+ 
       default:
         // Unknown p_code → Save only in Redis
         return await saveToRedis(finalData, "Unknown p_code — saved in Redis.");
     }
-    
-
   } catch (error) {
     console.error("Error during DB transaction: ", error);
     await client.query("ROLLBACK").catch(() => { }); // fail-safe rollback
     return res.status(500).json({ message: "Internal server error", error: error.message });
   }
 };
+ 
+ 
 
 // Get User Profile
 export const getUserProfile = async (req, res) => {
