@@ -333,7 +333,7 @@ export const supportMessageSend = async (req, res) => {
 
       // Upload to Supabase
       const { data, error } = await supabase.storage
-        .from("uploads")
+        .from(process.env.SUPABASE_BUCKET)
         .upload(`${folderPath}${fileName}`, file.buffer, {
           contentType: file.mimetype,
           upsert: false,
@@ -346,7 +346,7 @@ export const supportMessageSend = async (req, res) => {
 
       // Get public URL
       const { data: publicUrlData } = supabase.storage
-        .from("uploads")
+        .from(process.env.SUPABASE_BUCKET)
         .getPublicUrl(`${folderPath}${fileName}`);
 
       p_filepaths = publicUrlData.publicUrl;

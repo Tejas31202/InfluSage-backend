@@ -89,21 +89,21 @@ export const completeUserProfile = async (req, res) => {
 
       // Delete old photos (optional cleanup)
       const { data: existingFiles } = await supabase.storage
-        .from("uploads_UAT")
+        .from(process.env.SUPABASE_BUCKET)
         .list(profileFolderPath);
       if (existingFiles?.length > 0) {
         const oldPaths = existingFiles.map(
           (f) => `${profileFolderPath}/${f.name}`
         );
-        await supabase.storage.from("uploads_UAT").remove(oldPaths);
+        await supabase.storage.from(process.env.SUPABASE_BUCKET).remove(oldPaths);
       }
 
       const { error: uploadError } = await supabase.storage
-        .from("uploads")
+        .from(process.env.SUPABASE_BUCKET)
         .upload(supabasePath, file.buffer, { contentType: file.mimetype, upsert: true });
       if (uploadError) return res.status(500).json({ message: "Failed to upload profile photo" });
 
-      const { data: publicUrlData } = supabase.storage.from("uploads").getPublicUrl(supabasePath);
+      const { data: publicUrlData } = supabase.storage.from(process.env.SUPABASE_BUCKET).getPublicUrl(supabasePath);
       const photoUrl = publicUrlData?.publicUrl;
 
       if (photoUrl) {
@@ -126,7 +126,7 @@ export const completeUserProfile = async (req, res) => {
     try {
       // ✅ Step 1: Check if file already exists in Supabase
      const { data: existingFile, error: listError } = await supabase.storage
-        .from("uploads_UAT")
+        .from(process.env.SUPABASE_BUCKET)
         .list(`Influencer/${userId}_${username}/Portfolio`);
 
       if (listError) {
@@ -142,7 +142,7 @@ export const completeUserProfile = async (req, res) => {
       } else {
         // ✅ Step 2: Upload only if not exists
         const { error: uploadError } = await supabase.storage
-          .from("uploads_UAT")
+          .from(process.env.SUPABASE_BUCKET)
           .upload(supabasePath, fileBuffer, {
             contentType: file.mimetype,
             upsert: true, // upsert false → prevent overwriting
@@ -151,18 +151,18 @@ export const completeUserProfile = async (req, res) => {
         const alreadyExists = existingFiles?.some((f) => f.name === fileName);
         if (!alreadyExists) {
           const { error: uploadError } = await supabase.storage
-            .from("uploads")
+            .from(process.env.SUPABASE_BUCKET)
             .upload(supabasePath, file.buffer, { contentType: file.mimetype, upsert: false });
           if (uploadError) return res.status(500).json({ message: "Failed to upload portfolio files" });
         }
 
-        const { data: publicUrlData } = supabase.storage.from("uploads").getPublicUrl(supabasePath);
+        const { data: publicUrlData } = supabase.storage.from(process.env.SUPABASE_BUCKET).getPublicUrl(supabasePath);
         uploadedFiles.push({ filepath: publicUrlData.publicUrl });
       }
 
       // ✅ Step 3: Get public URL (works both for existing & new)
       const { data: publicUrlData } = supabase.storage
-        .from("uploads_UAT")
+        .from(process.env.SUPABASE_BUCKET)
         .getPublicUrl(supabasePath);
 
       uploadedFiles.push({ filepath: publicUrlData.publicUrl });
@@ -398,7 +398,7 @@ export const deletePortfolioFile = async (req, res) => {
     }
 
     //  2 Local file delete
-    const uploadDir = path.join(process.cwd(), "src", "uploads", "influencer");
+    const uploadDir = path.join(process.cwd(), "src", process.env.SUPABASE_BUCKET, "influencer");
     const fileName = path.basename(filePathToDelete);
     const fullPath = path.join(uploadDir, fileName);
 
@@ -408,7 +408,7 @@ export const deletePortfolioFile = async (req, res) => {
     }
 
     // 🔹 3️⃣ Supabase se delete (actual storage path nikalo)
-    const bucketName = "uploads_UAT";
+    const bucketName = process.env.SUPABASE_BUCKET;
 
     // Public URL ko relative storage path me convert karo
     const supabaseFilePath = filePathToDelete

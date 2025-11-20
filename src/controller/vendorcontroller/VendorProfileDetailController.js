@@ -227,19 +227,19 @@ export const completeVendorProfile = async (req, res) => {
 
       // List & remove old profile photos (optional cleanup)
       const { data: existingFiles, error: listError } = await supabase.storage
-        .from("uploads_UAT")
+        .from(process.env.SUPABASE_BUCKET)
         .list(profileFolderPath, { limit: 100 });
 
       if (!listError && existingFiles?.length > 0) {
         const oldFilePaths = existingFiles.map(
           (f) => `${profileFolderPath}/${f.name}`
         );
-        await supabase.storage.from("uploads_UAT").remove(oldFilePaths);
+        await supabase.storage.from(process.env.SUPABASE_BUCKET).remove(oldFilePaths);
       }
 
       // Upload new photo
       const { error: uploadError } = await supabase.storage
-        .from("uploads_UAT")
+        .from(process.env.SUPABASE_BUCKET)
         .upload(supabasePath, file.buffer, {
           contentType: file.mimetype,
           upsert: true,
@@ -253,7 +253,7 @@ export const completeVendorProfile = async (req, res) => {
 
       // Get public URL for uploaded image
       const { data: publicUrlData } = supabase.storage
-        .from("uploads_UAT")
+        .from(process.env.SUPABASE_BUCKET)
         .getPublicUrl(supabasePath);
 
       if (!publicUrlData?.publicUrl) {
