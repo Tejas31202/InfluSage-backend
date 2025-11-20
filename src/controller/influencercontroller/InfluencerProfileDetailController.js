@@ -123,30 +123,9 @@ export const completeUserProfile = async (req, res) => {
         const fileName = file.originalname;
         const supabasePath = `Influencer/${userId}/Portfolio/${fileName}`;
 
-    try {
-      // ✅ Step 1: Check if file already exists in Supabase
-     const { data: existingFile, error: listError } = await supabase.storage
+     const { data: existingFiles} = await supabase.storage
         .from(process.env.SUPABASE_BUCKET)
-        .list(`Influencer/${userId}_${username}/Portfolio`);
-
-      if (listError) {
-        console.error("Supabase list error:", listError);
-      }
-
-      const fileAlreadyExists = existingFile?.some(
-        (f) => f.name === newFileName
-      );
-
-      if (fileAlreadyExists) {
-        res.status(400).json({message:`File already exists: ${fileName}, skipping upload.`});
-      } else {
-        // ✅ Step 2: Upload only if not exists
-        const { error: uploadError } = await supabase.storage
-          .from(process.env.SUPABASE_BUCKET)
-          .upload(supabasePath, fileBuffer, {
-            contentType: file.mimetype,
-            upsert: true, // upsert false → prevent overwriting
-          });
+        .list(`Influencer/${userId}/Portfolio`);
 
         const alreadyExists = existingFiles?.some((f) => f.name === fileName);
         if (!alreadyExists) {
@@ -159,17 +138,6 @@ export const completeUserProfile = async (req, res) => {
         const { data: publicUrlData } = supabase.storage.from(process.env.SUPABASE_BUCKET).getPublicUrl(supabasePath);
         uploadedFiles.push({ filepath: publicUrlData.publicUrl });
       }
-
-      // ✅ Step 3: Get public URL (works both for existing & new)
-      const { data: publicUrlData } = supabase.storage
-        .from(process.env.SUPABASE_BUCKET)
-        .getPublicUrl(supabasePath);
-
-      uploadedFiles.push({ filepath: publicUrlData.publicUrl });
-    } catch (err) {
-      console.error("Portfolio file upload error:", err);
-    }
-  }
 
       if (portfoliojson) {
         const parsedPortfolio = safeParse(portfoliojson) || {};
@@ -236,7 +204,19 @@ export const completeUserProfile = async (req, res) => {
         console.log(userpcode)
         // Save in Redis first, then save in DB
         // await saveToRedis(finalData, `User ${userpcode} — data saved in Redis.`);
-        await saveToRedis(finalData);
+        // await saveToRedis(finalData);
+
+        if (!isFullyCompleted) {
+          // Incomplete profile → save in Redis
+          await saveToRedis(finalData);
+ 
+          return res.status(200).json({
+            message: "Profile incomplete, saved temporarily in Redis",
+            source: "redis",
+            profileCompletion: (completedParts.length / requiredParts.length) * 100,
+            userpcode // use the p_code from DB or user object
+          });
+        }
 
         await client.query("BEGIN");
         const result = await client.query(
