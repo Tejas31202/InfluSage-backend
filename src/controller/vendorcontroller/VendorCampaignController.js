@@ -62,9 +62,11 @@ export const finalizeCampaign = async (req, res) => {
         JSON.stringify(campaignData.p_campaignfilejson || {}),
         JSON.stringify(campaignData.p_contenttypejson || {}),
         null,
-        null,
+        null
       ]
     );
+
+    console.log("DB finalize result:", result.rows[0]);
 
     await client.query("COMMIT");
 
@@ -756,7 +758,7 @@ export const upsertCampaign = async (req, res) => {
         $8::JSON, 
         $9::JSON,
         $10::boolean,
-        $11::TEXT,
+        $11::TEXT
       )`,
       [
         p_userid,
@@ -769,7 +771,7 @@ export const upsertCampaign = async (req, res) => {
         p_campaignfilejson||null,
         p_contenttypejson||null,
         null,
-        null,
+        null
       ]
     );
 

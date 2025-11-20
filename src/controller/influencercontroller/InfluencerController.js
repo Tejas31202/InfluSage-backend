@@ -86,15 +86,17 @@ export const verifyOtpAndRegister = async (req, res) => {
   try {
     
     const storedOtp = await redisClient.get(`otp:${email}`);
-    // console.log(" OTP stored in Redis:", storedOtp);
+    console.log(" OTP stored in Redis:", storedOtp);
 
     if (!storedOtp) {
       return res.status(400).json({ message: "OTP expired or not found." });
     }
-    if (storedOtp !== otp) {
-      console.log(" OTP mismatch!");
-      return res.status(400).json({ message: "Invalid OTP." });
+    console.log(" Comparing OTPs:", storedOtp, otp);
+    if (Number(storedOtp) !== Number(otp)) {
+    console.log("OTP mismatch!");
+    return res.status(400).json({ message: "Invalid OTP." });
     }
+
     // console.log(" OTP matched successfully!");
 
     // Check pending user
