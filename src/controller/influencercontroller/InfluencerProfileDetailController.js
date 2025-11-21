@@ -116,8 +116,8 @@ export const completeUserProfile = async (req, res) => {
     // ---------------------------
     // Handle portfolio uploads
     // ---------------------------
+    let uploadedFiles = [];
     if (req.files?.portfolioFiles) {
-      const uploadedFiles = [];
 
       for (const file of req.files.portfolioFiles) {
         const fileName = file.originalname;
@@ -126,7 +126,7 @@ export const completeUserProfile = async (req, res) => {
     
      const { data: existingFiles} = await supabase.storage
         .from(process.env.SUPABASE_BUCKET)
-        .list(`Influencer/${userId}_${username}/Portfolio`);
+        .list(`Influencer/${userId}/Portfolio`);
       
         const alreadyExists = existingFiles?.some((f) => f.name === fileName);
         if (!alreadyExists) {
@@ -139,7 +139,6 @@ export const completeUserProfile = async (req, res) => {
         const { data: publicUrlData } = supabase.storage.from(process.env.SUPABASE_BUCKET).getPublicUrl(supabasePath);
         uploadedFiles.push({ filepath: publicUrlData.publicUrl });
       }
-
   }
 
       if (portfoliojson) {
@@ -351,7 +350,7 @@ export const deletePortfolioFile = async (req, res) => {
     }
 
     // Redis key
-    const redisKey = `getInfluencerProfile:${userId}`;
+    const redisKey = `profile:${userId}`;
 
     // 1 Redis se data fetch
     let profileData = await redisClient.get(redisKey);
@@ -363,8 +362,7 @@ export const deletePortfolioFile = async (req, res) => {
           (file) => file.filepath !== filePathToDelete
         );
 
-        await redisClient.set(redisKey, (profileData));
-      }
+        await redisClient.set(redisKey, JSON.stringify(profileData));}
     }
 
     //  2 Local file delete
