@@ -88,11 +88,11 @@ export const completeUserProfile = async (req, res) => {
       const supabasePath = `${profileFolderPath}/${fileName}`;
 
       // Delete old photos (optional cleanup)
-      const { data: existingFiles } = await supabase.storage
+      const { data: existingFiless } = await supabase.storage
         .from(process.env.SUPABASE_BUCKET)
         .list(profileFolderPath);
-      if (existingFiles?.length > 0) {
-        const oldPaths = existingFiles.map(
+      if (existingFiless?.length > 0) {
+        const oldPaths = existingFiless.map(
           (f) => `${profileFolderPath}/${f.name}`
         );
         await supabase.storage.from(process.env.SUPABASE_BUCKET).remove(oldPaths);
@@ -123,31 +123,11 @@ export const completeUserProfile = async (req, res) => {
         const fileName = file.originalname;
         const supabasePath = `Influencer/${userId}/Portfolio/${fileName}`;
 
-    try {
-      // ✅ Step 1: Check if file already exists in Supabase
-     const { data: existingFile, error: listError } = await supabase.storage
+    
+     const { data: existingFiles} = await supabase.storage
         .from(process.env.SUPABASE_BUCKET)
         .list(`Influencer/${userId}_${username}/Portfolio`);
-
-      if (listError) {
-        console.error("Supabase list error:", listError);
-      }
-
-      const fileAlreadyExists = existingFile?.some(
-        (f) => f.name === newFileName
-      );
-
-      if (fileAlreadyExists) {
-        res.status(400).json({message:`File already exists: ${fileName}, skipping upload.`});
-      } else {
-        // ✅ Step 2: Upload only if not exists
-        const { error: uploadError } = await supabase.storage
-          .from(process.env.SUPABASE_BUCKET)
-          .upload(supabasePath, fileBuffer, {
-            contentType: file.mimetype,
-            upsert: true, // upsert false → prevent overwriting
-          });
-
+      
         const alreadyExists = existingFiles?.some((f) => f.name === fileName);
         if (!alreadyExists) {
           const { error: uploadError } = await supabase.storage
@@ -160,15 +140,6 @@ export const completeUserProfile = async (req, res) => {
         uploadedFiles.push({ filepath: publicUrlData.publicUrl });
       }
 
-      // ✅ Step 3: Get public URL (works both for existing & new)
-      const { data: publicUrlData } = supabase.storage
-        .from(process.env.SUPABASE_BUCKET)
-        .getPublicUrl(supabasePath);
-
-      uploadedFiles.push({ filepath: publicUrlData.publicUrl });
-    } catch (err) {
-      console.error("Portfolio file upload error:", err);
-    }
   }
 
       if (portfoliojson) {
@@ -179,18 +150,17 @@ export const completeUserProfile = async (req, res) => {
         parsedPortfolio.filepaths = [...existingPaths, ...uploadedFiles];
         req.body.portfoliojson = JSON.stringify(parsedPortfolio);
       }
-    }
-
+    
     // ---------------------------
     // Merge body + Redis data
     // ---------------------------
-    const mergedData = {
-      ...(req.body.profilejson && { profilejson: safeParse(req.body.profilejson) }),
-      ...(socialaccountjson && { socialaccountjson: safeParse(socialaccountjson) }),
-      ...(categoriesjson && { categoriesjson: safeParse(categoriesjson) }),
-      ...(req.body.portfoliojson && { portfoliojson: safeParse(req.body.portfoliojson) }),
-      ...(paymentjson && { paymentjson: safeParse(paymentjson) }),
-    };
+      const mergedData = {
+        ...(req.body.profilejson && { profilejson: safeParse(req.body.profilejson) }),
+        ...(socialaccountjson && { socialaccountjson: safeParse(socialaccountjson) }),
+        ...(categoriesjson && { categoriesjson: safeParse(categoriesjson) }),
+        ...(req.body.portfoliojson && { portfoliojson: safeParse(req.body.portfoliojson) }),
+        ...(paymentjson && { paymentjson: safeParse(paymentjson) }),
+      };
 
     const existingRedis = await redisClient.get(redisKey).catch(() => null);
     const redisData = existingRedis ? safeParse(existingRedis) : {};
@@ -288,7 +258,7 @@ export const getUserProfile = async (req, res) => {
 
     if (cachedData) {
       const parsed = 
-      (cachedData);
+      JSON.parse(cachedData);
 
       const profileParts = {
         p_profile: parsed.profilejson || {},
@@ -386,7 +356,7 @@ export const deletePortfolioFile = async (req, res) => {
     // 1 Redis se data fetch
     let profileData = await redisClient.get(redisKey);
     if (profileData) {
-      profileData = (profileData);
+      profileData = JSON.parse(profileData);
 
       if (profileData.portfoliojson) {
         profileData.portfoliojson = profileData.portfoliojson.filter(
