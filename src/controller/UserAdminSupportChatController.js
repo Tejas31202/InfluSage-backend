@@ -155,7 +155,7 @@ export const openChatByTicketId = async (req, res) => {
         p_usersupportticketid,
         p_userid,
         p_limit||20,
-        p_offset||0
+        p_offset||1
       ]
     );
     
