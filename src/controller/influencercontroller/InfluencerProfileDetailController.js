@@ -88,11 +88,11 @@ export const completeUserProfile = async (req, res) => {
       const supabasePath = `${profileFolderPath}/${fileName}`;
 
       // Delete old photos (optional cleanup)
-      const { data: existingFiless } = await supabase.storage
+      const { data: existingFiles } = await supabase.storage
         .from(process.env.SUPABASE_BUCKET)
         .list(profileFolderPath);
-      if (existingFiless?.length > 0) {
-        const oldPaths = existingFiless.map(
+      if (existingFiles?.length > 0) {
+        const oldPaths = existingFiles.map(
           (f) => `${profileFolderPath}/${f.name}`
         );
         await supabase.storage.from(process.env.SUPABASE_BUCKET).remove(oldPaths);
