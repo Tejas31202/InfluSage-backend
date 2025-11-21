@@ -77,7 +77,7 @@ const PORT = process.env.BACKEND_PORT || 3001;
 const server = createServer(app);
 const onlineUsers = new Map();
 
-const io = new Server(server, {
+export const io = new Server(server, {
   cors: {
     origin: "http://localhost:5173",
     methods: ["GET", "POST"],
@@ -129,6 +129,17 @@ io.on("connection", (socket) => {
   socket.on("leaveRoom", (conversationId) => {
     socket.leave(conversationId);
     console.log(`Socket ${socket.id} left room ${conversationId}`);
+  });
+
+    // ------------------- SUPPORT TICKET ROOMS -------------------
+  socket.on("joinTicketRoom", (ticketId) => {
+    socket.join(`ticket_${ticketId}`);
+    console.log(`User joined ticket room ticket_${ticketId}`);
+  });
+
+  socket.on("leaveTicketRoom", (ticketId) => {
+    socket.leave(`ticket_${ticketId}`);
+    console.log(`User left ticket room ticket_${ticketId}`);
   });
 
   socket.on("deleteMessage", ({ messageId, conversationId }) => {

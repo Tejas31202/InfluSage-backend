@@ -1,6 +1,7 @@
 import { client } from "../config/Db.js";
 import redis from "redis";
 import { createClient } from '@supabase/supabase-js';
+import {io} from "../../app.js"
 
 // Create Supabase client once at the top
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -209,6 +210,16 @@ export const sendSupportMessage = async (req, res) => {
       });
      }
 
+    const validate = await client.query(
+      `select * from ins.fn_get_usersupportticketaccess($1::bigint,$2::bigint);`,
+      [p_usersupportticketid, p_senderid]
+    );
+
+    const data = validate.rows[0].fn_get_usersupportticketaccess
+    if (!data.status) {
+        return res.status(403).json({success:data.status,message: data.message });
+    }
+
     // ----------------- FILE HANDLING -----------------
     let filePaths = [];
     const ticketFolder = `support_chat/ticket_${p_usersupportticketid}/`;
@@ -262,6 +273,13 @@ export const sendSupportMessage = async (req, res) => {
     const { p_status, p_message } = result.rows[0] || {};
 
     if (p_status) {
+       io.to(`ticket_${p_usersupportticketid}`).emit("receiveSupportMessage", {
+          ticketId: p_usersupportticketid,
+          senderId: p_senderid,
+          message: p_messages,
+          file: p_filepath,
+          replyId: p_replyid,
+        }); 
       return res.status(200).json({
         message: p_message,
         p_status,
