@@ -136,14 +136,21 @@ export const completeUserProfile = async (req, res) => {
         uploadedFiles.push({ filepath: publicUrlData.publicUrl });
       }
 
-      if (portfoliojson) {
-        const parsedPortfolio = safeParse(portfoliojson) || {};
-        const existingPaths = Array.isArray(parsedPortfolio.filepaths)
-          ? parsedPortfolio.filepaths.filter((p) => p?.filepath)
-          : [];
-        parsedPortfolio.filepaths = [...existingPaths, ...uploadedFiles];
-        req.body.portfoliojson = JSON.stringify(parsedPortfolio);
-      }
+      const parsedPortfolio = safeParse(portfoliojson) || {};
+      const existingPaths = Array.isArray(parsedPortfolio.filepaths)
+        ? parsedPortfolio.filepaths.filter((p) => p?.filepath)
+        : [];
+      parsedPortfolio.filepaths = [...existingPaths, ...uploadedFiles];
+      req.body.portfoliojson = JSON.stringify(parsedPortfolio);
+
+      // if (portfoliojson) {
+      //   const parsedPortfolio = safeParse(portfoliojson) || {};
+      //   const existingPaths = Array.isArray(parsedPortfolio.filepaths)
+      //     ? parsedPortfolio.filepaths.filter((p) => p?.filepath)
+      //     : [];
+      //   parsedPortfolio.filepaths = [...existingPaths, ...uploadedFiles];
+      //   req.body.portfoliojson = JSON.stringify(parsedPortfolio);
+      // }
     }
 
     // ---------------------------
@@ -154,7 +161,7 @@ export const completeUserProfile = async (req, res) => {
       ...(socialaccountjson && { socialaccountjson: safeParse(socialaccountjson) }),
       ...(categoriesjson && { categoriesjson: safeParse(categoriesjson) }),
       ...(req.body.portfoliojson && { portfoliojson: safeParse(req.body.portfoliojson) }),
-      ...(paymentjson && { paymentjson: safeParse(paymentjson) }),
+       ...(paymentjson && { paymentjson: safeParse(paymentjson) }),
     };
 
     const existingRedis = await redisClient.get(redisKey).catch(() => null);
@@ -208,28 +215,30 @@ export const completeUserProfile = async (req, res) => {
 
       case "REJECTED":
       case "PENDINGPROFILE":
-        console.log(userpcode)
-        // Save in Redis first, then save in DB
-        // await saveToRedis(finalData, `User ${userpcode} — data saved in Redis.`);
-        // await saveToRedis(finalData);
+        console.log(userpcode);
+
+        // Define required parts for completion check
+        const requiredParts = ["profilejson", "socialaccountjson", "categoriesjson", "portfoliojson", "paymentjson"];
+        const completedParts = requiredParts.filter((k) => finalData[k]);
+        const isFullyCompleted = completedParts.length === requiredParts.length;
 
         if (!isFullyCompleted) {
-          // Incomplete profile → save in Redis
+          // Incomplete → save in Redis and respond
           await saveToRedis(finalData);
-
           return res.status(200).json({
             message: "Profile incomplete, saved temporarily in Redis",
             source: "redis",
             profileCompletion: (completedParts.length / requiredParts.length) * 100,
-            userpcode // use the p_code from DB or user object
+            userpcode,
           });
         }
 
+        // Fully completed → save all in DB
         await client.query("BEGIN");
         const result = await client.query(
           `CALL ins.usp_upsert_userprofile(
-              $1::bigint, $2::json, $3::json, $4::json, $5::json, $6::json, $7::boolean, $8::text
-            )`,
+        $1::bigint, $2::json, $3::json, $4::json, $5::json, $6::json, $7::boolean, $8::text
+      )`,
           [
             userId,
             JSON.stringify(finalData.profilejson),
@@ -241,14 +250,15 @@ export const completeUserProfile = async (req, res) => {
             null,
           ]
         );
-        const { p_message, p_status } = result.rows[0]
         await client.query("COMMIT");
-        // return res.status(200).json({ message: p_message,status: p_status, Data : profileCompleted, source: "db" });
+
+        // Delete Redis after DB save
+        await redisClient.del(redisKey);
+
         return res.status(200).json({
-          message: p_message,
-          status: p_status,
+          message: "Profile saved successfully (DB)",
+          source: "db",
           data: result.rows[0],
-          source: "db"
         });
 
       default:
