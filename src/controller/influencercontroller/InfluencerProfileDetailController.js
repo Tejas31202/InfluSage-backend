@@ -273,19 +273,28 @@ export const completeUserProfile = async (req, res) => {
 };
 
 // Get User Profile
-const deepMerge = (target = {}, source = {}) => {
-  for (const key of Object.keys(source)) {
-    if (
-      source[key] &&
-      typeof source[key] === "object" &&
-      !Array.isArray(source[key])
-    ) {
-      target[key] = deepMerge(target[key] || {}, source[key]);
-    } else {
-      target[key] = source[key]; // overwrite
+const calculateProfileCompletion = (profileParts) => {
+  const partsArray = Object.values(profileParts);
+  const totalSections = partsArray.length;
+
+  const filledSections = partsArray.filter(
+    (part) => part && Object.keys(part).length > 0
+  ).length;
+
+  return Math.round((filledSections / totalSections) * 100);
+};
+
+// Optional: fix numeric-key objects to arrays
+const fixArrays = (obj) => {
+  Object.keys(obj).forEach((key) => {
+    if (obj[key] && typeof obj[key] === "object" && !Array.isArray(obj[key])) {
+      const isNumericKeys = Object.keys(obj[key]).every((k) => !isNaN(k));
+      if (isNumericKeys) {
+        obj[key] = Object.values(obj[key]);
+      }
     }
-  }
-  return target;
+  });
+  return obj;
 };
 
 export const getUserProfile = async (req, res) => {
@@ -293,7 +302,7 @@ export const getUserProfile = async (req, res) => {
   const redisKey = `profile:${userId}`;
 
   try {
-    // 1. Redis data (may contain partial edited data)
+    // 1. Redis data (may contain partial edits)
     const cachedData = await redisClient.get(redisKey);
     const redisParsed = cachedData ? JSON.parse(cachedData) : {};
 
@@ -305,10 +314,10 @@ export const getUserProfile = async (req, res) => {
 
     const dbData = {
       p_profile: result.rows[0].p_profile || {},
-      p_socials: result.rows[0].p_socials || {},
+      p_socials: result.rows[0].p_socials || [],
       p_categories: result.rows[0].p_categories || {},
-      p_portfolios: result.rows[0].p_portfolios || {},
-      p_paymentaccounts: result.rows[0].p_paymentaccounts || {},
+      p_portfolios: result.rows[0].p_portfolios || [],
+      p_paymentaccounts: result.rows[0].p_paymentaccounts || [],
     };
 
     // 3. Mapping Redis keys → DB keys
@@ -320,38 +329,31 @@ export const getUserProfile = async (req, res) => {
       p_paymentaccounts: redisParsed.paymentjson,
     };
 
-    // 4. MERGE Redis (only if not null) INTO DB using deep merge
+    // 4. Merge logic WITHOUT deep merge
     const merged = {
-      p_profile:
-        redisDataMapped.p_profile
-          ? deepMerge(dbData.p_profile, redisDataMapped.p_profile)
-          : dbData.p_profile,
-
-      p_socials:
-        redisDataMapped.p_socials
-          ? deepMerge(dbData.p_socials, redisDataMapped.p_socials)
-          : dbData.p_socials,
-
-      p_categories:
-        redisDataMapped.p_categories
-          ? deepMerge(dbData.p_categories, redisDataMapped.p_categories)
-          : dbData.p_categories,
-
-      p_portfolios:
-        redisDataMapped.p_portfolios
-          ? deepMerge(dbData.p_portfolios, redisDataMapped.p_portfolios)
-          : dbData.p_portfolios,
-
-      p_paymentaccounts:
-        redisDataMapped.p_paymentaccounts
-          ? deepMerge(dbData.p_paymentaccounts, redisDataMapped.p_paymentaccounts)
-          : dbData.p_paymentaccounts,
+      p_profile: redisDataMapped.p_profile ?? dbData.p_profile,
+      p_socials: redisDataMapped.p_socials ?? dbData.p_socials,
+      p_categories: redisDataMapped.p_categories ?? dbData.p_categories,
+      p_portfolios: redisDataMapped.p_portfolios ?? dbData.p_portfolios,
+      p_paymentaccounts: redisDataMapped.p_paymentaccounts ?? dbData.p_paymentaccounts,
     };
 
+    // Fix numeric-key objects if any
+    fixArrays(merged);
+
+    // 5. Decide source properly
+    const isMerged = Object.keys(redisDataMapped).some(
+      (key) => redisDataMapped[key] !== null && redisDataMapped[key] !== undefined
+    );
+
+    // 6. Calculate profile completion
+    const profileCompletion = calculateProfileCompletion(merged);
+
     return res.status(200).json({
-      message: "Merged profile (Redis + DB) with deep merge",
+      message: "Profile fetched successfully",
       profileParts: merged,
-      source: cachedData ? "merged" : "db",
+      profileCompletion,
+      source: isMerged ? "merged" : "db",
     });
 
   } catch (err) {
@@ -359,6 +361,7 @@ export const getUserProfile = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
 
 // Get User Name by Email
 export const getUserNameByEmail = async (req, res) => {
