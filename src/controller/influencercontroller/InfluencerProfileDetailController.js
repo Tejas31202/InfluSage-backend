@@ -27,9 +27,26 @@ const calculateProfileCompletion = (profileParts) => {
 export const completeUserProfile = async (req, res) => {
   const userId = req.user?.id || req.body?.userId;
 
-  console.log(req.user)
-  // const userpcode = req.user?.p_code ? req.user.p_code.toUpperCase() : null;
-  const userpcode = req.user?.p_code
+  // console.log(req.user)
+  // // const userpcode = req.user?.p_code ? req.user.p_code.toUpperCase() : null;
+  // const userpcode = req.user?.p_code
+  // Fetch user status from DB
+  let userpcode;
+  try {
+    const { rows } = await client.query(
+      "SELECT * FROM ins.fn_get_userstatus($1)",
+      [userId]
+    );
+    console.log("==>", rows)
+
+    userpcode = rows[0]?.fn_get_userstatus?.toUpperCase() || null;
+    console.log("User p_code from DB:", userpcode);
+  } catch (err) {
+    console.error("Error fetching user status:", err);
+    userpcode = null;
+  }
+
+
 
   if (!userId) {
     return res.status(400).json({ message: "User not authenticated" });
@@ -161,7 +178,7 @@ export const completeUserProfile = async (req, res) => {
       ...(socialaccountjson && { socialaccountjson: safeParse(socialaccountjson) }),
       ...(categoriesjson && { categoriesjson: safeParse(categoriesjson) }),
       ...(req.body.portfoliojson && { portfoliojson: safeParse(req.body.portfoliojson) }),
-       ...(paymentjson && { paymentjson: safeParse(paymentjson) }),
+      ...(paymentjson && { paymentjson: safeParse(paymentjson) }),
     };
 
     const existingRedis = await redisClient.get(redisKey).catch(() => null);
@@ -218,9 +235,9 @@ export const completeUserProfile = async (req, res) => {
         console.log(userpcode);
 
         // Define required parts for completion check
-        const requiredParts = ["profilejson", "socialaccountjson", "categoriesjson", "portfoliojson", "paymentjson"];
-        const completedParts = requiredParts.filter((k) => finalData[k]);
-        const isFullyCompleted = completedParts.length === requiredParts.length;
+        // const requiredParts = ["profilejson", "socialaccountjson", "categoriesjson", "portfoliojson", "paymentjson"];
+        // const completedParts = requiredParts.filter((k) => finalData[k]);
+        // const isFullyCompleted = completedParts.length === requiredParts.length;
 
         if (!isFullyCompleted) {
           // Incomplete → save in Redis and respond
@@ -263,7 +280,9 @@ export const completeUserProfile = async (req, res) => {
 
       default:
         // Unknown p_code → Save only in Redis
-        return await saveToRedis(finalData, "Unknown p_code — saved in Redis.");
+        // return await saveToRedis(finalData, "Unknown p_code — saved in Redis.");
+        await saveToRedis(finalData);
+        return res.status(200).json({ message: "Unknown p_code — saved in Redis", source: "redis" })
     }
   } catch (error) {
     console.error("Error during DB transaction: ", error);
