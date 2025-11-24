@@ -12,16 +12,16 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
 redisClient.connect().catch(console.error);
 
-const calculateProfileCompletion = (profileParts) => {
-  const partsArray = Object.values(profileParts);
-  const totalSections = partsArray.length;
+// const calculateProfileCompletion = (profileParts) => {
+//   const partsArray = Object.values(profileParts);
+//   const totalSections = partsArray.length;
 
-  const filledSections = partsArray.filter(
-    (part) => part && Object.keys(part).length > 0
-  ).length;
+//   const filledSections = partsArray.filter(
+//     (part) => part && Object.keys(part).length > 0
+//   ).length;
 
-  return Math.round((filledSections / totalSections) * 100);
-};
+//   return Math.round((filledSections / totalSections) * 100);
+// };
 
 //New Code With Changes 
 export const completeUserProfile = async (req, res) => {
@@ -273,64 +273,87 @@ export const completeUserProfile = async (req, res) => {
 };
 
 // Get User Profile
+const deepMerge = (target = {}, source = {}) => {
+  for (const key of Object.keys(source)) {
+    if (
+      source[key] &&
+      typeof source[key] === "object" &&
+      !Array.isArray(source[key])
+    ) {
+      target[key] = deepMerge(target[key] || {}, source[key]);
+    } else {
+      target[key] = source[key]; // overwrite
+    }
+  }
+  return target;
+};
+
 export const getUserProfile = async (req, res) => {
   const userId = req.params.userId;
   const redisKey = `profile:${userId}`;
 
   try {
-    // Try to fetch from Redis
+    // 1. Redis data (may contain partial edited data)
     const cachedData = await redisClient.get(redisKey);
+    const redisParsed = cachedData ? JSON.parse(cachedData) : {};
 
-    if (cachedData) {
-      const parsed = JSON.parse(cachedData);
-
-      const profileParts = {
-        p_profile: parsed.profilejson || {},
-        p_socials: parsed.socialaccountjson || {},
-        p_categories: parsed.categoriesjson || {},
-        p_portfolios: parsed.portfoliojson || {},
-        p_paymentaccounts: parsed.paymentjson || {},
-      };
-
-      const profileCompletion = calculateProfileCompletion(profileParts);
-
-      return res.status(200).json({
-        message: "Partial profile from Redis",
-        profileParts,
-        profileCompletion,
-        source: "redis",
-      });
-    }
-
-    // If not in Redis → fetch from DB
+    // 2. DB full data
     const result = await client.query(
       `SELECT * FROM ins.fn_get_userprofile($1::BIGINT)`,
       [userId]
     );
 
-    const {
-      p_profile,
-      p_socials,
-      p_categories,
-      p_portfolios,
-      p_paymentaccounts,
-    } = result.rows[0];
+    const dbData = {
+      p_profile: result.rows[0].p_profile || {},
+      p_socials: result.rows[0].p_socials || {},
+      p_categories: result.rows[0].p_categories || {},
+      p_portfolios: result.rows[0].p_portfolios || {},
+      p_paymentaccounts: result.rows[0].p_paymentaccounts || {},
+    };
 
-    if (!p_profile && !p_socials && !p_categories && !p_portfolios) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    // 3. Mapping Redis keys → DB keys
+    const redisDataMapped = {
+      p_profile: redisParsed.profilejson,
+      p_socials: redisParsed.socialaccountjson,
+      p_categories: redisParsed.categoriesjson,
+      p_portfolios: redisParsed.portfoliojson,
+      p_paymentaccounts: redisParsed.paymentjson,
+    };
+
+    // 4. MERGE Redis (only if not null) INTO DB using deep merge
+    const merged = {
+      p_profile:
+        redisDataMapped.p_profile
+          ? deepMerge(dbData.p_profile, redisDataMapped.p_profile)
+          : dbData.p_profile,
+
+      p_socials:
+        redisDataMapped.p_socials
+          ? deepMerge(dbData.p_socials, redisDataMapped.p_socials)
+          : dbData.p_socials,
+
+      p_categories:
+        redisDataMapped.p_categories
+          ? deepMerge(dbData.p_categories, redisDataMapped.p_categories)
+          : dbData.p_categories,
+
+      p_portfolios:
+        redisDataMapped.p_portfolios
+          ? deepMerge(dbData.p_portfolios, redisDataMapped.p_portfolios)
+          : dbData.p_portfolios,
+
+      p_paymentaccounts:
+        redisDataMapped.p_paymentaccounts
+          ? deepMerge(dbData.p_paymentaccounts, redisDataMapped.p_paymentaccounts)
+          : dbData.p_paymentaccounts,
+    };
 
     return res.status(200).json({
-      message: "get profile from db",
-      profileParts: {
-        p_profile,
-        p_socials,
-        p_categories,
-        p_portfolios,
-        p_paymentaccounts,
-      },
-      source: "db",
+      message: "Merged profile (Redis + DB) with deep merge",
+      profileParts: merged,
+      source: cachedData ? "merged" : "db",
     });
+
   } catch (err) {
     console.error("Error fetching user profile:", err);
     return res.status(500).json({ message: "Internal server error" });
