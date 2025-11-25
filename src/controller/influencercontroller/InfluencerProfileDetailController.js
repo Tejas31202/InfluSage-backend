@@ -27,26 +27,36 @@ redisClient.connect().catch(console.error);
 export const completeUserProfile = async (req, res) => {
   const userId = req.user?.id || req.body?.userId;
 
-  // console.log(req.user)
-  // // const userpcode = req.user?.p_code ? req.user.p_code.toUpperCase() : null;
-  // const userpcode = req.user?.p_code
-  // Fetch user status from DB
-  let userpcode;
+  //Remove old code after testing
+  // let userpcode;
+  // try {
+  //   const { rows } = await client.query(
+  //     "SELECT * FROM ins.fn_get_userstatus($1)",
+  //     [userId]
+  //   );
+  //   // This UserpCode Comes From Db
+  //   userpcode = rows[0]?.fn_get_userstatus?.toUpperCase() || null;
+  // } catch (err) {
+  //   console.error("Error fetching user status:", err);
+  //   userpcode = null;
+  // }
+
+  //New Code For Testing userpcode comes from db
+let userpcode;
+
   try {
-    const { rows } = await client.query(
-      "SELECT * FROM ins.fn_get_userstatus($1)",
+    const result = await client.query(
+      "SELECT ins.fn_get_userstatus($1) AS status",
       [userId]
     );
-    console.log("==>", rows)
 
-    userpcode = rows[0]?.fn_get_userstatus?.toUpperCase() || null;
-    console.log("User p_code from DB:", userpcode);
+    const status = result.rows[0]?.status;
+
+    userpcode = status ? status.toUpperCase() : null;
+
   } catch (err) {
-    console.error("Error fetching user status:", err);
-    userpcode = null;
+    console.error("Error fetching user status:", err.message);
   }
-
-
 
   if (!userId) {
     return res.status(400).json({ message: "User not authenticated" });
@@ -54,9 +64,7 @@ export const completeUserProfile = async (req, res) => {
   const redisKey = `profile:${userId}`;
   let username = "user";
 
-  // ---------------------------
   // Username fallback logic
-  // ---------------------------
   if (req.user?.name) username = req.user.name.split(" ")[0].trim();
   else if (req.body?.firstName) username = req.body.firstName.trim();
   else {
@@ -65,9 +73,7 @@ export const completeUserProfile = async (req, res) => {
   }
 
   try {
-    // ---------------------------
     // Helper functions
-    // ---------------------------
     const safeParse = (data) => {
       try {
         return data ? JSON.parse(data) : null;
@@ -76,19 +82,11 @@ export const completeUserProfile = async (req, res) => {
       }
     };
 
-    // const saveToRedis = async (data, message) => {
-    //   await redisClient.setEx(redisKey, 604800, JSON.stringify(data)); // 7 days
-    //   return res.status(200).json({ message: message || "Data saved in Redis", source: "redis" });
-    // };
-
     const saveToRedis = async (data) => {
       await redisClient.setEx(redisKey, 604800, JSON.stringify(data));
     };
 
-
-    // ---------------------------
     // Parse JSON fields
-    // ---------------------------
     const {
       profilejson = null,
       socialaccountjson = null,
@@ -97,9 +95,7 @@ export const completeUserProfile = async (req, res) => {
       paymentjson = null,
     } = req.body || {};
 
-    // ---------------------------
     // Handle photo upload
-    // ---------------------------
     if (req.files?.photo?.[0]) {
       const file = req.files.photo[0];
       const fileName = file.originalname;
@@ -127,9 +123,7 @@ export const completeUserProfile = async (req, res) => {
       }
     }
 
-    // ---------------------------
     // Handle portfolio uploads
-    // ---------------------------
     if (req.files?.portfolioFiles) {
       const uploadedFiles = [];
 
@@ -159,20 +153,9 @@ export const completeUserProfile = async (req, res) => {
         : [];
       parsedPortfolio.filepaths = [...existingPaths, ...uploadedFiles];
       req.body.portfoliojson = JSON.stringify(parsedPortfolio);
-
-      // if (portfoliojson) {
-      //   const parsedPortfolio = safeParse(portfoliojson) || {};
-      //   const existingPaths = Array.isArray(parsedPortfolio.filepaths)
-      //     ? parsedPortfolio.filepaths.filter((p) => p?.filepath)
-      //     : [];
-      //   parsedPortfolio.filepaths = [...existingPaths, ...uploadedFiles];
-      //   req.body.portfoliojson = JSON.stringify(parsedPortfolio);
-      // }
     }
 
-    // ---------------------------
     // Merge body + Redis data
-    // ---------------------------
     const mergedData = {
       ...(req.body.profilejson && { profilejson: safeParse(req.body.profilejson) }),
       ...(socialaccountjson && { socialaccountjson: safeParse(socialaccountjson) }),
@@ -195,9 +178,8 @@ export const completeUserProfile = async (req, res) => {
     const isFullyCompleted = completedParts.length === requiredParts.length;
 
 
-    // ---------------------------
+
     // Handle different p_code states
-    // ---------------------------
     switch (userpcode) {
       case "SUCCESS":
         // Save in DB, clear Redis
@@ -233,11 +215,6 @@ export const completeUserProfile = async (req, res) => {
       case "REJECTED":
       case "PENDINGPROFILE":
         console.log(userpcode);
-
-        // Define required parts for completion check
-        // const requiredParts = ["profilejson", "socialaccountjson", "categoriesjson", "portfoliojson", "paymentjson"];
-        // const completedParts = requiredParts.filter((k) => finalData[k]);
-        // const isFullyCompleted = completedParts.length === requiredParts.length;
 
         if (!isFullyCompleted) {
           // Incomplete → save in Redis and respond
@@ -303,7 +280,7 @@ const calculateProfileCompletion = (profileParts) => {
   return Math.round((filledSections / totalSections) * 100);
 };
 
-// Optional: fix numeric-key objects to arrays
+//fix numeric-key objects to arrays
 const fixArrays = (obj) => {
   Object.keys(obj).forEach((key) => {
     if (obj[key] && typeof obj[key] === "object" && !Array.isArray(obj[key])) {
