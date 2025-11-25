@@ -143,3 +143,31 @@ export const getAllContractList = async (req,res)=>{
     });
   }
 }
+
+export const getAllContentLinks = async (req, res) => {
+  try {
+    const p_userid = req.user?.id || req.query.p_userid;
+    const p_campaignid = req.params.p_campaignid;
+    if (!p_userid) {
+      return res.status(400).json({ message: "p_userid is required." });
+    }
+
+    const result = await client.query(
+      `SELECT * FROM ins.fn_get_contentlink(
+        $1::bigint,
+        $2::bigint);`,
+      [p_userid, p_campaignid]
+    );
+    
+    const data = result.rows[0].fn_get_contentlink;
+    return res.status(200).json({
+      message: "All content links fetched successfully",
+      data: data,
+    });
+  } catch (error) {
+    console.error("error in getAllContentLinks:", error);
+    return res.status(500).json({
+      message: error.message,
+    });
+  }
+};

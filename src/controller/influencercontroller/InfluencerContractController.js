@@ -142,7 +142,7 @@ export const getInfluencerUploadedContentLink = async (req,res) =>{
       [p_influencerid, p_campaignid]
     );
 
-    const data = result.rows[0];
+    const data = result.rows[0].fn_get_influencercontentlink;
     return res.status(200).json({
       message: "content links fetched successfully",
       data: data,
