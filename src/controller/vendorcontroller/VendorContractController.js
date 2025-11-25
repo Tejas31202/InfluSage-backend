@@ -117,46 +117,29 @@ export const getContractDetailByContractId = async (req,res)=>{
   }
 }
 
-export const influencerApproveOrRejectContract = async (req, res) => {
-  try {
-    const p_influencerid = req.user?.id || req.body.p_influencerid;
-    const { p_contractid, p_statusname } = req.body;
+export const getAllContractList = async (req,res)=>{
+     try {
+    const p_userid = req.user?.id || req.query.p_userid;
+    const p_campaignid =req.params.p_campaignid;
 
-    if (!p_influencerid) {
-      return res.status(400).json({ message: "p_influencerid is required" });
-    }
-
-    if (!p_contractid || !p_statusname) {
-      return res
-        .status(400)
-        .json({ message: "p_contractid and p_statusname are required" });
+    if (!p_userid) {
+      return res.status(400).json({ message: "p_userid is required." });
     }
 
     const result = await client.query(
-      `CALL ins.usp_update_contractstatus(
-      $1::bigint,
-      $2::bigint,
-      $3::varchar(15),
-      $4::boolean,
-      $5::text
-      );`,
-      [p_influencerid, p_contractid, p_statusname, null, null]
+      `SELECT * FROM ins.fn_get_contractlist($1::bigint,$2::bigint);`,
+      [p_userid,p_campaignid]
     );
-    
-    const { p_status, p_message } = result.rows[0];
+    const data = result.rows[0].fn_get_contractlist;
 
-    if (p_status) {
-      return res.status(200).json({
-        message: p_message,
-        p_status,
-      });
-    } else {
-      return res.status(400).json({ message: p_message, p_status });
-    }
+    return res.status(200).json({
+      message: "contract list fetched successfully",
+      data: data,
+    });
   } catch (error) {
-    console.error("error in createOrEditContract:", error);
+    console.error("error in getAllContractList:", error);
     return res.status(500).json({
       message: error.message,
     });
   }
-};
+}
