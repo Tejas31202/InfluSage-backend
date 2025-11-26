@@ -72,7 +72,14 @@ export const createOrEditContract = async (req, res) => {
       ]
     );
 
-    const { p_status, p_message } = result.rows[0];
+    const { p_status, p_message } = result.rows[0] || {};
+
+    if (p_message === "You cannot create a contract until campaign in published state.") {
+      return res.status(404).json({
+        message: p_message,
+        p_status: false,
+      });
+    }
 
     if (p_status) {
       return res.status(200).json({
