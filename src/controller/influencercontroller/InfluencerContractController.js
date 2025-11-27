@@ -112,7 +112,7 @@ export const getInfluencerContractDetail = async (req, res) => {
       [p_influencerid, p_campaignid]
     );
 
-    const data = result.rows[0].fn_get_influencercontractdetails;
+    const data = result.rows[0].fn_get_influencercontractdetails[0];
     return res.status(200).json({
       message: "contract detail fetched successfully",
       data: data,
