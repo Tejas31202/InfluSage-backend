@@ -95,6 +95,36 @@ export const uploadContentLink = async (req, res) => {
   }
 };
 
+// export const getInfluencerContractDetail = async (req, res) => {
+//   try {
+//     const p_influencerid = req.user?.id || req.query.p_influencerid;
+//     const p_campaignid = req.params.p_campaignid;
+//     if (!p_influencerid) {
+//       return res
+//         .status(400)
+//         .json({ message: "p_influencerid is required." });
+//     }
+
+//     const result = await client.query(
+//       `SELECT * FROM ins.fn_get_influencercontractdetails(
+//         $1::bigint,
+//         $2::bigint);`,
+//       [p_influencerid, p_campaignid]
+//     );
+
+//     const data = result.rows[0].fn_get_influencercontractdetails;
+//     return res.status(200).json({
+//       message: "contract detail fetched successfully",
+//       data: data,
+//     });
+//   } catch (error) {
+//     console.error("error in getInfluencerContractDetail:", error);
+//     return res.status(500).json({
+//       message: error.message,
+//     });
+//   }
+// };
+
 export const getInfluencerContractDetail = async (req, res) => {
   try {
     const p_influencerid = req.user?.id || req.query.p_influencerid;
@@ -112,9 +142,15 @@ export const getInfluencerContractDetail = async (req, res) => {
       [p_influencerid, p_campaignid]
     );
 
-    const data = result.rows[0].fn_get_influencercontractdetails;
-    return res.status(200).json({
+    const data = result.rows[0]?.fn_get_influencercontractdetails;
+    if(data){
+      return res.status(200).json({
       message: "contract detail fetched successfully",
+      data: data[0],
+    });
+    }
+    return res.status(400).json({
+      message: "No Contract Created",
       data: data,
     });
   } catch (error) {
@@ -124,7 +160,7 @@ export const getInfluencerContractDetail = async (req, res) => {
     });
   }
 };
-
+ 
 export const getInfluencerUploadedContentLink = async (req,res) =>{
   try {
     const p_influencerid = req.user?.id || req.query.p_influencerid;
