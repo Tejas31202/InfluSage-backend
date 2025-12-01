@@ -4,6 +4,8 @@ import redis from 'redis';
 import path from 'path';
 import fs from 'fs';
 import fsPromises from 'fs/promises';
+import { io } from '../../../app.js'
+
 
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -90,59 +92,68 @@ export const applyNowCampaign = async (req, res) => {
 
     // File upload to Supabase
     if (req.files && req.files.portfolioFiles) {
-  const uploadedFiles = [];
+      const uploadedFiles = [];
 
-  for (const file of req.files.portfolioFiles) {
-    const fileName = file.originalname;
-    const newFileName = `${fileName}`;
-    const uniqueFileName = `Influencer/${userFolder}/Campaigns/${campaignId}/ApplyCampaigns/${newFileName}`;
-    const fileBuffer = file.buffer;
+      for (const file of req.files.portfolioFiles) {
+        const fileName = file.originalname;
+        const newFileName = `${fileName}`;
+        const uniqueFileName = `Influencer/${userFolder}/Campaigns/${campaignId}/ApplyCampaigns/${newFileName}`;
+        const fileBuffer = file.buffer;
 
-    try {
-      // Step 1: Check if file already exists in Supabase bucket
-      const { data: existingFiles, error: listError } = await supabase.storage
-        .from("uploads")
-        .list(`Influencer/${userFolder}/CampaignId_${campaignId}/ApplyCampaigns/`, {
-          search: newFileName,
-        });
+        try {
+          // Step 1: Check if file already exists in Supabase bucket
+          const { data: existingFiles, error: listError } = await supabase.storage
+            .from("uploads")
+            .list(`Influencer/${userFolder}/CampaignId_${campaignId}/ApplyCampaigns/`, {
+              search: newFileName,
+            });
 
-      if (listError) {
-        console.error("Supabase list error:", listError);
-        return res.status(500).json({ message: "Error checking existing files" });
+          if (listError) {
+            console.error("Supabase list error:", listError);
+            return res.status(500).json({ message: "Error checking existing files" });
+          }
+
+          const fileExists = existingFiles?.some((f) => f.name === newFileName);
+
+          if (fileExists) {
+            // res.status(400).json({ message: `File already exists: ${fileName}, skipping upload.` });
+
+            //add existing file URL to uploadedFiles
+            const { data: publicData } = supabase.storage
+              .from("uploads")
+              .getPublicUrl(uniqueFileName);
+            uploadedFiles.push({ filepath: publicData.publicUrl });
+
+            continue; // Skip upload, go to next file
+
+          }
+
+          // Step 2: Upload if file doesn’t exist
+          const { error: uploadError } = await supabase.storage
+            .from("uploads")
+            .upload(uniqueFileName, fileBuffer, {
+              contentType: file.mimetype,
+              upsert: false,
+            });
+
+          if (uploadError) {
+            console.error("Supabase upload error:", uploadError);
+            return res
+              .status(500)
+              .json({ message: "Failed to upload file to cloud storage" });
+          }
+
+          // Step 3: Get public URL for the uploaded file
+          const { data: publicUrlData } = supabase.storage
+            .from("uploads")
+            .getPublicUrl(uniqueFileName);
+
+          uploadedFiles.push({ filepath: publicUrlData.publicUrl });
+        } catch (err) {
+          console.error("Upload error:", err);
+          return res.status(500).json({ message: "Unexpected upload error" });
+        }
       }
-
-      const fileExists = existingFiles?.some((f) => f.name === newFileName);
-
-      if (fileExists) {
-       res.status(400).json({message:`File already exists: ${fileName}, skipping upload.`});
-      }
-
-      // Step 2: Upload if file doesn’t exist
-      const { error: uploadError } = await supabase.storage
-        .from("uploads")
-        .upload(uniqueFileName, fileBuffer, {
-          contentType: file.mimetype,
-          upsert: false, 
-        });
-
-      if (uploadError) {
-        console.error("Supabase upload error:", uploadError);
-        return res
-          .status(500)
-          .json({ message: "Failed to upload file to cloud storage" });
-      }
-
-      // Step 3: Get public URL for the uploaded file
-      const { data: publicUrlData } = supabase.storage
-        .from("uploads")
-        .getPublicUrl(uniqueFileName);
-
-      uploadedFiles.push({ filepath: publicUrlData.publicUrl });
-    } catch (err) {
-      console.error("Upload error:", err);
-      return res.status(500).json({ message: "Unexpected upload error" });
-    }
-  }
 
       // Merge old + new filepaths
       if (applycampaignjson.filepaths && Array.isArray(applycampaignjson.filepaths)) {
@@ -167,7 +178,26 @@ export const applyNowCampaign = async (req, res) => {
     const { p_status, p_message } = result.rows[0];
 
     if (p_status) {
+      try {
+        const notification = await client.query(
+          `select * from ins.fn_get_notificationlist
+            ($1::bigint,$2::boolean)`,
+          [userId, null]
+        );
+        const result = notification.rows[0]?.fn_get_notificationlist || [];
+
+        // Emit new notification
+        io.to(`user_${userId}`).emit("receiveNotification", result);
+        console.log("Sent new notification to user:", userId);
+        console.log("send apply now campaign", result)
+        console.log('socket connected', `user_${userId}`)
+
+      } catch (error) {
+        console.error('Error While Fetching Notification')
+        return res.status(500).json({ message: 'Internal Server Error' })
+      }
       await redisClient.del(redisKey);
+
       return res.status(200).json({
         message: p_message || "Application saved successfully",
         source: "db",
@@ -509,7 +539,7 @@ export const deleteApplyNowPortfolioFile = async (req, res) => {
           );
 
         // Update Redis data
-        await redisClient.setEx(redisKey,7200, JSON.stringify(campaignData));
+        await redisClient.setEx(redisKey, 7200, JSON.stringify(campaignData));
       }
     }
 

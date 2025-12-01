@@ -32,7 +32,7 @@ export const getClientsList = async (req, res) => {
 };
 //..................Get All Influencer Campaign..................
 export const getInfluencerMyCampaign = async (req, res) => {
-  const p_userid = req.user?.id ||req.body.p_userid;
+  const p_userid = req.user?.id || req.body.p_userid;
 
   try {
     if (!p_userid) {
@@ -138,3 +138,23 @@ export const getInfluencerMyCampaignDetails = async (req, res) => {
     return res.status(500).json({ message: "Internal server Error" });
   }
 };
+
+export const getInfluencerMyCampaignStatus = async (req, res) => {
+  try {
+    const status = await client.query(
+      `SELECT * FROM ins.fn_get_influencermycampaignstatus()`
+    )
+    const result = status.rows;
+    console.log(result)
+    return res.status(200).json(
+      {
+        Message: "Influencer MyCampaign status Fetched Successfully",
+        data: result,
+        source:"db"
+      }
+    )
+  } catch (error) {
+    console.error("Error Getting Influencer Details", error);
+    return res.status(500).json({ message: "Internal server Error" });
+  }
+}

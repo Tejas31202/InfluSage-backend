@@ -21,7 +21,7 @@ import { Server } from 'socket.io';
 import ChatRoutes from './src/routes/ChatRoutes.js';
 import VendorMyCampaignRoutes from './src/routes/vendorroutes/VendorMyCampaignRoutes.js';
 import InfluencerMyCampaignRoutes from './src/routes/influencerroutes/InfluencerMyCampaignRoutes.js';
-import NotificationRoutes  from './src/routes/NotificationRoutes.js';
+import NotificationRoutes from './src/routes/NotificationRoutes.js';
 import AdminPanelRoutes from './src/routes/AdminPanelRoutes.js';
 import UserAdminSupportChatRoutes from './src/routes/UserAdminSupportChatRoutes.js';
 import { client } from "./src/config/Db.js";
@@ -57,19 +57,19 @@ app.use("/user", InfluencerProfileDetailRoutes);
 app.use("/user", InfluencerCampaignRoutes);
 app.use("/user", InfluencerMyCampaignRoutes);
 app.use("/user", InfluencerDashboardRoutes);
-app.use("/user",InfluencerContractRoutes);
+app.use("/user", InfluencerContractRoutes);
 app.use("/vendor", VendorRoutes);
 app.use("/vendor", VendorProfileDetailRoutes);
 app.use("/vendor", VendorCampaignRoutes);
 app.use("/vendor", VendorBrowseInfluencerRoutes);
 app.use("/vendor", VendorOffersRoutes);
 app.use("/vendor", VendorMyCampaignRoutes);
-app.use("/vendor",VendorDashboardRoutes);
-app.use("/vendor",VendorContractRoutes);
+app.use("/vendor", VendorDashboardRoutes);
+app.use("/vendor", VendorContractRoutes);
 app.use("/chat", ChatRoutes);
-app.use("/new",NotificationRoutes);
-app.use("/admin",AdminPanelRoutes);
-app.use("/chat/support",UserAdminSupportChatRoutes)
+app.use("/new", NotificationRoutes);
+app.use("/admin", AdminPanelRoutes);
+app.use("/chat/support", UserAdminSupportChatRoutes)
 
 const PORT = process.env.BACKEND_PORT || 3001;
 
@@ -95,33 +95,62 @@ io.on("connection", (socket) => {
     onlineUsers.set(userId, socket.id);
     socket.userId = userId;
 
+    socket.join(`user_${userId}`);   // NOTIFICATION ROOM
+    console.log(`User ${userId} registered, room: user_${userId}`);
+
     // Notify all other users
     socket.broadcast.emit("user-online", { userId });
 
     // Send current online users to this socket
     socket.emit("online-users", { userIds: [...onlineUsers.keys()] });
 
-    console.log(`User ${userId} registered`);
-
-    // FETCH ALL NOTIFICATIONS FROM DB
     try {
+      // const limitedFlag = req.query?.limitedData;
+      // let limitedFlag = true;
+
       const notifs = await client.query(
-        `select * from ins.fn_get_notificationlist($1::bigint, $2::boolean)`,
+        `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean)`,
         [userId, null]
+        // [userId, limitedFlag  === 'true' ? true : limitedData === 'false' ? false : null]
       );
 
       const result = notifs.rows[0]?.fn_get_notificationlist || [];
 
-      socket.emit("receiveAllNotifications", result);
+      if (result.length > 0) {
+        io.to(`user_${userId}`).emit("receiveNotification", result);
+        console.log(`Sent ${result.length} missed notifications to user ${userId}`);
+      }
 
-      console.log(`Sent ${result.length} notifications to user ${userId}`);
     } catch (err) {
-      console.log("Notification fetch error", err);
+      console.error("Notification fetch error", err);
     }
-    
 
+    console.log(`User ${userId} registered`);
+
+    // FETCH ALL NOTIFICATIONS FROM DB
+    // try {
+    //   const notifs = await client.query(
+    //     `select * from ins.fn_get_notificationlist($1::bigint, $2::boolean)`,
+    //     [userId, null]
+    //   );
+
+    //   const result = notifs.rows[0]?.fn_get_notificationlist || [];
+
+    //   socket.emit("receiveAllNotifications", result);
+
+    //   console.log(`Sent ${result.length} notifications to user ${userId}`);
+    // } catch (err) {
+    //   console.log("Notification fetch error", err);
+    // }
   });
 
+   //send Notification
+  socket.on("sendNotification", ({ toUserId, message }) => {
+    io.to(`user_${toUserId}`).emit("receiveNotification", { message });
+    console.log(`Notification sent to user ${toUserId}: ${message}`);
+  });
+
+  
   // Join room (conversation)
   socket.on("joinRoom", (conversationId) => {
     socket.join(conversationId);
@@ -133,7 +162,7 @@ io.on("connection", (socket) => {
     console.log(`Socket ${socket.id} left room ${conversationId}`);
   });
 
-    // ------------------- SUPPORT TICKET ROOMS -------------------
+  // ------------------- SUPPORT TICKET ROOMS -------------------
   socket.on("joinTicketRoom", (ticketId) => {
     socket.join(`ticket_${ticketId}`);
     console.log(`User joined ticket room ticket_${ticketId}`);
@@ -163,50 +192,50 @@ io.on("connection", (socket) => {
   });
 
 
-  
-// SOCKET.IO NOTIFICATION HANDLER
-socket.on("sendNotification", async ({ receiverId, type, extra }) => {
-  try {
-    // FETCH notification type info from DB
-    const typeRes = await client.query(
-      `SELECT id, title FROM ins.notifications WHERE type = $1 AND is_active = true`,
-      [type]
-    );
 
-    const notifType = typeRes.rows[0];
-    if (!notifType) {
-      console.log("Invalid notification type:", type);
-      return;
-    }
+  // // SOCKET.IO NOTIFICATION HANDLER
+  // socket.on("sendNotification", async ({ receiverId, type, extra }) => {
+  //   try {
+  //     // FETCH notification type info from DB
+  //     const typeRes = await client.query(
+  //       `SELECT id, title FROM ins.notifications WHERE type = $1 AND is_active = true`,
+  //       [type]
+  //     );
 
-    // SAVE to user notification table
-    await client.query(
-      `INSERT INTO ins.user_notifications(user_id, notification_id, extra_data, created_at)
-       VALUES($1, $2, $3, NOW())`,
-      [receiverId, notifType.id, JSON.stringify(extra)]
-    );
+  //     const notifType = typeRes.rows[0];
+  //     if (!notifType) {
+  //       console.log("Invalid notification type:", type);
+  //       return;
+  //     }
 
-    // Prepare notif object
-    const notifObj = {
-      id: notifType.id,
-      type,
-      title: notifType.title,
-      extra: extra || {},
-      createdAt: new Date(),
-    };
+  //     // SAVE to user notification table
+  //     await client.query(
+  //       `INSERT INTO ins.user_notifications(user_id, notification_id, extra_data, created_at)
+  //        VALUES($1, $2, $3, NOW())`,
+  //       [receiverId, notifType.id, JSON.stringify(extra)]
+  //     );
 
-    // Send live notification if user is online
-    const receiverSocket = onlineUsers.get(receiverId);
-    if (receiverSocket) {
-      io.to(receiverSocket).emit("receiveNotification", notifObj);
-      console.log(`LIVE Notification sent to user ${receiverId}`);
-    } else {
-      console.log(`User ${receiverId} OFFLINE — saved only`);
-    }
-  } catch (err) {
-    console.error("Error sending notification:", err);
-  }
-});
+  //     // Prepare notif object
+  //     const notifObj = {
+  //       id: notifType.id,
+  //       type,
+  //       title: notifType.title,
+  //       extra: extra || {},
+  //       createdAt: new Date(),
+  //     };
+
+  //     // Send live notification if user is online
+  //     const receiverSocket = onlineUsers.get(receiverId);
+  //     if (receiverSocket) {
+  //       io.to(receiverSocket).emit("receiveNotification", notifObj);
+  //       console.log(`LIVE Notification sent to user ${receiverId}`);
+  //     } else {
+  //       console.log(`User ${receiverId} OFFLINE — saved only`);
+  //     }
+  //   } catch (err) {
+  //     console.error("Error sending notification:", err);
+  //   }
+  // });
 
   // Disconnect
   socket.on("disconnect", () => {
@@ -222,7 +251,7 @@ socket.on("sendNotification", async ({ receiverId, type, extra }) => {
   });
 
   socket.on("messageRead", async ({ messageId, conversationId, role }) => {
-    
+
     io.to(`conversation_${conversationId}`).emit("updateMessageStatus", {
       messageId,
       readbyvendor: role === 1 ? true : undefined,
@@ -230,15 +259,15 @@ socket.on("sendNotification", async ({ receiverId, type, extra }) => {
     });
   });
 
-// Edit message
-socket.on("editMessage", ({ id, content, file, conversationId, replyId }) => {
-  if (!id || !conversationId) {
-    console.log("Missing id or conversationId in editMessage", { id, conversationId });
-    return;
-  }
-  io.to(conversationId).emit("editMessage", { id, content, file, replyId });
-  console.log(`Message ${id} edited in room ${conversationId}`);
-});
+  // Edit message
+  socket.on("editMessage", ({ id, content, file, conversationId, replyId }) => {
+    if (!id || !conversationId) {
+      console.log("Missing id or conversationId in editMessage", { id, conversationId });
+      return;
+    }
+    io.to(conversationId).emit("editMessage", { id, content, file, replyId });
+    console.log(`Message ${id} edited in room ${conversationId}`);
+  });
 
 });
 

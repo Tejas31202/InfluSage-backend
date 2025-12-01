@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { client } from '../config/Db.js';
+import { io } from '../../app.js'
 // import authenticateUser from '../middleware/AuthMiddleware.js';
 
 // Create Supabase client once at the top
@@ -12,26 +13,26 @@ export const resolveUsername = async (req, res, next) => {
   let username = "user";
 
   try {
-   if (req.user?.name) {
-    // Split by space and take first word
-    username = req.user.name.split(" ")[0].trim();
-  }
-
-  //  Fallback: from request body
-  else if (req.body?.firstName) {
-    username = req.body.firstName.trim();
-  }
-
-  // Final fallback: from DB
-  else {
-    const dbUser = await client.query(
-      "SELECT firstname FROM ins.users WHERE id=$1",
-      [userId]
-    );
-    if (dbUser.rows[0]?.firstname) {
-      username = dbUser.rows[0].firstname.trim();
+    if (req.user?.name) {
+      // Split by space and take first word
+      username = req.user.name.split(" ")[0].trim();
     }
-  }
+
+    //  Fallback: from request body
+    else if (req.body?.firstName) {
+      username = req.body.firstName.trim();
+    }
+
+    // Final fallback: from DB
+    else {
+      const dbUser = await client.query(
+        "SELECT firstname FROM ins.users WHERE id=$1",
+        [userId]
+      );
+      if (dbUser.rows[0]?.firstname) {
+        username = dbUser.rows[0].firstname.trim();
+      }
+    }
     req.username = username || "user";
     next();
   } catch (err) {
@@ -43,6 +44,8 @@ export const resolveUsername = async (req, res, next) => {
 
 export const startConversation = async (req, res) => {
   const { p_campaignapplicationid } = req.body;
+  const p_userid = req.user?.id;
+
 
   if (!p_campaignapplicationid) {
     return res.status(400).json({
@@ -68,6 +71,19 @@ export const startConversation = async (req, res) => {
     const { p_status, p_message } = result.rows[0];
 
     if (p_status) {
+      
+      const notifRes = await client.query(
+        `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean)`,
+        [p_userid, null]
+      );
+
+      const notifications = notifRes.rows[0]?.fn_get_notificationlist || [];
+
+      // Step 3: Emit notifications via socket
+      if (notifications.length > 0) {
+        io.to(`user_${p_userid}`).emit("receiveNotification", notifications);
+        console.log(`Sent ${notifications.length} notifications to user ${p_userid}`);
+      }
       return res
         .status(200)
         .json({ message: p_message, p_status, source: "db" });
@@ -81,7 +97,9 @@ export const startConversation = async (req, res) => {
 };
 
 export const insertMessage = async (req, res) => {
-  const { p_conversationid, p_roleid, p_messages, p_replyid, p_messageid, campaignid, campaignName, influencerId, influencerName, vendorId, vendorName} = req.body || {};
+  const { p_conversationid, p_roleid, p_messages, p_replyid, p_messageid, campaignid, campaignName, influencerId, influencerName, vendorId, vendorName } = req.body || {};
+  const roleId = req.user?.roleId || p_roleid; // sender's role
+  // const userId = req.user?.id; // sender's id
 
   let p_filepaths = null;
   if (req.files && req.files.length > 0) {
@@ -102,7 +120,7 @@ export const insertMessage = async (req, res) => {
       //Created Folder Path For Vendor And Influencer saved in vendor side
       if (Number(roleId) === 2) {
         uniqueFileName = `Vendor/${userId}/Campaigns/${campaignid}/Chat/${influencerId}/${newFileName}`;
-      } else if ((Number(roleId) === 1)){
+      } else if ((Number(roleId) === 1)) {
         uniqueFileName = `Vendor/${vendorId}/Campaigns/${campaignid}/Chat/${userId}/${newFileName}`;
       }
 
@@ -111,7 +129,7 @@ export const insertMessage = async (req, res) => {
         .from("uploads") // bucket name
         .upload(uniqueFileName, file.buffer, {
           contentType: file.mimetype,
-          upsert: false, 
+          upsert: false,
         });
 
       if (error) throw error;
@@ -162,6 +180,25 @@ export const insertMessage = async (req, res) => {
     const { p_status, p_message } = result.rows[0] || {};
 
     if (p_status) {
+
+      const recipientId = roleId === 1 ? vendorId : influencerId;
+
+      
+      try {
+        const notifResult = await client.query(
+          `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean)`,
+          [recipientId, null]
+        );
+        const notifications = notifResult.rows[0]?.fn_get_notificationlist || [];
+
+        // Emit notifications from DB
+        io.to(`user_${recipientId}`).emit("receiveNotification", notifications);
+        console.log(`📤 Sent DB notifications to user ${recipientId}`);
+      } catch (error) {
+        console.error("Error fetching notifications from DB:", error);
+      }
+
+
       return res.status(200).json({
         message: p_message,
         p_status,
