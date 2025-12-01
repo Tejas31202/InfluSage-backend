@@ -54,13 +54,14 @@ export const createOrEditContract = async (req, res) => {
       });
     }
     const result = await client.query(
-      `CALL ins.usp_upsert_contractdetails(
+      `CALL ins.usp_upsert_contractdetails_new(
       $1::bigint,
       $2::bigint,
       $3::json,
       $4::json,
       $5::boolean,
-      $6::text
+      $6::text,
+      $7::text
       );`,
       [
         p_campaignapplicationid,
@@ -69,19 +70,35 @@ export const createOrEditContract = async (req, res) => {
         JSON.stringify(p_contenttypejson),
         null,
         null,
+        null,
       ]
     );
 
-    const { p_status, p_message } = result.rows[0];
+    const { p_status, p_message, p_code } = result.rows[0] || {};
 
-    if (p_status) {
-      return res.status(200).json({
-        message: p_message,
-        p_status,
-      });
-    } else {
-      return res.status(400).json({ message: p_message, p_status });
+    if (p_code === "ERR") {
+      // For ERR, log actual message but send generic response
+      console.error("Database ERR:", p_message);
+      return res.status(404).json({ message: "Something went wrong", p_status });
     }
+
+    // Map p_code to HTTP status codes
+    const codeMap = {
+      OK: 200,
+      BUS: 400,
+      AUTH: 403,
+      EXT: 409
+    };
+
+    const httpStatus = codeMap[p_code] || 500;
+
+    
+
+    return res.status(httpStatus).json({
+      message: p_message || "Unknown error",
+      p_status,
+    });
+
   } catch (error) {
     console.error("error in createOrEditContract:", error);
     return res.status(500).json({

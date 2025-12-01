@@ -216,7 +216,7 @@ export const sendSupportMessage = async (req, res) => {
     );
 
     const data = validate.rows[0].fn_get_usersupportticketaccess
-    if (!data.status) {
+    if (!data.status) { 
         return res.status(403).json({success:data.status,message: data.message });
     }
 
@@ -273,23 +273,39 @@ export const sendSupportMessage = async (req, res) => {
     const { p_status, p_message } = result.rows[0] || {};
 
     if (p_status) {
-       io.to(`ticket_${p_usersupportticketid}`).emit("receiveSupportMessage", {
-          ticketId: p_usersupportticketid,
-          senderId: p_senderid,
-          message: p_messages,
-          file: p_filepath,
-          replyId: p_replyid,
-        }); 
+
+    io.to(`ticket_${p_usersupportticketid}`).emit("receiveSupportMessage", {
+      ticketId: p_usersupportticketid,
+      senderId: p_senderid,
+      message: p_messages,
+      file: p_filepath,
+      replyId: p_replyid,
+      lastmessagedate: new Date(),
+      readbyuser: false,
+    });
+
+    let receiverId = null;
+    if (data.userid && data.adminid) {
+      receiverId = p_senderid === data.userid ? data.adminid : data.userid;
+    } else if (data.receiverid) {
+      receiverId = data.receiverid;
+    }
+      io.to(`user_${receiverId}`).emit("sidebarTicketUpdate", {
+        ticketId: p_usersupportticketid,
+        lastmessagedate: new Date(),
+        readbyuser: false,
+      });
       return res.status(200).json({
         message: p_message,
         p_status,
         filePaths: p_filepath,
       });
-    } else {
-      return res.status(400).json({ message: p_message, p_status });
     }
-  } catch (error) {
-    console.error("Error in sendSupportMessage:", error);
-    return res.status(500).json({ message: error.message });
-  }
-};
+    else {
+        return res.status(400).json({ message: p_message, p_status });
+      }
+    } catch (error) {
+      console.error("Error in sendSupportMessage:", error);
+      return res.status(500).json({ message: error.message });
+    }
+  };

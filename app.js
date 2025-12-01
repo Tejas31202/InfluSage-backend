@@ -173,6 +173,10 @@ io.on("connection", (socket) => {
     console.log(`User left ticket room ticket_${ticketId}`);
   });
 
+  socket.on("registerUser", ({ userId }) => {
+    socket.join(`user_${userId}`);
+  });
+
   socket.on("deleteMessage", ({ messageId, conversationId }) => {
     io.to(conversationId).emit("deleteMessage", messageId);
     console.log(`Message ${messageId} marked as deleted in room ${conversationId}`);

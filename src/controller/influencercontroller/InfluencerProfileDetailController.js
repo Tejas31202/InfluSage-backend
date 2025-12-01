@@ -181,7 +181,7 @@ let userpcode;
 
     // Handle different p_code states
     switch (userpcode) {
-      case "SUCCESS":
+      case "APPROVED":
         // Save in DB, clear Redis
         await client.query("BEGIN");
         await client.query(
