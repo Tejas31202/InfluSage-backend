@@ -182,6 +182,20 @@ export const insertMessage = async (req, res) => {
     if (p_status) {
 
       const recipientId = roleId === 1 ? vendorId : influencerId;
+        io.to(String(p_conversationid)).emit("receiveMessage", {
+          conversationid: p_conversationid,
+          message: p_messages || "",
+          filepaths: p_filepaths ? p_filepaths.split(",") : [],
+          roleid: p_roleid,
+          replyid: p_replyid || null,
+          createddate: new Date().toISOString(),
+          userid: req.user?.id,
+          campaignid,
+          influencerId,
+          vendorId,
+          readbyvendor: false,
+          readbyinfluencer: false,
+        });
 
       
       try {

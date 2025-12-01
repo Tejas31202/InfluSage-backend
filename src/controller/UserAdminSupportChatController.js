@@ -161,6 +161,11 @@ export const openChatByTicketId = async (req, res) => {
     );
     
     const data = result.rows[0].fn_get_usersupportticketmessages;
+      io.to(`user_${p_userid}`).emit("sidebarTicketUpdate", {
+        ticketId: p_usersupportticketid,
+        readbyadmin: true,
+        readbyuser: true,
+      });
     return res.status(200).json({
       message: "Chat opened successfully for the selected ticket.",
       data: data,
@@ -293,7 +298,8 @@ export const sendSupportMessage = async (req, res) => {
       io.to(`user_${receiverId}`).emit("sidebarTicketUpdate", {
         ticketId: p_usersupportticketid,
         lastmessagedate: new Date(),
-        readbyuser: false,
+        readbyadmin: p_senderid === data.adminid,
+        readbyuser: p_senderid === data.userid
       });
       return res.status(200).json({
         message: p_message,
