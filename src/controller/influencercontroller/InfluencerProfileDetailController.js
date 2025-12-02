@@ -1,8 +1,8 @@
-import { client } from '../../config/Db.js';
-import { createClient } from '@supabase/supabase-js';
-import redis from 'redis';
-import path from 'path';
-import fs from 'fs';
+import { client } from "../../config/Db.js";
+import { createClient } from "@supabase/supabase-js";
+import redis from "redis";
+import path from "path";
+import fs from "fs";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
@@ -23,7 +23,7 @@ redisClient.connect().catch(console.error);
 //   return Math.round((filledSections / totalSections) * 100);
 // };
 
-//New Code With Changes 
+//New Code With Changes
 export const completeUserProfile = async (req, res) => {
   const userId = req.user?.id || req.body?.userId;
 
@@ -42,7 +42,7 @@ export const completeUserProfile = async (req, res) => {
   // }
 
   //New Code For Testing userpcode comes from db
-let userpcode;
+  let userpcode;
 
   try {
     const result = await client.query(
@@ -53,7 +53,6 @@ let userpcode;
     const status = result.rows[0]?.status;
 
     userpcode = status ? status.toUpperCase() : null;
-
   } catch (err) {
     console.error("Error fetching user status:", err.message);
   }
@@ -68,7 +67,10 @@ let userpcode;
   if (req.user?.name) username = req.user.name.split(" ")[0].trim();
   else if (req.body?.firstName) username = req.body.firstName.trim();
   else {
-    const dbUser = await client.query("SELECT firstname FROM ins.users WHERE id=$1", [userId]);
+    const dbUser = await client.query(
+      "SELECT firstname FROM ins.users WHERE id=$1",
+      [userId]
+    );
     if (dbUser.rows[0]?.firstname) username = dbUser.rows[0].firstname.trim();
   }
 
@@ -102,18 +104,30 @@ let userpcode;
       const profileFolderPath = `Influencer/${userId}/Profile`;
       const supabasePath = `${profileFolderPath}/${fileName}`;
 
-      const { data: existingFiles } = await supabase.storage.from("uploads").list(profileFolderPath);
+      const { data: existingFiles } = await supabase.storage
+        .from("uploads")
+        .list(profileFolderPath);
       if (existingFiles?.length > 0) {
-        const oldPaths = existingFiles.map((f) => `${profileFolderPath}/${f.name}`);
+        const oldPaths = existingFiles.map(
+          (f) => `${profileFolderPath}/${f.name}`
+        );
         await supabase.storage.from("uploads").remove(oldPaths);
       }
 
       const { error: uploadError } = await supabase.storage
         .from("uploads")
-        .upload(supabasePath, file.buffer, { contentType: file.mimetype, upsert: true });
-      if (uploadError) return res.status(500).json({ message: "Failed to upload profile photo" });
+        .upload(supabasePath, file.buffer, {
+          contentType: file.mimetype,
+          upsert: true,
+        });
+      if (uploadError)
+        return res
+          .status(500)
+          .json({ message: "Failed to upload profile photo" });
 
-      const { data: publicUrlData } = supabase.storage.from("uploads").getPublicUrl(supabasePath);
+      const { data: publicUrlData } = supabase.storage
+        .from("uploads")
+        .getPublicUrl(supabasePath);
       const photoUrl = publicUrlData?.publicUrl;
 
       if (photoUrl) {
@@ -139,11 +153,19 @@ let userpcode;
         if (!alreadyExists) {
           const { error: uploadError } = await supabase.storage
             .from("uploads")
-            .upload(supabasePath, file.buffer, { contentType: file.mimetype, upsert: false });
-          if (uploadError) return res.status(500).json({ message: "Failed to upload portfolio files" });
+            .upload(supabasePath, file.buffer, {
+              contentType: file.mimetype,
+              upsert: false,
+            });
+          if (uploadError)
+            return res
+              .status(500)
+              .json({ message: "Failed to upload portfolio files" });
         }
 
-        const { data: publicUrlData } = supabase.storage.from("uploads").getPublicUrl(supabasePath);
+        const { data: publicUrlData } = supabase.storage
+          .from("uploads")
+          .getPublicUrl(supabasePath);
         uploadedFiles.push({ filepath: publicUrlData.publicUrl });
       }
 
@@ -157,10 +179,16 @@ let userpcode;
 
     // Merge body + Redis data
     const mergedData = {
-      ...(req.body.profilejson && { profilejson: safeParse(req.body.profilejson) }),
-      ...(socialaccountjson && { socialaccountjson: safeParse(socialaccountjson) }),
+      ...(req.body.profilejson && {
+        profilejson: safeParse(req.body.profilejson),
+      }),
+      ...(socialaccountjson && {
+        socialaccountjson: safeParse(socialaccountjson),
+      }),
       ...(categoriesjson && { categoriesjson: safeParse(categoriesjson) }),
-      ...(req.body.portfoliojson && { portfoliojson: safeParse(req.body.portfoliojson) }),
+      ...(req.body.portfoliojson && {
+        portfoliojson: safeParse(req.body.portfoliojson),
+      }),
       ...(paymentjson && { paymentjson: safeParse(paymentjson) }),
     };
 
@@ -169,15 +197,19 @@ let userpcode;
     const finalData = { ...redisData, ...mergedData };
 
     // Define the required profile parts
-    const requiredParts = ["profilejson", "socialaccountjson", "categoriesjson", "portfoliojson", "paymentjson"];
+    const requiredParts = [
+      "profilejson",
+      "socialaccountjson",
+      "categoriesjson",
+      "portfoliojson",
+      "paymentjson",
+    ];
 
     // Count how many parts are filled
     const completedParts = requiredParts.filter((k) => finalData[k]);
 
     // Check if all parts are complete
     const isFullyCompleted = completedParts.length === requiredParts.length;
-
-
 
     // Handle different p_code states
     switch (userpcode) {
@@ -201,14 +233,16 @@ let userpcode;
         );
         await client.query("COMMIT");
         await redisClient.del(redisKey);
-        return res.status(200).json({ message: "Profile saved successfully (DB)", source: "db" });
+        return res
+          .status(200)
+          .json({ message: "Profile saved successfully (DB)", source: "db" });
 
       case "BLOCKED":
       case "APPROVALPENDING":
         // Save only in Redis
         // return await saveToRedis(finalData, `User ${userpcode} — data saved in Redis.`);
         return res.status(403).json({
-          message: `User ${userpcode} is not allowed to proceed.`
+          message: `User ${userpcode} is not allowed to proceed.`,
         });
       // added code 403
 
@@ -222,7 +256,8 @@ let userpcode;
           return res.status(200).json({
             message: "Profile incomplete, saved temporarily in Redis",
             source: "redis",
-            profileCompletion: (completedParts.length / requiredParts.length) * 100,
+            profileCompletion:
+              (completedParts.length / requiredParts.length) * 100,
             userpcode,
           });
         }
@@ -245,26 +280,39 @@ let userpcode;
           ]
         );
         await client.query("COMMIT");
+        const { p_status, p_message } = result.rows[0];
+        if (p_status) {
+          await redisClient.del(redisKey);
+          return res.status(200).json({
+            message: p_message,
+            source: "db",
+            data: result.rows[0]
+          })
+          
+        }
 
-        // Delete Redis after DB save
-        await redisClient.del(redisKey);
-
-        return res.status(200).json({
-          message: "Profile saved successfully (DB)",
-          source: "db",
-          data: result.rows[0],
+        return res.status(400).json({
+          message: p_message,
+          source: "db"
         });
 
       default:
         // Unknown p_code → Save only in Redis
         // return await saveToRedis(finalData, "Unknown p_code — saved in Redis.");
         await saveToRedis(finalData);
-        return res.status(200).json({ message: "Unknown p_code — saved in Redis", source: "redis" })
+        return res
+          .status(200)
+          .json({
+            message: "Unknown p_code — saved in Redis",
+            source: "redis",
+          });
     }
   } catch (error) {
     console.error("Error during DB transaction: ", error);
-    await client.query("ROLLBACK").catch(() => { }); // fail-safe rollback
-    return res.status(500).json({ message: "Internal server error", error: error.message });
+    await client.query("ROLLBACK").catch(() => {}); // fail-safe rollback
+    return res
+      .status(500)
+      .json({ message: "Internal server error", error: error.message });
   }
 };
 
@@ -331,7 +379,8 @@ export const getUserProfile = async (req, res) => {
       p_socials: redisDataMapped.p_socials ?? dbData.p_socials,
       p_categories: redisDataMapped.p_categories ?? dbData.p_categories,
       p_portfolios: redisDataMapped.p_portfolios ?? dbData.p_portfolios,
-      p_paymentaccounts: redisDataMapped.p_paymentaccounts ?? dbData.p_paymentaccounts,
+      p_paymentaccounts:
+        redisDataMapped.p_paymentaccounts ?? dbData.p_paymentaccounts,
     };
 
     // Fix numeric-key objects if any
@@ -339,7 +388,8 @@ export const getUserProfile = async (req, res) => {
 
     // 5. Decide source properly
     const isMerged = Object.keys(redisDataMapped).some(
-      (key) => redisDataMapped[key] !== null && redisDataMapped[key] !== undefined
+      (key) =>
+        redisDataMapped[key] !== null && redisDataMapped[key] !== undefined
     );
 
     // 6. Calculate profile completion
@@ -351,13 +401,11 @@ export const getUserProfile = async (req, res) => {
       profileCompletion,
       source: isMerged ? "merged" : "db",
     });
-
   } catch (err) {
     console.error("Error fetching user profile:", err);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
-
 
 // Get User Name by Email
 export const getUserNameByEmail = async (req, res) => {
