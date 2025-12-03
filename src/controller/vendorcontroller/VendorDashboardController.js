@@ -31,4 +31,43 @@ export const getVendorCompleteProfilePercentage = async (req, res) => {
     }
 };
 
+export const getvendorperformancesummary = async (req, res) => {
+    try {
+
+        const p_userid = req.user?.id;
+        if (!p_userid) {
+            return res.status(400).json({
+                Message: "User ID is required to fetch Vendorperformance Summary"
+            })
+        }
+
+        const performancesummary = await client.query(`
+            select * from ins.fn_get_vendordashboard($1::bigint)`,
+            [p_userid]
+        );
+
+        const result = performancesummary.rows?.[0]?.fn_get_vendordashboard
+
+        if(!result){
+            return res.status(404).json({
+                Message:"No Performance Summary Available For Vendor"
+            })
+        }
+
+        return res.status(200).json({
+            Message: "Vendor PerformanceSummary SucessFully Fetched",
+            Data: result,
+            source: "db"
+        })
+
+    } catch (error) {
+
+        console.error("Error in Get Vendor Performance Summary:", error);
+        return res.status(500).json({
+            message: error.message,
+        });
+
+    }
+}
+
 

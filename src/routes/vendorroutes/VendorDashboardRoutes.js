@@ -3,7 +3,8 @@ import authenticateUser from '../../middleware/AuthMiddleware.js';
 
 
 import {
-    getVendorCompleteProfilePercentage
+    getVendorCompleteProfilePercentage,
+    getvendorperformancesummary
 } from '../../controller/vendorcontroller/VendorDashboardController.js'
 
 const routes = express.Router();
@@ -13,5 +14,12 @@ routes.get(
     authenticateUser(["Vendor"]),
     getVendorCompleteProfilePercentage
 );
+
+routes.get(
+    "/dashboard/performancesummary",
+    authenticateUser(["Vendor"]),
+    getvendorperformancesummary
+
+)
 
 export default routes;
