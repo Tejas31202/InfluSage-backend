@@ -4,20 +4,25 @@ export const getAdminAnalyticsNewContents = async (req, res) => {
   try {
     const p_adminid = req.user?.id || req.query.p_adminid;
 
+    if (!p_adminid) {
+      return res.status(400).json({
+        message: "p_adminid is required.",
+      });
+    }
     const {
       p_providers,
-      p_sortby,
+      p_contenttype,
       p_sortorder,
       p_pagenumber,
       p_pagesize,
-      p_search
+      p_search,
     } = req.query;
 
     const result = await client.query(
-      `SELECT * FROM ins.getAdminAnalyticsNewContents(
+      `select * from ins.fn_get_contractcontentlinklist(
         $1::bigint,
         $2::json,
-        $3::text,
+        $3::json,
         $4::text,
         $5::integer,
         $6::integer,
@@ -25,28 +30,25 @@ export const getAdminAnalyticsNewContents = async (req, res) => {
       );`,
       [
         p_adminid,
-        p_providers||null,
-        p_sortby || "createddate",
+        p_providers || null,
+        p_contenttype || null,
         p_sortorder || "DESC",
         p_pagenumber || 1,
         p_pagesize || 20,
-        p_search || null
+        p_search || null,
       ]
     );
-
-    // This function returns:
-    // influencer_image, influencer_name, campaign_name,
-    // platforms, content_links, created_date
-    const data = result.rows[0];
+   
+    const data = result.rows[0].fn_get_contractcontentlinklist;
 
     return res.status(200).json({
       message: "New contents retrieved successfully",
-      data
+      data:data,
     });
   } catch (error) {
     console.error("Error in getAdminAnalyticsNewContents:", error);
     return res.status(500).json({
-      message: error.message 
+      message: error.message,
     });
   }
 };
@@ -151,47 +153,74 @@ export const getInfluencerContentHistory = async (req, res) => {
   }
 };
 
-export const insertAnalyticsRecord = async (req, res) => {
+export const insertOrEditAnalyticsRecord = async (req, res) => {
   try {
     const p_adminid = req.user?.id || req.query.p_adminid;
-    const { p_influencerid, views, likes, comments } = req.body;
+    const { 
+        p_userplatformanalyticid,
+        p_campaignid,
+        p_influencerid,
+        p_contentlinkid,
+        p_metricsjson
+     } = req.body||{};
+
+     if( !p_campaignid||!p_influencerid||!p_contentlinkid||!p_metricsjson){
+        return res.status(400).json({
+          message: "Required fields: p_campaignid, p_influencerid, p_contentlinkid, p_metricsjson"
+        });
+     }
 
     const result = await client.query(
-      `CALL ins.usp_insert_analyticscount(
+      `CALL ins.usp_upsert_userplatformanalytic(
         $1::bigint,
         $2::bigint,
-        $3::integer,
-        $4::integer,
-        $5::integer,
-        $6::bigint,
-        $7::bigint
+        $3::bigint,
+        $4::bigint,
+        $5::bigint,
+        $6::json,
+        $7::smallint,
+        $8::text
       );`,
       [
         p_adminid,
+        p_userplatformanalyticid||null,
+        p_campaignid,
         p_influencerid,
-        views,
-        likes,
-        comments,
+        p_contentlinkid,
+        JSON.stringify(p_metricsjson),
         null,
         null
       ]
     );
-
+    
     const { p_status, p_message } = result.rows[0];
 
-    if (p_status) {
+    if (p_status === 1) {
       return res.status(200).json({
         message: p_message,
         p_status,
       });
-    } else {
+    } 
+    else if (p_status === 0) {
       return res.status(400).json({
-        message: p_message,
-        p_status
+        message: p_message || "Validation failed",
+        p_status,
+      });
+    } 
+    else if (p_status === -1) {
+      return res.status(500).json({
+        message: "Something went wrong. Please try again later.",
+        p_status: false,
+      });
+    } 
+    else {
+      return res.status(500).json({
+        message: "Unexpected database response",
+        p_status: false,
       });
     }
   } catch (error) {
-    console.error("Error in insertAnalyticsData:", error);
+    console.error("Error in insertOrEditAnalyticsRecord:", error);
     return res.status(500).json({
       message: error.message,
     });
