@@ -15,6 +15,7 @@ import InfluencerCampaignRoutes from './src/routes/influencerroutes/InfluencerCa
 import VendorBrowseInfluencerRoutes from './src/routes/vendorroutes/VendorBrowseInfluencerRoutes.js';
 import VendorOffersRoutes from './src/routes/vendorroutes/VendorOffersRoutes.js';
 import VendorDashboardRoutes from './src/routes/vendorroutes/VendorDashboardRoutes.js';
+import VendorAnalyticsDashboardRoutes from './src/routes/vendorroutes/VendorAnalyticsDashboardRoutes.js';
 import CommonRoutes from './src/routes/CommonRoutes.js';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -68,6 +69,7 @@ app.use("/vendor", VendorMyCampaignRoutes);
 app.use("/vendor", VendorDashboardRoutes);
 app.use("/vendor", VendorContractRoutes);
 app.use("/vendor", VendorFeedbackRoutes);
+app.use("/vendor",VendorAnalyticsDashboardRoutes)
 app.use("/chat", ChatRoutes);
 app.use("/new", NotificationRoutes);
 app.use("/admin", AdminPanelRoutes);
@@ -128,6 +130,15 @@ io.on("connection", (socket) => {
     }
 
     console.log(`User ${userId} registered`);
+    io.on("connection", (socket) => {
+      console.log("🔌 User connected", socket.id);
+
+      socket.on("joinUserRoom", (userId) => {
+        socket.join(`user_${userId}`);
+        console.log("✅ User joined notification room:", `user_${userId}`);
+      });
+    });
+ 
 
     // FETCH ALL NOTIFICATIONS FROM DB
     // try {
@@ -145,7 +156,7 @@ io.on("connection", (socket) => {
     //   console.log("Notification fetch error", err);
     // }
   });
-
+  
    //send Notification
   socket.on("sendNotification", ({ toUserId, message }) => {
     io.to(`user_${toUserId}`).emit("receiveNotification", { message });
