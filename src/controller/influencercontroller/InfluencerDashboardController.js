@@ -123,3 +123,39 @@ export const insertOrEditOrDeleteToDo = async (req, res) => {
     });
   }
 };
+
+export const getInfluencerFeedBack = async (req, res) => {
+  const p_userid = req.user?.id;
+
+  if (!p_userid) {
+    return res.status(400).json({
+      Message: "User Id Required for Feedback"
+    });
+  }
+
+  try {
+    const influencerFeedback = await client.query(
+      `SELECT * FROM ins.fn_get_influencerfeedbacklist($1::BIGINT)`,
+      [p_userid]
+    );
+
+    const feedBackResult = influencerFeedback.rows[0].fn_get_influencerfeedbacklist;
+
+    if (!feedBackResult.length) {
+      return res.status(404).json({ Message: "Feedback Not Available" });
+    }
+
+    return res.status(200).json({
+      Message: "Vendor Performance Summary Successfully Fetched",
+      Data: feedBackResult,
+      source: "db"
+    });
+
+  } catch (error) {
+    console.error("Error in Get Vendor Performance Summary:", error);
+    return res.status(500).json({
+      Message: "Internal Server Error",
+      Error: error.message
+    });
+  }
+};

@@ -4,14 +4,15 @@ import {
   getInfluencerProfileCompletionPercentage,
   getToDoList,
   insertOrEditOrDeleteToDo,
+  getInfluencerFeedBack
 } from '../../controller/influencercontroller/InfluencerDashboardController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 
 const routes = express.Router();
 
 routes.get("/dashboard/counts",
-    authenticateUser(["Influencer"]),
-    getInfluencerDashsboardCountList
+  authenticateUser(["Influencer"]),
+  getInfluencerDashsboardCountList
 );
 
 routes.get(
@@ -31,6 +32,10 @@ routes.post(
   authenticateUser(["Influencer"]),
   insertOrEditOrDeleteToDo
 );
+routes.get(
+  "/dashboard/getfeedback",
+  getInfluencerFeedBack
+)
 
 
 export default routes;
