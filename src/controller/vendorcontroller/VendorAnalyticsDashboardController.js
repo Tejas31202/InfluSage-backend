@@ -42,7 +42,6 @@ export const getVendorCampaignOverview = async (req, res) => {
   }
 };
 
-
 export const getPerformanceTimeline = async (req, res) => {
   try {
     const p_userid = req.user?.id || req.query.p_userid;
@@ -103,7 +102,6 @@ export const getGraphFiltersDropdown=async (req, res) => {
     });
   }
 };
-
 
 export const getPlatformBreakdown = async (req, res) => {
   try {

@@ -29,7 +29,7 @@ import { client } from "./src/config/Db.js";
 import VendorContractRoutes from './src/routes/vendorroutes/VendorContractRoutes.js';
 import InfluencerContractRoutes from './src/routes/influencerroutes/InfluencerContractRoutes.js';
 import VendorFeedbackRoutes from './src/routes/vendorroutes/VendorFeedbackRoutes.js';
-
+import InfluencerAnalyticsDashboardRoutes  from './src/routes/influencerroutes/InfluencerAnalyticsDashboardRoutes.js';
 dotenv.config();
 
 const app = express();
@@ -60,6 +60,7 @@ app.use("/user", InfluencerCampaignRoutes);
 app.use("/user", InfluencerMyCampaignRoutes);
 app.use("/user", InfluencerDashboardRoutes);
 app.use("/user", InfluencerContractRoutes);
+app.use("user",InfluencerAnalyticsDashboardRoutes);
 app.use("/vendor", VendorRoutes);
 app.use("/vendor", VendorProfileDetailRoutes);
 app.use("/vendor", VendorCampaignRoutes);
@@ -69,7 +70,7 @@ app.use("/vendor", VendorMyCampaignRoutes);
 app.use("/vendor", VendorDashboardRoutes);
 app.use("/vendor", VendorContractRoutes);
 app.use("/vendor", VendorFeedbackRoutes);
-app.use("/vendor",VendorAnalyticsDashboardRoutes)
+app.use("/vendor",VendorAnalyticsDashboardRoutes);
 app.use("/chat", ChatRoutes);
 app.use("/new", NotificationRoutes);
 app.use("/admin", AdminPanelRoutes);
