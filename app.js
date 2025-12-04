@@ -15,6 +15,7 @@ import InfluencerCampaignRoutes from './src/routes/influencerroutes/InfluencerCa
 import VendorBrowseInfluencerRoutes from './src/routes/vendorroutes/VendorBrowseInfluencerRoutes.js';
 import VendorOffersRoutes from './src/routes/vendorroutes/VendorOffersRoutes.js';
 import VendorDashboardRoutes from './src/routes/vendorroutes/VendorDashboardRoutes.js';
+import VendorAnalyticsDashboardRoutes from './src/routes/vendorroutes/VendorAnalyticsDashboardRoutes.js';
 import CommonRoutes from './src/routes/CommonRoutes.js';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -66,6 +67,7 @@ app.use("/vendor", VendorOffersRoutes);
 app.use("/vendor", VendorMyCampaignRoutes);
 app.use("/vendor", VendorDashboardRoutes);
 app.use("/vendor", VendorContractRoutes);
+app.use("/vendor",VendorAnalyticsDashboardRoutes)
 app.use("/chat", ChatRoutes);
 app.use("/new", NotificationRoutes);
 app.use("/admin", AdminPanelRoutes);
