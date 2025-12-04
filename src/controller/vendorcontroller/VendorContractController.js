@@ -45,23 +45,25 @@ export const createOrEditContract = async (req, res) => {
 
     if (!p_campaignapplicationid) {
       return res.status(400).json({
+        status: false,
         message: "p_campaignapplicationid is required.",
       });
     }
     if (!p_contractjson || !p_contenttypejson) {
       return res.status(400).json({
+        status: false,
         message: "p_contractjson and p_contenttypejson are required.",
       });
     }
+
     const result = await client.query(
-      `CALL ins.usp_upsert_contractdetails_new(
-      $1::bigint,
-      $2::bigint,
-      $3::json,
-      $4::json,
-      $5::boolean,
-      $6::text,
-      $7::text
+      `CALL ins.usp_upsert_contractdetails(
+        $1::bigint,
+        $2::bigint,
+        $3::json,
+        $4::json,
+        $5::smallint,
+        $6::text
       );`,
       [
         p_campaignapplicationid,
@@ -70,39 +72,53 @@ export const createOrEditContract = async (req, res) => {
         JSON.stringify(p_contenttypejson),
         null,
         null,
-        null,
       ]
     );
 
-    const { p_status, p_message, p_code } = result.rows[0] || {};
+    const row = result.rows[0] || {};
+    const p_status = Number(row.p_status);
+    const p_message = row.p_message;
 
-    if (p_code === "ERR") {
-      // For ERR, log actual message but send generic response
-      console.error("Database ERR:", p_message);
-      return res.status(404).json({ message: "Something went wrong", p_status });
+    if (p_message === "You cannot create a contract until campaign in published state.") {
+      return res.status(404).json({
+        status: false,
+        message: p_message,
+        p_status: false,
+      });
     }
 
-    // Map p_code to HTTP status codes
-    const codeMap = {
-      OK: 200,
-      BUS: 400,
-      AUTH: 403,
-      EXT: 409
-    };
-
-    const httpStatus = codeMap[p_code] || 500;
-
-    
-
-    return res.status(httpStatus).json({
-      message: p_message || "Unknown error",
-      p_status,
-    });
-
+    if (p_status === 1) {
+      return res.status(200).json({
+        status: true,
+        message: p_message || "Contract created/updated successfully",
+        source: "db",
+      });
+    } else if (p_status === 0) {
+      return res.status(400).json({
+        status: false,
+        message: p_message || "Failed to create/update contract",
+        source: "db",
+      });
+    }
+    // Case 3: p_status = -1 → SP failed
+    else if (p_status === -1) {
+      return res.status(500).json({
+        status: false,
+        message: "Something went wrong. Please try again later.",
+      });
+    }
+    else {
+      return res.status(500).json({
+        status: false,
+        message: p_message || "Unexpected database response",
+      });
+    }
   } catch (error) {
-    console.error("error in createOrEditContract:", error);
+    console.error("createOrEditContract error:", error);
     return res.status(500).json({
-      message: error.message,
+      status: false,
+      message: "Internal server error",
+      error: error.message,
     });
   }
 };

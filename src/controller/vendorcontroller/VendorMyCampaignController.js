@@ -158,20 +158,41 @@ export const insertCampiginCancleApplication = async (req, res) => {
       $1::bigint, 
       $2::bigint, 
       $3::smallint, 
-      $4::boolean, 
+      $4::smallint, 
       $5::varchar
     );`,
       [userId, p_campaignid, p_objectiveid, null, null]
     );
 
-    const { p_status, p_message } = result.rows[0];
-    
-    if (p_status) {
-      return res
-        .status(200)
-        .json({ message: p_message,source: "db" });
-    } else {
-      return res.status(400).json({ message: p_message, p_status });
+    const row = result.rows[0] || {};
+    const p_status = Number(row.p_status);
+    const p_message = row.p_message;
+
+    // ----------------- HANDLE p_status -----------------
+    if (p_status === 1) {
+      return res.status(200).json({
+        message: p_message || "Cancellation reason submitted successfully",
+        source: "db",
+      });
+    } 
+    else if (p_status === 0) {
+      return res.status(400).json({
+        message: p_message || "Validation failed",
+        p_status,
+        source: "db",
+      });
+    } 
+    else if (p_status === -1) {
+      return res.status(500).json({
+        message: "Something went wrong. Please try again later.",
+        p_status: false,
+      });
+    } 
+    else {
+      return res.status(500).json({
+        message: "Unexpected database response",
+        p_status: false,
+      });
     }
   } catch (error) {
     console.error("error in cancle campaigin application :", error);

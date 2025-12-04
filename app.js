@@ -24,6 +24,7 @@ import VendorMyCampaignRoutes from './src/routes/vendorroutes/VendorMyCampaignRo
 import InfluencerMyCampaignRoutes from './src/routes/influencerroutes/InfluencerMyCampaignRoutes.js';
 import NotificationRoutes from './src/routes/NotificationRoutes.js';
 import AdminPanelRoutes from './src/routes/AdminPanelRoutes.js';
+import AdminAnalyticsDashboardRoutes from './src/routes/adminroutes/AdminAnalyticsDashboardRoutes.js';
 import UserAdminSupportChatRoutes from './src/routes/UserAdminSupportChatRoutes.js';
 import { client } from "./src/config/Db.js";
 import VendorContractRoutes from './src/routes/vendorroutes/VendorContractRoutes.js';
@@ -74,6 +75,7 @@ app.use("/vendor",VendorAnalyticsDashboardRoutes);
 app.use("/chat", ChatRoutes);
 app.use("/new", NotificationRoutes);
 app.use("/admin", AdminPanelRoutes);
+app.use("/admin",AdminAnalyticsDashboardRoutes);
 app.use("/chat/support", UserAdminSupportChatRoutes)
 
 const PORT = process.env.BACKEND_PORT || 3001;

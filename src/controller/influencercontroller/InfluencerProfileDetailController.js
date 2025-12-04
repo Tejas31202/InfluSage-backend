@@ -218,7 +218,7 @@ export const completeUserProfile = async (req, res) => {
         await client.query("BEGIN");
         await client.query(
           `CALL ins.usp_upsert_userprofile(
-              $1::bigint, $2::json, $3::json, $4::json, $5::json, $6::json, $7::boolean, $8::text
+              $1::bigint, $2::json, $3::json, $4::json, $5::json, $6::json, $7::smallint, $8::text
             )`,
           [
             userId,
@@ -266,7 +266,7 @@ export const completeUserProfile = async (req, res) => {
         await client.query("BEGIN");
         const result = await client.query(
           `CALL ins.usp_upsert_userprofile(
-        $1::bigint, $2::json, $3::json, $4::json, $5::json, $6::json, $7::boolean, $8::text
+        $1::bigint, $2::json, $3::json, $4::json, $5::json, $6::json, $7::smallint, $8::text
       )`,
           [
             userId,

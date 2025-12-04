@@ -58,7 +58,7 @@ export const startConversation = async (req, res) => {
     const result = await client.query(
       `call ins.usp_upsert_conversation(
         $1::bigint,
-        $2::boolean,
+        $2::smallint,
         $3::text
        )`,
       [
@@ -68,10 +68,12 @@ export const startConversation = async (req, res) => {
       ]
     );
 
-    const { p_status, p_message } = result.rows[0];
+    const row = result.rows[0] || {};
+    const p_status = Number(row.p_status);
+    const p_message = row.p_message;
 
-    if (p_status) {
-      
+    if (p_status === 1) {
+      // Fetch notifications
       const notifRes = await client.query(
         `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean)`,
         [p_userid, null]
@@ -79,16 +81,30 @@ export const startConversation = async (req, res) => {
 
       const notifications = notifRes.rows[0]?.fn_get_notificationlist || [];
 
-      // Step 3: Emit notifications via socket
+      // Emit notifications via socket
       if (notifications.length > 0) {
         io.to(`user_${p_userid}`).emit("receiveNotification", notifications);
         console.log(`Sent ${notifications.length} notifications to user ${p_userid}`);
       }
-      return res
-        .status(200)
-        .json({ message: p_message, p_status, source: "db" });
-    } else {
-      return res.status(400).json({ message: p_message, p_status });
+
+      return res.status(200).json({
+        status: true,
+        message: p_message || "Conversation started successfully",
+        source: "db",
+      });
+    } else if (p_status === 0) {
+      return res.status(400).json({
+        status: false,
+        message: p_message || "Failed to start conversation",
+        source: "db",
+      });
+    }
+    
+     else {
+      return res.status(500).json({
+        status: false,
+        message: p_message || "Unexpected database response",
+      });
     }
   } catch (error) {
     console.log(error);
@@ -160,7 +176,7 @@ export const insertMessage = async (req, res) => {
         $2::smallint, 
         $3::text,
         $4::text, 
-        $5::boolean, 
+        $5::smallint, 
         $6::text,
         $7::bigint,
         $8::bigint
@@ -177,49 +193,64 @@ export const insertMessage = async (req, res) => {
       ]
     );
 
-    const { p_status, p_message } = result.rows[0] || {};
+    const row = result.rows[0] || {};
+    const p_status = Number(row.p_status);
+    const p_message = row.p_message;
 
-    if (p_status) {
-
+    if (p_status === 1) {
       const recipientId = roleId === 1 ? vendorId : influencerId;
-        io.to(String(p_conversationid)).emit("receiveMessage", {
-          conversationid: p_conversationid,
-          message: p_messages || "",
-          filepaths: p_filepaths ? p_filepaths.split(",") : [],
-          roleid: p_roleid,
-          replyid: p_replyid || null,
-          createddate: new Date().toISOString(),
-          userid: req.user?.id,
-          campaignid,
-          influencerId,
-          vendorId,
-          readbyvendor: false,
-          readbyinfluencer: false,
-        });
 
-      
+      io.to(String(p_conversationid)).emit("receiveMessage", {
+        conversationid: p_conversationid,
+        message: p_messages || "",
+        filepaths: p_filepaths ? p_filepaths.split(",") : [],
+        roleid: p_roleid,
+        replyid: p_replyid || null,
+        createddate: new Date().toISOString(),
+        userid: userId,
+        campaignid,
+        influencerId,
+        vendorId,
+        readbyvendor: false,
+        readbyinfluencer: false,
+      });
+
       try {
         const notifResult = await client.query(
           `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean)`,
           [recipientId, null]
         );
         const notifications = notifResult.rows[0]?.fn_get_notificationlist || [];
-
-        // Emit notifications from DB
         io.to(`user_${recipientId}`).emit("receiveNotification", notifications);
         console.log(`📤 Sent DB notifications to user ${recipientId}`);
       } catch (error) {
         console.error("Error fetching notifications from DB:", error);
       }
 
-
       return res.status(200).json({
+        status: true,
         message: p_message,
-        p_status,
+        source: "db",
         filePaths: p_filepaths ? p_filepaths.split(",") : [],
       });
+    } else if (p_status === 0) {
+      return res.status(400).json({
+        status: false,
+        message: p_message,
+        source: "db",
+      });
+    } else if (p_status === -1) {
+      return res.status(500).json({
+        status: false,
+        message: "Unexpected database error",
+        source: "db",
+      });
     } else {
-      return res.status(400).json({ message: p_message, p_status });
+      return res.status(500).json({
+        status: false,
+        message: "Unknown database response",
+        source: "db",
+      });
     }
   } catch (error) {
     console.error("Failed to upsert message:", error);
@@ -321,19 +352,39 @@ export const updateUndoMessage = async (req, res) => {
         $1::BIGINT,
         $2::SMALLINT,
         $3::TEXT,
-        $4::BOOLEAN,
+        $4::SMALLINT,
         $5::VARCHAR
       )`,
       [p_messageid, p_roleid, p_action, null, null]
     );
-    const { p_status, p_message } = result.rows[0] || {};
-    if (p_status) {
+    const row = result.rows?.[0] || {};
+    const p_status = Number(row.p_status);
+    const p_message = row.p_message;
+
+    // ----------------- HANDLE p_status -----------------
+    if (p_status === 1) {
       return res.status(200).json({
-        message: p_message,
+        message: p_message || "Message updated successfully",
         p_status,
       });
-    } else {
-      return res.status(400).json({ message: p_message, p_status });
+    } 
+    else if (p_status === 0) {
+      return res.status(400).json({
+        message: p_message || "Validation failed",
+        p_status,
+      });
+    } 
+    else if (p_status === -1) {
+      return res.status(500).json({
+        message: "Something went wrong. Please try again later.",
+        p_status: false,
+      });
+    } 
+    else {
+      return res.status(500).json({
+        message: "Unexpected database response",
+        p_status: false,
+      });
     }
   } catch (error) {
     console.error("Failed to update message:", error);

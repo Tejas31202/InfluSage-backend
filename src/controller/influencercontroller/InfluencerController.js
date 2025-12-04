@@ -132,63 +132,89 @@ export const loginUser = async (req, res) => {
 
   try {
     const result = await client.query(
-      "CALL ins.usp_login_user($1::VARCHAR, $2::JSON, $3::BOOLEAN, $4::TEXT);",
+      "CALL ins.usp_login_user($1::VARCHAR, $2::JSON, $3::SMALLINT, $4::TEXT);",
       [email, null, null, null]
     );
 
-    const dbResponse = result.rows[0];
-    const user = dbResponse.p_loginuser;
-    const p_status = dbResponse.p_status;
-    const p_message = dbResponse.p_message;
+    const row = result.rows[0] || {};
+    const user = row.p_loginuser;
+    const p_status = Number(row.p_status);
+    const p_message = row.p_message || "Unknown response from DB";
 
-    if (!user || user.code === "NOTREGISTERED") {
-      return res.status(404).json({
-        message: user?.message,
-        code: user?.code,
-      });
-    }
+    // Handle DB response status
+    if (p_status === 1) {
+      if (!user || user.code === "NOTREGISTERED") {
+        return res.status(404).json({
+          status: false,
+          message: user?.message || "User not registered",
+          code: user?.code || "NOTREGISTERED",
+          source: "db",
+        });
+      }
 
-    if (!user.passwordhash) {
-      return res.status(404).json({
-        message: "In DB response, passwordhash field is missing or null",
-      });
-    }
-    // If DB says login failed
-    if (!p_status) {
-      return res.status(400).json({ message: p_message });
-    }
+      if (!user.passwordhash) {
+        return res.status(500).json({
+          status: false,
+          message: "Password hash missing in DB response",
+          source: "db",
+        });
+      }
 
-    // Compare entered password with hashed password
-    const isMatch = await bcrypt.compare(password, user.passwordhash);
+      // Compare entered password with hashed password
+      const isMatch = await bcrypt.compare(password, user.passwordhash);
 
-    if (!isMatch) {
-      return res.status(401).json({ message: "Incorrect password" });
-    }
+      if (!isMatch) {
+        return res.status(401).json({
+          status: false,
+          message: "Incorrect password",
+          source: "db",
+        });
+      }
 
-    //Generate JWT token
-    const token = jwt.sign(
-      {
+      // Generate JWT token
+      const token = jwt.sign(
+        {
+          id: user.userid,
+          email: email,
+          role: user.roleid,
+          name: user.fullname,
+          p_code: user.code,
+        },
+        JWT_SECRET,
+        { expiresIn: "1h" }
+      );
+
+      return res.status(200).json({
+        status: true,
+        message: "Welcome back " + user.fullname,
+        token,
         id: user.userid,
+        name: user.fullname,
         email: email,
         role: user.roleid,
-        name: user.fullname,
-        p_code:user.code
-      },
-      JWT_SECRET,
-      { expiresIn: "1h" }
-    );
-
-    // Success response
-    return res.status(200).json({
-      message: "Welcome back " + user.fullname,
-      token, // ← send to frontend
-      id: user.userid,
-      name: user.fullname,
-      email: email,
-      role: user.roleid,
-      p_code: user.code,
-      p_message: user.message,
-    });
+        p_code: user.code,
+        p_message: user.message,
+        source: "db",
+      });
+    } else if (p_status === 0) {
+      return res.status(400).json({
+        status: false,
+        message: p_message,
+        source: "db",
+      });
+    } else if (p_status === -1) {
+      return res.status(500).json({
+        status: false,
+        message: "Unexpected database error",
+        source: "db",
+      });
+    } else {
+      return res.status(500).json({
+        status: false,
+        message: "Unknown database response",
+        source: "db",
+      });
+    }
   } catch (error) {
     console.error("Login error:", error);
     return res.status(500).json({ message: "Server error during login" });
@@ -284,14 +310,34 @@ export const resetPassword = async (req, res) => {
       [userId, passwordhash]
     );
 
-    const { p_status, p_message } = updateResult.rows[0];
-    // Remove token from Redis
+    const row = updateResult.rows?.[0] || {};
+    const p_status = Number(row.p_status);
+    const p_message = row.p_message;
+
+    // ----------------- REMOVE TOKEN FROM REDIS -----------------
     await redisClient.del(`reset:${token}`);
 
-    if (p_status) {
-      return res.status(200).json({ message: p_message });
+    // ----------------- HANDLE p_status -----------------
+    if (p_status === 1) {
+      return res.status(200).json({
+        status: p_status,
+        message: p_message || "Password reset successfully",
+      });
+    } else if (p_status === 0) {
+      return res.status(400).json({
+        status: false,
+        message: p_message || "Validation failed",
+      });
+    } else if (p_status === -1) {
+      return res.status(500).json({
+        status: false,
+        message: "Something went wrong. Please try again later.",
+      });
     } else {
-      return res.status(400).json({ message: p_message });
+      return res.status(500).json({
+        status: false,
+        message: "Unexpected database response",
+      });
     }
   } catch (error) {
     console.error("Reset Password Error:", error);

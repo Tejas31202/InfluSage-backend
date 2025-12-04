@@ -88,7 +88,7 @@ export const insertOrEditOrDeleteToDo = async (req, res) => {
       $4::date, 
       $5::boolean, 
       $6::boolean,
-      $7::boolean,
+      $7::smallint,
       $8::varchar
       );`,
       [
@@ -103,17 +103,33 @@ export const insertOrEditOrDeleteToDo = async (req, res) => {
       ]
     );
 
-    const { p_status, p_message } = result.rows[0];
+    const row = result.rows[0] || {};
+    const p_status = Number(row.p_status);
+    const p_message = row.p_message;
 
-    if (p_status) {
+    if (p_status === 1) {
       return res.status(200).json({
+        status: true,
         message: p_message,
         source: "db",
       });
-    } else {
+    } else if (p_status === 0) {
       return res.status(400).json({
+        status: false,
         message: p_message,
-        status: p_status,
+        source: "db",
+      });
+    } else if (p_status === -1) {
+      return res.status(500).json({
+        status: false,
+        message: "Unexpected database error",
+        source: "db",
+      });
+    } else {
+      return res.status(500).json({
+        status: false,
+        message: "Unknown database response",
+        source: "db",
       });
     }
   } catch (error) {
