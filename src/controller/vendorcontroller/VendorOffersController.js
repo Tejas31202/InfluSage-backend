@@ -91,17 +91,38 @@ export const updateApplicationStatus = async (req, res) => {
       `CALL ins.usp_update_applicationstatus(
         $1::bigint,
         $2::varchar,
-        $3::boolean,
+        $3::smallint,
         $4::text
         )`,
       [p_applicationid, p_statusname, null, null]
     );
-    const { p_status, p_message } = result.rows[0];
+    const row = result.rows?.[0] || {};
+    const p_status = Number(row.p_status);
+    const p_message = row.p_message;
 
-    if (p_status) {
-      return res.status(200).json({ message: p_message, source: "db" });
+    // ----------------- HANDLE p_status -----------------
+    if (p_status === 1) {
+      return res.status(200).json({
+        status: true,
+        message: p_message || "Application status updated successfully",
+        source: "db",
+      });
+    } else if (p_status === 0) {
+      return res.status(400).json({
+        status: false,
+        message: p_message || "Validation failed",
+        source: "db",
+      });
+    } else if (p_status === -1) {
+      return res.status(500).json({
+        status: false,
+        message: "Something went wrong. Please try again later.",
+      });
     } else {
-      return res.status(400).json({ message: p_message, p_status });
+      return res.status(500).json({
+        status: false,
+        message: "Unexpected database response",
+      });
     }
   } catch (error) {
     console.error("Error in update application status :", error.message);

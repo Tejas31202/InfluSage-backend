@@ -117,18 +117,41 @@ export const addFavouriteInfluencer = async (req, res) => {
       `CALL ins.usp_insert_influencersave(
         $1::bigint,
         $2::bigint,
-        $3::boolean,
+        $3::smallint,
         $4::text
       )`,
       [userId, p_influencerId, null, null]
     );
 
-    const { p_status, p_message } = result.rows[0];
+    const row = result.rows?.[0] || {};
+    const p_status = Number(row.p_status);
+    const p_message = row.p_message;
 
-    return res.status(200).json({
-      status: p_status,
-      message: p_message,
-    });
+    // -------------------------------
+    //  HANDLE p_status
+    // -------------------------------
+    if (p_status === 1) {
+      return res.status(200).json({
+        status: true,
+        message: p_message || "Influencer added to favourites",
+      });
+    } else if (p_status === 0) {
+      return res.status(400).json({
+        status: false,
+        message: p_message || "Validation failed",
+      });
+    } else if (p_status === -1) {
+      return res.status(500).json({
+        status: false,
+        message: "Something went wrong. Please try again later.",
+      });
+    } else {
+      return res.status(500).json({
+        status: false,
+        message: "Unexpected database response",
+      });
+    }
+
   } catch (error) {
     console.error("Error adding favourite influencer:", error);
     return res.status(500).json({
@@ -208,7 +231,7 @@ export const insertCampaignInvites = async (req, res) => {
       `CALL ins.usp_upsert_campaigninvites(
         $1::bigint,
         $2::json,
-        $3::boolean,
+        $3::smallint,
         $4::text
        )`,
       [
@@ -219,14 +242,35 @@ export const insertCampaignInvites = async (req, res) => {
       ]
     );
 
-    const { p_status, p_message } = result.rows[0];
+    const row = result.rows[0] || {};
+    const p_status = Number(row.p_status);
+    const p_message = row.p_message;
 
-    if (p_status) {
-      return res
-        .status(200)
-        .json({ message: p_message, p_status, source: "db" });
-    } else {
-      return res.status(400).json({ message: p_message, p_status });
+    if (p_status === 1) {
+      return res.status(200).json({
+        status: true,
+        message: p_message || "Campaign invites inserted successfully",
+        source: "db",
+      });
+    } else if (p_status === 0) {
+      return res.status(400).json({
+        status: false,
+        message: p_message || "Failed to insert campaign invites",
+        source: "db",
+      });
+    }
+    // Case 3: p_status = -1 → SP failed
+    else if (p_status === -1) {
+      return res.status(500).json({
+        status: false,
+        message: "Something went wrong. Please try again later.",
+      });
+    }
+    else {
+      return res.status(500).json({
+        status: false,
+        message: p_message || "Unexpected database response",
+      });
     }
   } catch (error) {
     console.log(error);

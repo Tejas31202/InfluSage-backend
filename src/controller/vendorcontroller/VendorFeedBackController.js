@@ -18,7 +18,7 @@ export const vendorInsertFeedback = async (req, res) => {
             $2::BIGINT,
             $3::SMALLINT,
             $4::TEXT,
-            $5::boolean,
+            $5::smallint,
             $6::TEXT
             )`,
             [
@@ -30,14 +30,43 @@ export const vendorInsertFeedback = async (req, res) => {
                 null
             ])
 
-        const { p_status, p_message } = insertFeedback.rows?.[0] || {};
+        const feedbackRow = insertFeedback.rows?.[0] || {};
+        const p_status = Number(feedbackRow.p_status);
+        const p_message = feedbackRow.p_message;
 
-        const feedbackResult = insertFeedback.rows?.[0] || {};
-        return res.status(200).json({
-            Message: p_message || "Feedback submitted successfully",
-            Status: p_status,
-            data: feedbackResult
-        })
+        // -------------------------------
+        //  HANDLE p_status
+        // -------------------------------
+        if (p_status === 1) {
+            // SUCCESS
+            return res.status(200).json({
+                status: true,
+                message: p_message || "Feedback submitted successfully",
+                data: feedbackRow
+            });
+        } else if (p_status === 0) {
+            // VALIDATION FAIL
+            return res.status(400).json({
+                status: false,
+                message: p_message || "Validation failed",
+                data: feedbackRow
+            });
+        } else if (p_status === -1) {
+            // PROCEDURE FAILED
+            return res.status(500).json({
+                status: false,
+                message: "Something went wrong. Please try again later.",
+                data: feedbackRow
+            });
+        } else {
+            // UNEXPECTED
+            return res.status(500).json({
+                status: false,
+                message: "Unexpected database response",
+                data: feedbackRow
+            });
+        }
+
 
     } catch (error) {
         console.error("Error in Inserting FeedBack", error);

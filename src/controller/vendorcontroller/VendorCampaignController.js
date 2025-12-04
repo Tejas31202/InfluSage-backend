@@ -53,7 +53,7 @@ export const finalizeCampaign = async (req, res) => {
         $7::JSON,
         $8::JSON,
         $9::JSON,
-        $10::boolean,
+        $10::smallint,
         $11::TEXT
       )`,
       [
@@ -73,87 +73,93 @@ export const finalizeCampaign = async (req, res) => {
 
     await client.query("COMMIT");
 
-    const { p_status, p_message, p_campaignid} = result.rows[0] || {};
+    const row = result.rows[0] || {};
+    const p_status = Number(row.p_status);
+    const p_message = row.p_message;
+    const finalCampaignId = row.p_campaignid;
 
-    if (!p_status) {
+    // ----------------- HANDLE p_status -----------------
+    if (p_status === 1) {
+      // ------------------- FILE MOVE LOGIC -------------------
+      const baseTempFolder = `Vendor/${userId}/Campaigns/_temp`;
+      const finalFolderBase = `Vendor/${userId}/Campaigns/${finalCampaignId}`;
+      const finalPhotoFolder = `${finalFolderBase}/campaign_profile`;
+      const finalPortfolioFolder = `${finalFolderBase}/campaign_portfolio`;
+
+      // Move photo files
+      const { data: tempPhotos } = await supabase.storage
+        .from("uploads")
+        .list(`${baseTempFolder}/campaign_profile`);
+      if (tempPhotos?.length > 0) {
+        for (const file of tempPhotos) {
+          const oldPath = `${baseTempFolder}/campaign_profile/${file.name}`;
+          const newPath = `${finalPhotoFolder}/${file.name}`;
+
+          const { data: fileData, error: downloadErr } = await supabase.storage
+            .from("uploads")
+            .download(oldPath);
+
+          if (!downloadErr) {
+            await supabase.storage.from("uploads").upload(newPath, fileData, { upsert: true });
+            await supabase.storage.from("uploads").remove([oldPath]);
+          }
+        }
+      }
+
+      // Move portfolio files
+      const { data: tempPortfolios } = await supabase.storage
+        .from("uploads")
+        .list(`${baseTempFolder}/campaign_portfolio`);
+      if (tempPortfolios?.length > 0) {
+        for (const file of tempPortfolios) {
+          const oldPath = `${baseTempFolder}/campaign_portfolio/${file.name}`;
+          const newPath = `${finalPortfolioFolder}/${file.name}`;
+
+          const { data: fileData, error: downloadErr } = await supabase.storage
+            .from("uploads")
+            .download(oldPath);
+
+          if (!downloadErr) {
+            await supabase.storage.from("uploads").upload(newPath, fileData, { upsert: true });
+            await supabase.storage.from("uploads").remove([oldPath]);
+          }
+        }
+      }
+
+      // Clean up temp folders and Redis cache
+      await supabase.storage.from("uploads").remove([
+        `${baseTempFolder}/campaign_profile`,
+        `${baseTempFolder}/campaign_portfolio`,
+      ]);
+
+      await redisClient.del(redisKey);
+
+      return res.status(200).json({
+        status: true,
+        message: p_message || "Campaign finalized successfully",
+        campaignId: finalCampaignId,
+        source: "db",
+      });
+    } 
+    else if (p_status === 0) {
       return res.status(400).json({
-        p_status,
-        message:p_message ,
+        status: false,
+        message: p_message || "Validation failed",
+        source: "db",
+      });
+    } 
+    else if (p_status === -1) {
+      return res.status(500).json({
+        status: false,
+        message: "Something went wrong while finalizing campaign",
+      });
+    } 
+    else {
+      return res.status(500).json({
+        status: false,
+        message: "Unexpected database response",
       });
     }
-
-    // ------------------- FILE MOVE LOGIC -------------------
- 
-    // let username= req.user.name.split(" ")[0].trim();
-      
-    const baseTempFolder = `Vendor/${userId}/Campaigns/_temp`;
-    const finalFolderBase = `Vendor/${userId}/Campaigns/${p_campaignid}`;
-    const finalPhotoFolder = `${finalFolderBase}/campaign_profile`;
-    const finalPortfolioFolder = `${finalFolderBase}/campaign_portfolio`;
-
-    // ------------------- DELETE OLD PHOTO IF EXISTS -------------------
-    // const { data: existingPhotos } = await supabase.storage.from("uploads").list(finalPhotoFolder);
-
-    // if (existingPhotos?.length > 0) {
-    //     const oldPhotoPaths = existingPhotos.map((f) => `${finalPhotoFolder}/${f.name}`);
-    //     await supabase.storage.from("uploads").remove(oldPhotoPaths);
-    // }
-
-    // Move photo files
-    const { data: tempPhotos } = await supabase.storage.from("uploads").list(`${baseTempFolder}/campaign_profile`);
-    if (tempPhotos?.length > 0) {
-      for (const file of tempPhotos) {
-        const oldPath = `${baseTempFolder}/campaign_profile/${file.name}`;
-        const newPath = `${finalPhotoFolder}/${file.name}`;
-
-        const { data: fileData, error: downloadErr } = await supabase.storage
-          .from("uploads")
-          .download(oldPath);
-
-        if (downloadErr) {
-          console.warn(" Photo file download failed:", downloadErr.message);
-          continue;
-        }
-
-        await supabase.storage.from("uploads").upload(newPath, fileData, { upsert: true });
-        await supabase.storage.from("uploads").remove([oldPath]);
-      }
-    }
-
-    // Move portfolio files
-    const { data: tempPortfolios } = await supabase.storage.from("uploads").list(`${baseTempFolder}/campaign_portfolio`);
-    if (tempPortfolios?.length > 0) {
-      for (const file of tempPortfolios) {
-        const oldPath = `${baseTempFolder}/campaign_portfolio/${file.name}`;
-        const newPath = `${finalPortfolioFolder}/${file.name}`;
-
-        const { data: fileData, error: downloadErr } = await supabase.storage
-          .from("uploads")
-          .download(oldPath);
-
-        if (downloadErr) {
-          console.warn(" Portfolio file download failed:", downloadErr.message);
-          continue;
-        }
-
-        await supabase.storage.from("uploads").upload(newPath, fileData, { upsert: true });
-        await supabase.storage.from("uploads").remove([oldPath]);
-      }
-    }
-
-    // Clean up temp folders and Redis cache
-    await supabase.storage.from("uploads").remove([
-      `${baseTempFolder}/campaign_profile`,
-      `${baseTempFolder}/campaign_portfolio`,
-    ]);
-
-    await redisClient.del(redisKey);
-
-    return res.status(200).json({
-      status: true,
-      message: p_message,
-      campaignId: p_campaignid,
-    });
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("finalizeCampaign error:", error);
@@ -769,7 +775,7 @@ export const upsertCampaign = async (req, res) => {
         $7::JSON, 
         $8::JSON, 
         $9::JSON,
-        $10::boolean,
+        $10::smallint,
         $11::TEXT
       )`,
       [
@@ -787,15 +793,35 @@ export const upsertCampaign = async (req, res) => {
       ]
     );
 
-    const { p_status, p_message, p_campaignid } = result.rows[0];
+    const row = result.rows[0] || {};
+    const p_status = Number(row.p_status);
+    const p_message = row.p_message;
+    const finalCampaignId = row.p_campaignid;
 
-    return res.status(200).json({
-      success: p_status,
-      message: p_message ,
-      campaignId: p_campaignid,
-      source: "db",
-    });
-
+    if (p_status === 1) {
+      return res.status(200).json({
+        status: true,
+        message: p_message || "Campaign saved successfully",
+        campaignId: finalCampaignId,
+        source: "db",
+      });
+    } else if (p_status === 0) {
+      return res.status(400).json({
+        status: false,
+        message: p_message || "Validation failed",
+        source: "db",
+      });
+    } else if (p_status === -1) {
+      return res.status(500).json({
+        status: false,
+        message: "Something went wrong while saving campaign",
+      });
+    } else {
+      return res.status(500).json({
+        status: false,
+        message: "Unexpected database response",
+      });
+    }
   } catch (err) {
     console.error("upsertCampaign error:", err);
     return res.status(500).json({

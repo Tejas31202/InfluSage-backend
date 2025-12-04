@@ -260,7 +260,7 @@ export const sendSupportMessage = async (req, res) => {
         $2::smallint,
         $3::text,
         $4::text,
-        $5::boolean,
+        $5::smallint,
         $6::text,
         $7::bigint
       );`,
@@ -275,41 +275,61 @@ export const sendSupportMessage = async (req, res) => {
       ]
     );
 
-    const { p_status, p_message } = result.rows[0] || {};
+    const row = result.rows?.[0] || {};
+    const p_status = Number(row.p_status);
+    const p_message = row.p_message;
 
-    if (p_status) {
-
-    io.to(`ticket_${p_usersupportticketid}`).emit("receiveSupportMessage", {
-      ticketId: p_usersupportticketid,
-      senderId: p_senderid,
-      message: p_messages,
-      file: p_filepath,
-      replyId: p_replyid,
-      lastmessagedate: new Date(),
-      readbyuser: false,
-    });
-
-    let receiverId = null;
-    if (data.userid && data.adminid) {
-      receiverId = p_senderid === data.userid ? data.adminid : data.userid;
-    } else if (data.receiverid) {
-      receiverId = data.receiverid;
-    }
-      io.to(`user_${receiverId}`).emit("sidebarTicketUpdate", {
+    // ----------------- HANDLE p_status -----------------
+    if (p_status === 1) {
+      // SOCKET EMIT
+      io.to(`ticket_${p_usersupportticketid}`).emit("receiveSupportMessage", {
         ticketId: p_usersupportticketid,
+        senderId: p_senderid,
+        message: p_messages,
+        file: p_filepath,
+        replyId: p_replyid,
         lastmessagedate: new Date(),
-        readbyadmin: p_senderid === data.adminid,
-        readbyuser: p_senderid === data.userid
+        readbyuser: false,
       });
+
+      let receiverId = null;
+      if (data.userid && data.adminid) {
+        receiverId = p_senderid === data.userid ? data.adminid : data.userid;
+      } else if (data.receiverid) {
+        receiverId = data.receiverid;
+      }
+
+      if (receiverId) {
+        io.to(`user_${receiverId}`).emit("sidebarTicketUpdate", {
+          ticketId: p_usersupportticketid,
+          lastmessagedate: new Date(),
+          readbyadmin: p_senderid === data.adminid,
+          readbyuser: p_senderid === data.userid,
+        });
+      }
+
       return res.status(200).json({
-        message: p_message,
-        p_status,
+        status: true,
+        message: p_message || "Message sent successfully",
         filePaths: p_filepath,
       });
+    } else if (p_status === 0) {
+      return res.status(400).json({
+        status: false,
+        message: p_message || "Validation failed",
+        filePaths: p_filepath,
+      });
+    } else if (p_status === -1) {
+      return res.status(500).json({
+        status: false,
+        message: "Something went wrong. Please try again later.",
+      });
+    } else {
+      return res.status(500).json({
+        status: false,
+        message: "Unexpected database response",
+      });
     }
-    else {
-        return res.status(400).json({ message: p_message, p_status });
-      }
     } catch (error) {
       console.error("Error in sendSupportMessage:", error);
       return res.status(500).json({ message: error.message });

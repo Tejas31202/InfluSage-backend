@@ -20,21 +20,40 @@ export const influencerApproveOrRejectContract = async (req, res) => {
       $1::bigint,
       $2::bigint,
       $3::varchar(15),
-      $4::boolean,
+      $4::smallint,
       $5::text
       );`,
       [p_influencerid, p_contractid, p_statusname, null, null]
     );
     
-    const { p_status, p_message } = result.rows[0];
+    const row = result.rows?.[0] || {};
+    const p_status = Number(row.p_status);
+    const p_message = row.p_message;
 
-    if (p_status) {
+    // ----------------- HANDLE p_status -----------------
+    if (p_status === 1) {
       return res.status(200).json({
         message: p_message,
         p_status,
       });
-    } else {
-      return res.status(400).json({ message: p_message, p_status });
+    } 
+    else if (p_status === 0) {
+      return res.status(400).json({
+        message: p_message || "Validation failed",
+        p_status,
+      });
+    } 
+    else if (p_status === -1) {
+      return res.status(500).json({
+        message: "Something went wrong. Please try again later.",
+        p_status: false,
+      });
+    } 
+    else {
+      return res.status(500).json({
+        message: "Unexpected database response",
+        p_status: false,
+      });
     }
   } catch (error) {
     console.error("error in influencerApproveOrRejectContract:", error);
@@ -65,7 +84,7 @@ export const uploadContentLink = async (req, res) => {
       $1::bigint,
       $2::bigint,
       $3::json,
-      $4::boolean,
+      $4::smallint,
       $5::text
       );`,
       [
@@ -77,15 +96,33 @@ export const uploadContentLink = async (req, res) => {
       ]
     );
 
-    const { p_status, p_message } = result.rows[0];
+    const row = result.rows[0] || {};
+    const p_status = Number(row.p_status);
+    const p_message = row.p_message;
 
-    if (p_status) {
+    if (p_status === 1) {
       return res.status(200).json({
-        message: p_message,
-        p_status,
+        status: true,
+        message: p_message || "Content link uploaded successfully",
       });
-    } else {
-      return res.status(400).json({ message: p_message, p_status });
+    } else if (p_status === 0) {
+      return res.status(400).json({
+        status: false,
+        message: p_message || "Failed to upload content link",
+      });
+    }
+    // Case 3: p_status = -1 → SP failed
+    else if (p_status === -1) {
+      return res.status(500).json({
+        status: false,
+        message: "Something went wrong. Please try again later.",
+      });
+    } 
+    else {
+      return res.status(500).json({
+        status: false,
+        message: p_message || "Unexpected database response",
+      });
     }
   } catch (error) {
     console.error("error in uploadContentLink:", error);

@@ -169,42 +169,65 @@ export const applyNowCampaign = async (req, res) => {
         $1::bigint,
         $2::bigint,
         $3::json,
-        $4::boolean,
+        $4::smallint,
         $5::text
       )`,
       [userId, campaignId, JSON.stringify(applycampaignjson), null, null]
     );
 
-    const { p_status, p_message } = result.rows[0];
+    // After stored procedure call
+    const row = result.rows[0];
+    const p_status = Number(row?.p_status);
+    const p_message = row?.p_message;
 
-    if (p_status) {
+    // Case 1: p_status = 1 → SUCCESS
+    if (p_status === 1) {
       try {
         const notification = await client.query(
-          `select * from ins.fn_get_notificationlist
-            ($1::bigint,$2::boolean)`,
+          `select * from ins.fn_get_notificationlist($1::bigint,$2::boolean)`,
           [userId, null]
         );
-        const result = notification.rows[0]?.fn_get_notificationlist || [];
 
-        // Emit new notification
-        io.to(`user_${userId}`).emit("receiveNotification", result);
-        console.log("Sent new notification to user:", userId);
-        console.log("send apply now campaign", result)
-        console.log('socket connected', `user_${userId}`)
+        const notifyData = notification.rows[0]?.fn_get_notificationlist || [];
+        io.to(`user_${userId}`).emit("receiveNotification", notifyData);
 
       } catch (error) {
-        console.error('Error While Fetching Notification')
-        return res.status(500).json({ message: 'Internal Server Error' })
+        console.error("Error While Fetching Notification");
       }
+
       await redisClient.del(redisKey);
 
       return res.status(200).json({
+        status: true,
         message: p_message || "Application saved successfully",
         source: "db",
       });
-    } else {
-      return res.status(400).json({ message: p_message });
     }
+
+    // Case 2: p_status = 0 → DB VALIDATION FAIL
+    else if (p_status === 0) {
+      return res.status(400).json({
+        status: false,
+        message: p_message || "Validation failed",
+      });
+    }
+
+    // Case 3: p_status = -1 → PROCEDURE FAILED
+    else if (p_status === -1) {
+      return res.status(500).json({
+        status: false,
+        message: "Something went wrong. Please try again later.",
+      });
+    }
+
+    // Fallback: if unexpected value
+    else {
+      return res.status(500).json({
+        status: false,
+        message: "Unexpected database response",
+      });
+    }
+
   } catch (error) {
     console.error("Error applying to campaign:", error);
     return res.status(500).json({ message: error.message });
@@ -273,25 +296,72 @@ export const saveCampaign = async (req, res) => {
     const campaignId = req.params.campaignId;
 
     if (!campaignId || !userId) {
-      return res
-        .status(400)
-        .json({ message: "User ID and Campaign ID are required." });
+      return res.status(400).json({
+        status: false,
+        message: "User ID and Campaign ID are required.",
+      });
     }
 
-    const SaveCampaign = await client.query(
-      `CALL ins.usp_insert_campaignsave($1::bigint,$2::bigint, $3, $4)`,
+    // Call stored procedure
+    const result = await client.query(
+      `CALL ins.usp_insert_campaignsave(
+        $1::bigint,
+        $2::bigint,
+        $3,
+        $4
+      )`,
       [userId, campaignId, null, null]
     );
 
-    const { p_message } = SaveCampaign.rows[0];
-    return res.status(201).json({
-      message: p_message,
-    });
+    const row = result.rows[0];
+    const p_status = Number(row?.p_status);
+    const p_message = row?.p_message;
+
+    // -------------------------
+    //      STATUS HANDLING
+    // -------------------------
+
+    // Case 1 → p_status = 1 (Success)
+    if (p_status === 1) {
+      return res.status(200).json({
+        status: true,
+        message: p_message || "Campaign saved successfully",
+      });
+    }
+
+    // Case 2 → p_status = 0 (Validation fail)
+    else if (p_status === 0) {
+      return res.status(400).json({
+        status: false,
+        message: p_message || "Validation failed",
+      });
+    }
+
+    // Case 3 → p_status = -1 (SP failed)
+    else if (p_status === -1) {
+      return res.status(500).json({
+        status: false,
+        message: "Something went wrong. Please try again later.",
+      });
+    }
+
+    // Unexpected case
+    else {
+      return res.status(500).json({
+        status: false,
+        message: "Unexpected database response",
+      });
+    }
+
   } catch (error) {
-    console.error("Error saving campaign application:", error);
-    return res.status(500).json({ message: "Internal Server Error" });
+    console.error("Error saving campaign:", error);
+    return res.status(500).json({
+      status: false,
+      message: "Internal Server Error",
+    });
   }
 };
+
 
 //For Get Save Camapign
 export const getSaveCampaign = async (req, res) => {
@@ -497,18 +567,39 @@ export const withdrawApplication = async (req, res) => {
       `CALL ins.usp_update_applicationstatus(
         $1::bigint,
         $2::varchar,
-        $3::boolean,
+        $3::smallint,
         $4::text
       )`,
       [p_applicationid, p_statusname, null, null]
     );
 
-    const { p_status, p_message } = result.rows[0];
+    const row = result.rows?.[0] || {};
+    const p_status = Number(row.p_status);
+    const p_message = row.p_message;
 
-    if (p_status) {
-      return res.status(200).json({ message: p_message, source: "db" });
+    // ----------------- HANDLE p_status -----------------
+    if (p_status === 1) {
+      return res.status(200).json({
+        status: true,
+        message: p_message || "Application withdrawn successfully",
+        source: "db",
+      });
+    } else if (p_status === 0) {
+      return res.status(400).json({
+        status: false,
+        message: p_message || "Validation failed",
+        source: "db",
+      });
+    } else if (p_status === -1) {
+      return res.status(500).json({
+        status: false,
+        message: "Something went wrong. Please try again later.",
+      });
     } else {
-      return res.status(400).json({ message: p_message, p_status });
+      return res.status(500).json({
+        status: false,
+        message: "Unexpected database response",
+      });
     }
   } catch (error) {
     console.error("Error in withdraw application:", error.message);
