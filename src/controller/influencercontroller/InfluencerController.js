@@ -107,17 +107,31 @@ export const verifyOtpAndRegister = async (req, res) => {
 
     // Insert user into DB
     const result = await client.query(
-      `CALL ins.usp_insert_user($1::VARCHAR, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::BOOLEAN, $6::SMALLINT, NULL, NULL, NULL)`,
+      `CALL ins.usp_insert_user($1::VARCHAR, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::BOOLEAN, $6::SMALLINT, NULL, NULL)`,
       [firstName, lastName, email, passwordhash, true, roleId]
     );
 
-    const { p_code, p_message } = result.rows[0];
-
+    const row = result.rows?.[0] || {};
+    const p_status = Number(row.p_status);
+    const p_message = row.p_message;
     // Clean up Redis
     await redisClient.del(`otp:${email}`);
     await redisClient.del(`pendingUser:${email}`);
   
-    return res.status(p_code).json({ message: p_message });
+    if (p_status === 1) {
+      return res.status(200).json({ message: p_message, p_status });
+    }
+
+    if (p_status === 0) {
+      return res.status(400).json({ message: p_message, p_status });
+    }
+
+    if (p_status === -1) {
+      return res.status(500).json({ message: "something went wrong", p_status });
+    }
+
+    // Fallback (just in case DB sends something else)
+    return res.status(400).json({ message: p_message, p_status });
   } catch (error) {
     console.error(" OTP Verification & Registration Error:", error);
     res

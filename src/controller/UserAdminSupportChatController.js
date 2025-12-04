@@ -72,7 +72,7 @@ export const createTicketAndUpdateStatus = async (req, res) => {
       $2::bigint,
       $3::smallint,
       $4::varchar(10),
-      $5::boolean,
+      $5::smallint,
       $6::varchar
       );`,
       [
@@ -86,14 +86,32 @@ export const createTicketAndUpdateStatus = async (req, res) => {
     );
     const { p_status, p_message } = result.rows[0];
 
-    if (p_status) {
+    if (p_status === 1) {
       return res.status(200).json({
         message: p_message,
         p_status,
       });
-    } else {
-      return res.status(400).json({ message: p_message, p_status });
     }
+
+    if (p_status === 0) {
+      return res.status(400).json({
+        message: p_message,
+        p_status,
+      });
+    }
+
+    if (p_status === -1) {
+      return res.status(500).json({
+        message: p_message,
+        p_status,
+      });
+    }
+
+    // Fallback (unknown p_status)
+    return res.status(500).json({
+      message: "Unknown database response",
+      p_status,
+    });
   } catch (error) {
     console.error("error in createTicketAndUpdateStatus:", error);
     return res.status(500).json({

@@ -305,7 +305,7 @@ export const completeVendorProfile = async (req, res) => {
         await client.query("BEGIN");
         const result = await client.query(
           `CALL ins.usp_upsert_vendorprofile(
-          $1::BIGINT, $2::JSON, $3::JSON, $4::JSON, $5::JSON, $6::JSON, $7::BOOLEAN, $8::TEXT
+          $1::BIGINT, $2::JSON, $3::JSON, $4::JSON, $5::JSON, $6::JSON, $7::SMALLINT, $8::TEXT
         )`,
           [
             userId,
@@ -322,9 +322,22 @@ export const completeVendorProfile = async (req, res) => {
         await client.query("COMMIT");
 
         const { p_status, p_message } = result.rows[0] || {};
-        return res.status(p_status ? 200 : 400).json({
-          message: p_message || "Profile updated successfully",
-          source: "db",
+
+        // ----------------------
+        //  NEW p_status logic
+        // ----------------------
+        if (p_status === 1)
+          return res.status(200).json({ message: p_message, p_status });
+
+        if (p_status === 0)
+          return res.status(400).json({ message: p_message, p_status });
+
+        if (p_status === -1)
+          return res.status(500).json({ message: p_message, p_status });
+
+        return res.status(500).json({
+          message: "Unknown database response",
+          p_status,
         });
       } catch (err) {
         await client.query("ROLLBACK");
@@ -381,7 +394,7 @@ export const completeVendorProfile = async (req, res) => {
         await client.query("BEGIN");
         const result = await client.query(
           `CALL ins.usp_upsert_vendorprofile(
-          $1::BIGINT, $2::JSON, $3::JSON, $4::JSON, $5::JSON, $6::JSON, $7::BOOLEAN, $8::TEXT
+          $1::BIGINT, $2::JSON, $3::JSON, $4::JSON, $5::JSON, $6::JSON, $7::SMALLINT, $8::TEXT
         )`,
           [
             userId,
@@ -397,20 +410,26 @@ export const completeVendorProfile = async (req, res) => {
         await client.query("COMMIT");
         const { p_status, p_message } = result.rows[0] || {};
 
-        if (p_status === true) {
-          await redisClient.del(redisKey);
-        }
-
-        return res.status(p_status ? 200 : 400).json({
-          message: p_message || "Profile created successfully",
-          source: "db",
-        });
-      } catch (err) {
-        await client.query("ROLLBACK");
-        throw err;
+      if (p_status === 1) {
+        await redisClient.del(redisKey);
+        return res.status(200).json({ message: p_message, p_status });
       }
+
+      if (p_status === 0)
+        return res.status(400).json({ message: p_message, p_status });
+
+      if (p_status === -1)
+        return res.status(500).json({ message: p_message, p_status });
+
+      return res.status(500).json({
+        message: "Unknown database response",
+        p_status,
+      });
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
     }
-  } catch (error) {
+  }} catch (error) {
     await client.query("ROLLBACK");
     console.error("Error in completeVendorProfile:", error);
     return res.status(500).json({ message: error.message });

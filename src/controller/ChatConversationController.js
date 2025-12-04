@@ -207,7 +207,7 @@ export const insertMessage = async (req, res) => {
         roleid: p_roleid,
         replyid: p_replyid || null,
         createddate: new Date().toISOString(),
-        userid: userId,
+        userid: req.user?.id,
         campaignid,
         influencerId,
         vendorId,
@@ -228,7 +228,7 @@ export const insertMessage = async (req, res) => {
       }
 
       return res.status(200).json({
-        status: true,
+        status: p_status,
         message: p_message,
         source: "db",
         filePaths: p_filepaths ? p_filepaths.split(",") : [],
@@ -241,13 +241,13 @@ export const insertMessage = async (req, res) => {
       });
     } else if (p_status === -1) {
       return res.status(500).json({
-        status: false,
+        status: p_status,
         message: "Unexpected database error",
         source: "db",
       });
     } else {
       return res.status(500).json({
-        status: false,
+        status: p_status,
         message: "Unknown database response",
         source: "db",
       });

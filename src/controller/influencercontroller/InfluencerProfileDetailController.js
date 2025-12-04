@@ -316,6 +316,7 @@ export const completeUserProfile = async (req, res) => {
   }
 };
 
+
 // Get User Profile
 const calculateProfileCompletion = (profileParts) => {
   const partsArray = Object.values(profileParts);
