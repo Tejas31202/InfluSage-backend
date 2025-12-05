@@ -7,7 +7,7 @@ import {
   userProfileRejectEmailHTML,
   campaignRejectEmailHTML
 } from "../utils/EmailTemplates.js";
-import {io} from '../../app.js'
+import { io } from '../../app.js'
 
 
 export const getUserStatusList = async (req, res) => {
@@ -177,27 +177,29 @@ export const getRequestedCampaignList = async (req, res) => {
 };
 
 export const insertApprovedOrRejectedApplication = async (req, res) => {
-  const { p_userid, p_campaignid, p_statusname } = req.body;
+  const  p_adminid  = req.user?.id;
+  const { p_userid, p_campaignid } = req.body;
+  // const{p_statusname} =req.body;
 
-  if (!p_userid && !p_campaignid) {
+  if (!p_adminid && !p_userid ) {
     return res.status(400).json({
-      message: "Required field missing: p_userid or p_campaignid must be specified.",
+      message: "Required field missing: p_adminid or p_userid must be specified.",
     });
   }
-  if (!p_statusname) {
-    return res.status(400).json({ message: "Required field missing : p_statusname" });
-  }
+  // if (!p_statusname) {
+  //   return res.status(400).json({ message: "Required field missing : p_statusname" });
+  // }
 
   try {
     const result = await client.query(
       `CALL ins.usp_update_approvalstatus(
         $1::bigint,
         $2::bigint,
-        $3::varchar,
+        $3::bigint,
         $4::smallint,
-        $5::text
+        $5::character
       );`,
-      [p_userid || null, p_campaignid || null, p_statusname, null, null]
+      [p_adminid, p_userid || null, p_campaignid || null, null, null]
     );
 
     const row = result.rows?.[0] || {};
@@ -212,17 +214,17 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
       let firstName = null;
       let campaignName = null;
 
-      const actionableMessages = [
-        "User Approved.",
-        "User Rejected.",
-        "User Blocked.",
-        "Campaign Approved.",
-        "Campaign Rejected.",
-      ];
+      // const actionableMessages = [
+      //   "User Approved.",
+      //   "User Rejected.",
+      //   "User Blocked.",
+      //   "Campaign Approved.",
+      //   "Campaign Rejected.",
+      // ];
 
-      if (!actionableMessages.includes(p_message)) {
-        return res.status(200).json({ message: p_message, p_status, source: "db" });
-      }
+      // if (!actionableMessages.includes(p_message)) {
+      //   return res.status(200).json({ message: p_message, p_status, source: "db" });
+      // }
 
       // -----------------------------------
       // USER APPROVAL / REJECTION
@@ -234,7 +236,7 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
         );
 
         const user = userResult.rows[0];
-        if (!user) return res.status(404).json({ message: "User not found" });
+        if (!user) return res.status(404).json({ message: p_message || "User not found" });
 
         recipientId = user.id;
         email = user.email;
@@ -242,8 +244,8 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
 
         await sendingMailFormatForAdmin(
           email,
-          `Your Profile ${p_statusname}`,
-          userProfileEmailHTML({ userName: firstName, status: p_statusname })
+          `Your Profile ${p_message }`,
+          userProfileEmailHTML({ userName: firstName, status: p_message  })
         );
       }
 
@@ -260,10 +262,10 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
           WHERE c.id = $1`,
           [p_campaignid]
         );
-
+        
         const data = campaignOwnerResult.rows[0];
         if (!data) {
-          return res.status(404).json({ message: "Campaign or owner not found" });
+          return res.status(404).json({ message: p_message ||"Campaign or owner not found" });
         }
 
         recipientId = data.ownerid;
@@ -273,11 +275,11 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
 
         await sendingMailFormatForAdmin(
           email,
-          `Your Campaign ${p_statusname}`,
+          `Your Campaign ${p_status}`,
           campaignEmailHTML({
             userName: firstName,
             campaignName,
-            status: p_statusname,
+            status: p_status ,
           })
         );
       }
@@ -303,25 +305,23 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
 
       return res.status(200).json({
         message: p_message,
-        status: true,
-        source: "db",
+        status: p_status
       });
     }
 
     // Case 2: p_status = 0 → DB validation fail
     else if (p_status === 0) {
       return res.status(400).json({
-        status: false,
-        message: p_message || "Validation failed",
-        source: "db",
+        status: p_status,
+        message: p_message || "Validation failed"
       });
     }
 
     // Case 3: p_status = -1 → SP failed
     else if (p_status === -1) {
       return res.status(500).json({
-        status: false,
-        message: "Something went wrong. Please try again later.",
+        status: p_status,
+        message: p_message ||"Something went wrong. Please try again later."
       });
     }
 
