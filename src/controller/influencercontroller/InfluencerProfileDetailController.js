@@ -252,19 +252,28 @@ export const getUserProfile = async (req, res) => {
   const redisKey = `profile:${userId}`;
 
   try {
-    // Try to fetch from Redis
     const cachedData = await redisClient.get(redisKey);
 
+    let parsedRedis = {};
     if (cachedData) {
-      const parsed = 
-      JSON.parse(cachedData);
+      if (typeof cachedData === 'string') {
+        try {
+          parsedRedis = JSON.parse(cachedData);
+        } catch {
+          parsedRedis = cachedData; // already an object
+        }
+      } else if (typeof cachedData === 'object') {
+        parsedRedis = cachedData;
+      }
+    }
 
+    if (Object.keys(parsedRedis).length > 0) {
       const profileParts = {
-        p_profile: parsed.profilejson || {},
-        p_socials: parsed.socialaccountjson || {},
-        p_categories: parsed.categoriesjson || {},
-        p_portfolios: parsed.portfoliojson || {},
-        p_paymentaccounts: parsed.paymentjson || {},
+        p_profile: parsedRedis.profilejson || {},
+        p_socials: parsedRedis.socialaccountjson || {},
+        p_categories: parsedRedis.categoriesjson || {},
+        p_portfolios: parsedRedis.portfoliojson || {},
+        p_paymentaccounts: parsedRedis.paymentjson || {},
       };
 
       const profileCompletion = calculateProfileCompletion(profileParts);
@@ -277,7 +286,7 @@ export const getUserProfile = async (req, res) => {
       });
     }
 
-    // If not in Redis → fetch from DB
+    // Fallback: fetch from DB
     const result = await client.query(
       `SELECT * FROM ins.fn_get_userprofile($1::BIGINT)`,
       [userId]
@@ -289,14 +298,14 @@ export const getUserProfile = async (req, res) => {
       p_categories,
       p_portfolios,
       p_paymentaccounts,
-    } = result.rows[0];
+    } = result.rows[0] || {};
 
     if (!p_profile && !p_socials && !p_categories && !p_portfolios) {
       return res.status(404).json({ message: "User not found" });
     }
 
     return res.status(200).json({
-      message: "get profile from db",
+      message: "Profile fetched from DB",
       profileParts: {
         p_profile,
         p_socials,
