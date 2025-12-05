@@ -187,12 +187,24 @@ export const applyNowCampaign = async (req, res) => {
           `select * from ins.fn_get_notificationlist($1::bigint,$2::boolean)`,
           [userId, null]
         );
-
+        console.log(notification.rows[0]);
         const notifyData = notification.rows[0]?.fn_get_notificationlist || [];
-        io.to(`user_${userId}`).emit("receiveNotification", notifyData);
 
-      } catch (error) {
-        console.error("Error While Fetching Notification");
+        if (notifyData.length === 0) {
+          console.log("No notifications found.");
+        } else {
+          console.log(notifyData);
+          const latest = notifyData[0];
+
+          const toUserId = latest.receiverid;
+
+          if (toUserId) {
+            io.to(`user_${toUserId}`).emit("receiveNotification", notifyData);
+            console.log("📩 Sent to:", toUserId);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching notifications", err);
       }
 
       await redisClient.del(redisKey);

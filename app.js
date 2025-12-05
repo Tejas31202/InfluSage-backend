@@ -118,15 +118,21 @@ io.on("connection", (socket) => {
       const notifs = await client.query(
         `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean)`,
         [userId, null]
-        // [userId, limitedFlag  === 'true' ? true : limitedData === 'false' ? false : null]
       );
 
-      const result = notifs.rows[0]?.fn_get_notificationlist || [];
+      const notifyData = notifs.rows[0]?.fn_get_notificationlist || [];
 
-      if (result.length > 0) {
-        io.to(`user_${userId}`).emit("receiveNotification", result);
-        console.log(`Sent ${result.length} missed notifications to user ${userId}`);
-      }
+     if (notifyData.length === 0) {
+          console.log("No notifications found.");
+        } else {
+          const latest = notifyData[0];
+          const toUserId = latest.receiverid;
+
+          if (toUserId) {
+            io.to(`user_${toUserId}`).emit("receiveNotification", latest);
+            console.log("📩 Sent to:", toUserId);
+          }
+        }
 
     } catch (err) {
       console.error("Notification fetch error", err);

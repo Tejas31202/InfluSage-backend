@@ -79,13 +79,22 @@ export const startConversation = async (req, res) => {
         [p_userid, null]
       );
 
-      const notifications = notifRes.rows[0]?.fn_get_notificationlist || [];
+      const notifyData = notifRes.rows[0]?.fn_get_notificationlist || [];
 
       // Emit notifications via socket
-      if (notifications.length > 0) {
-        io.to(`user_${p_userid}`).emit("receiveNotification", notifications);
-        console.log(`Sent ${notifications.length} notifications to user ${p_userid}`);
-      }
+      if (notifyData.length === 0) {
+          console.log("No notifications found.");
+        } else {
+          console.log(notifyData);
+          const latest = notifyData[0];
+
+          const toUserId = latest.receiverid;
+
+          if (toUserId) {
+            io.to(`user_${toUserId}`).emit("receiveNotification", notifyData);
+            console.log("📩 Sent to:", toUserId);
+          }
+        }
 
       return res.status(200).json({
         status: true,
@@ -214,18 +223,6 @@ export const insertMessage = async (req, res) => {
         readbyvendor: false,
         readbyinfluencer: false,
       });
-
-      try {
-        const notifResult = await client.query(
-          `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean)`,
-          [recipientId, null]
-        );
-        const notifications = notifResult.rows[0]?.fn_get_notificationlist || [];
-        io.to(`user_${recipientId}`).emit("receiveNotification", notifications);
-        console.log(`📤 Sent DB notifications to user ${recipientId}`);
-      } catch (error) {
-        console.error("Error fetching notifications from DB:", error);
-      }
 
       return res.status(200).json({
         status: p_status,

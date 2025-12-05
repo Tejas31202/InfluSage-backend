@@ -177,6 +177,7 @@ export const getRequestedCampaignList = async (req, res) => {
 };
 
 export const insertApprovedOrRejectedApplication = async (req, res) => {
+  const p_adminid=req.user.id;
   const { p_userid, p_campaignid, p_statusname } = req.body;
 
   if (!p_userid && !p_campaignid) {
@@ -193,11 +194,11 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
       `CALL ins.usp_update_approvalstatus(
         $1::bigint,
         $2::bigint,
-        $3::varchar,
+        $3::bigint,
         $4::smallint,
         $5::text
       );`,
-      [p_userid || null, p_campaignid || null, p_statusname, null, null]
+      [p_adminid,p_userid || null, p_campaignid || null,null, null]
     );
 
     const row = result.rows?.[0] || {};
@@ -291,14 +292,19 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
           [recipientId, null]
         );
 
-        const notifications =
+        const notifyData =
           notificationRes.rows[0]?.fn_get_notificationlist || [];
+        if (notifyData.length === 0) {
+          console.log("No notifications found.");
+        } else {
+          const latest = notifyData[0];
+          const toUserId = latest.receiverid;
 
-        io.to(`user_${recipientId}`).emit("receiveNotification", notifications);
-
-        console.log(
-          `Approval/Reject Notification sent to user ${recipientId} | Count: ${notifications.length}`
-        );
+          if (toUserId) {
+            io.to(`user_${toUserId}`).emit("receiveNotification", latest);
+            console.log("📩 Sent to:", toUserId);
+          }
+        }
       }
 
       return res.status(200).json({
@@ -544,12 +550,20 @@ export const blockInfluencerApplication = async (req, res) => {
           [recipientId, null]
         );
 
-        const notifications = notificationRes.rows[0]?.fn_get_notificationlist || [];
-        io.to(`user_${recipientId}`).emit("receiveNotification", notifications);
+        const notifyData = notificationRes.rows[0]?.fn_get_notificationlist || [];
+        if (notifyData.length === 0) {
+          console.log("No notifications found.");
+        } else {
+          console.log(notifyData);
+          const latest = notifyData[0];
 
-        console.log(
-          `Block Notification sent to user ${recipientId} | Count: ${notifications.length}`
-        );
+          const toUserId = latest.receiverid;
+
+          if (toUserId) {
+            io.to(`user_${toUserId}`).emit("receiveNotification", notifyData);
+            console.log("📩 Sent to:", toUserId);
+          }
+        }
       }
 
       return res.status(200).json({ message: p_message, status: true, p_status, source: "db" });
