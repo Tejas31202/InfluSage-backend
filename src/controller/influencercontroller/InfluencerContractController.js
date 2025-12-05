@@ -1,3 +1,4 @@
+import { Console } from 'console';
 import { client } from '../../config/Db.js';
 
 export const influencerApproveOrRejectContract = async (req, res) => {
@@ -25,7 +26,7 @@ export const influencerApproveOrRejectContract = async (req, res) => {
       );`,
       [p_influencerid, p_contractid, p_statusname, null, null]
     );
-    
+
     const row = result.rows?.[0] || {};
     const p_status = Number(row.p_status);
     const p_message = row.p_message;
@@ -36,19 +37,19 @@ export const influencerApproveOrRejectContract = async (req, res) => {
         message: p_message,
         p_status,
       });
-    } 
+    }
     else if (p_status === 0) {
       return res.status(400).json({
         message: p_message || "Validation failed",
         p_status,
       });
-    } 
+    }
     else if (p_status === -1) {
       return res.status(500).json({
         message: "Something went wrong. Please try again later.",
         p_status: false,
       });
-    } 
+    }
     else {
       return res.status(500).json({
         message: "Unexpected database response",
@@ -63,7 +64,6 @@ export const influencerApproveOrRejectContract = async (req, res) => {
   }
 };
 
-
 export const uploadContentLink = async (req, res) => {
   try {
     const p_influencerid = req.user?.id || req.body.p_influencerid;
@@ -73,7 +73,7 @@ export const uploadContentLink = async (req, res) => {
       return res.status(400).json({ message: "p_influencerid is required" });
     }
 
-    if ( !p_contractid || !p_contentlinkjson) {
+    if (!p_contentlinkjson) {
       return res
         .status(400)
         .json({ message: "p_contractid and p_contentlinkjson are required" });
@@ -99,16 +99,19 @@ export const uploadContentLink = async (req, res) => {
     const row = result.rows[0] || {};
     const p_status = Number(row.p_status);
     const p_message = row.p_message;
+    console.log("Message Form Db==>",p_message)
+    
 
     if (p_status === 1) {
       return res.status(200).json({
         status: true,
         message: p_message || "Content link uploaded successfully",
       });
-    } else if (p_status === 0) {
+    } else if (p_status ===0 ) {
       return res.status(400).json({
         status: false,
         message: p_message || "Failed to upload content link",
+        
       });
     }
     // Case 3: p_status = -1 → SP failed
@@ -117,7 +120,7 @@ export const uploadContentLink = async (req, res) => {
         status: false,
         message: "Something went wrong. Please try again later.",
       });
-    } 
+    }
     else {
       return res.status(500).json({
         status: false,
@@ -180,11 +183,11 @@ export const getInfluencerContractDetail = async (req, res) => {
     );
 
     const data = result.rows[0]?.fn_get_influencercontractdetails;
-    if(data){
+    if (data) {
       return res.status(200).json({
-      message: "contract detail fetched successfully",
-      data: data[0],
-    });
+        message: "contract detail fetched successfully",
+        data: data[0],
+      });
     }
     return res.status(400).json({
       message: "No Contract Created",
@@ -197,8 +200,8 @@ export const getInfluencerContractDetail = async (req, res) => {
     });
   }
 };
- 
-export const getInfluencerUploadedContentLink = async (req,res) =>{
+
+export const getInfluencerUploadedContentLink = async (req, res) => {
   try {
     const p_influencerid = req.user?.id || req.query.p_influencerid;
     const p_campaignid = req.params.p_campaignid;
@@ -227,3 +230,29 @@ export const getInfluencerUploadedContentLink = async (req,res) =>{
     });
   }
 }
+
+export const getContractContentTypes = async (req, res) => {
+  const { p_contractid  } = req.params;
+   const p_influencerid  = req.user?.id || req.query.p_influencerid;
+  if (!p_influencerid ) {
+    return res.status(400).json({ error: "influencerId is required" });
+  }
+
+  try {
+    const contractContentTypes = await client.query(`
+        select  * from ins.fn_get_contractcontenttype($1::bigint,$2::bigint)`,
+      [p_contractid, p_influencerid ]
+    )
+    const responseData = contractContentTypes.rows[0].fn_get_contractcontenttype;
+
+    console.log("Result =>", responseData);
+
+    return res.status(200).json(responseData);
+  } catch (error) {
+    console.error("Error fetching contract content types:", error);
+    return res.status(500).json({
+      error: "Internal server error",
+      details: error.message
+    });
+  }
+};
