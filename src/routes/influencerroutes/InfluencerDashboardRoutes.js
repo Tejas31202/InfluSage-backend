@@ -34,6 +34,7 @@ routes.post(
 );
 routes.get(
   "/dashboard/getfeedback",
+  authenticateUser(["Influencer"]),
   getInfluencerFeedBack
 )
 
