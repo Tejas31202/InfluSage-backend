@@ -177,14 +177,9 @@ export const getRequestedCampaignList = async (req, res) => {
 };
 
 export const insertApprovedOrRejectedApplication = async (req, res) => {
-<<<<<<< HEAD
+
   const p_adminid=req.user.id;
   const { p_userid, p_campaignid, p_statusname } = req.body;
-=======
-  const  p_adminid  = req.user?.id;
-  const { p_userid, p_campaignid } = req.body;
-  // const{p_statusname} =req.body;
->>>>>>> 723584ce2d6b70e2c505cfc8e4a107e77fb40f33
 
   if (!p_adminid && !p_userid ) {
     return res.status(400).json({
