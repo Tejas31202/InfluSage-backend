@@ -71,12 +71,13 @@ export const startConversation = async (req, res) => {
     const row = result.rows[0] || {};
     const p_status = Number(row.p_status);
     const p_message = row.p_message;
+    const p_role = 'RECEIVER';
 
     if (p_status === 1) {
       // Fetch notifications
       const notifRes = await client.query(
-        `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean)`,
-        [p_userid, null]
+        `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean, $3::text)`,
+        [p_userid, null, p_role]
       );
 
       const notifyData = notifRes.rows[0]?.fn_get_notificationlist || [];

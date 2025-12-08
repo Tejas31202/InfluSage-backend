@@ -114,10 +114,11 @@ io.on("connection", (socket) => {
     try {
       // const limitedFlag = req.query?.limitedData;
       // let limitedFlag = true;
+      const p_role = 'RECEIVER';
 
       const notifs = await client.query(
-        `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean)`,
-        [userId, null]
+        `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean, $3::text)`,
+        [userId, null, p_role]
       );
 
       const notifyData = notifs.rows[0]?.fn_get_notificationlist || [];

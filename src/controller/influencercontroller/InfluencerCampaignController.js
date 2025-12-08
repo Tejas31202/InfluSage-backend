@@ -178,17 +178,18 @@ export const applyNowCampaign = async (req, res) => {
     // After stored procedure call
     const row = result.rows[0];
     const p_status = Number(row?.p_status);
+    const p_role = 'SENDER';
     const p_message = row?.p_message;
 
     // Case 1: p_status = 1 → SUCCESS
     if (p_status === 1) {
       try {
         const notification = await client.query(
-          `select * from ins.fn_get_notificationlist($1::bigint,$2::boolean)`,
-          [userId, null]
+          `select * from ins.fn_get_notificationlist($1::bigint,$2::boolean,$3::text)`,
+          [userId, null, p_role]
         );
-        console.log(notification.rows[0]);
         const notifyData = notification.rows[0]?.fn_get_notificationlist || [];
+        console.log("new data", notifyData );
 
         if (notifyData.length === 0) {
           console.log("No notifications found.");

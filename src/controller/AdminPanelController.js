@@ -287,10 +287,11 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
       // -----------------------------------
       // FETCH NOTIFICATIONS + SOCKET EMIT
       // -----------------------------------
+      const p_role = 'RECEIVER';
       if (recipientId) {
         const notificationRes = await client.query(
-          `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean)`,
-          [recipientId, null]
+          `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean, $3::text)`,
+          [recipientId, null, p_role]
         );
 
         const notifyData =
@@ -543,10 +544,12 @@ export const blockInfluencerApplication = async (req, res) => {
       // -------------------------------
       // SOCKET NOTIFICATIONS
       // -------------------------------
+      const p_role = 'RECEIVER';
+      
       if (recipientId) {
         const notificationRes = await client.query(
-          `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean)`,
-          [recipientId, null]
+          `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean, $3::text)`,
+          [recipientId, null, p_role]
         );
 
         const notifyData = notificationRes.rows[0]?.fn_get_notificationlist || [];
