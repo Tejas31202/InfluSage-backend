@@ -243,7 +243,7 @@ export const getContractContentTypes = async (req, res) => {
         select  * from ins.fn_get_contractcontenttype($1::bigint,$2::bigint)`,
       [p_contractid, p_influencerid ]
     )
-    const responseData = contractContentTypes.rows[0].fn_get_contractcontenttype;
+    const responseData = contractContentTypes.rows[0].fn_get_contractcontenttype[0];
 
     console.log("Result =>", responseData);
 
