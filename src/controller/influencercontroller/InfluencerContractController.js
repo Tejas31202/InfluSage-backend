@@ -244,7 +244,6 @@ export const getContractContentTypes = async (req, res) => {
       [p_contractid, p_influencerid ]
     )
     const responseData = contractContentTypes.rows[0].fn_get_contractcontenttype[0];
-
     return res.status(200).json(responseData);
     
   } catch (error) {
