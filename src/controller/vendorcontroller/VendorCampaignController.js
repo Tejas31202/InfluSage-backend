@@ -151,7 +151,7 @@ export const finalizeCampaign = async (req, res) => {
     else if (p_status === -1) {
       return res.status(500).json({
         status: false,
-        message: "Something went wrong while finalizing campaign",
+        message: p_message || "Something went wrong while finalizing campaign",
       });
     } 
     else {
