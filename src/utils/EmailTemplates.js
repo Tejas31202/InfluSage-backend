@@ -1,66 +1,29 @@
+
+
 // Profile email (influencer)
-export function userProfileEmailHTML({ userName, status /*, reason */ }) {
-
-  let message;
-  let color = "#2E86C1"; // default blue
-
-  if (status === "Approved") {
-    message =
-      "You can now participate in campaigns and explore new opportunities on InfluSage.";
-    color = "#28a745"; // green
-  } else if (status === "Blocked") {
-    message = `
-      Your account has been blocked due to violation of our policies.
-      <!-- ${/*reason ? `<br/><br/><strong>Reason:</strong> ${reason}` : ""*/ ''}
-      <br/><br/>Please contact support if you believe this was a mistake.
-    `;
-    color = "#c0392b"; // dark red
-  } else if (status === "Rejected") {
-    message =
-      "Your profile has been rejected as it does not comply with our terms and conditions.";
-    color = "#e74c3c"; // red
-  } else {
-    message = "Your profile status has been updated.";
-  }
-
+export function userProfileEmailHTML({ userName }) {
+    const status = "Approved";
   return `
     <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #333;">
-      <h2 style="color: ${color}">Profile ${status}</h2>
-      <p>Hi ${userName},</p>
-
+      <h2 style="color: #2E86C1;">Profile ${status}</h2>
+      <p>Hello ${userName},</p>
       <p>Your profile has been <strong>${status}</strong>.</p>
-      <p>${message}</p>
-      <p>Thank you,<br/>The InfluSage Team</p>
-      
+      <p>You can now participate in campaigns and explore new opportunities on InfluSage.</p>
+      <p>The InfluSage Team</p>
     </div>
   `;
 }
 
-// Profile email (influencer)
-// export function userProfileEmailHTML({ userName, status }) {
-//   return `
-//     <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #333;">
-//       <h2 style="color: #2E86C1;">Profile ${status}</h2>
-//       <p>Hi ${userName},</p>
-//       <p>Your profile has been <strong>${status}</strong>.</p>
-//       <p>${status === "Approved" ? 
-//          "You can now participate in campaigns and explore new opportunities on InfluSage."
-//           : "Your profile does not follow our terms and conditions."}</p>
-//       <p>Thank you!</p>
-//     </div>
-//   `;
-// }
-
 // Campaign email (campaign owner)
-export function campaignEmailHTML({ userName,campaignName,status }) {
+export function campaignEmailHTML({ userName, campaignName }) {
+  const status = "Approved";
   return `
     <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #333;">
       <h2 style="color: #2E86C1;">Campaign ${status}</h2>
       <p>Hello ${userName},</p>
-      <p>${status === "Approved" 
-          ? `Your campaign <strong>${campaignName}</strong> has been <strong>${status}</strong>. It is now active and visible to influencers on InfluSage.`
-          : `Your campaign <strong>${campaignName}</strong> has been <strong>${status}</strong> as it does not align with our platform guidelines.`}</p>
-      <p>Thank you!</p>
+      <p>Your campaign <strong>${campaignName}</strong> has been <strong>${status}</strong>. 
+      It is now active and visible to influencers on InfluSage.</p>
+      <p>The InfluSage Team</p>
     </div>
   `;
 }
