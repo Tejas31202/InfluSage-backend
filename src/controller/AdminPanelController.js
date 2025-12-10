@@ -179,16 +179,13 @@ export const getRequestedCampaignList = async (req, res) => {
 export const insertApprovedOrRejectedApplication = async (req, res) => {
 
   const p_adminid=req.user.id;
-  const { p_userid, p_campaignid, p_statusname } = req.body;
+  const { p_userid, p_campaignid } = req.body;
 
   if (!p_adminid && !p_userid ) {
     return res.status(400).json({
       message: "Required field missing: p_adminid or p_userid must be specified.",
     });
   }
-  // if (!p_statusname) {
-  //   return res.status(400).json({ message: "Required field missing : p_statusname" });
-  // }
 
   try {
     const result = await client.query(
@@ -214,21 +211,18 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
       let firstName = null;
       let campaignName = null;
 
-      // const actionableMessages = [
-      //   "User Approved.",
-      //   "User Rejected.",
-      //   "User Blocked.",
-      //   "Campaign Approved.",
-      //   "Campaign Rejected.",
-      // ];
+      const actionableMessages = [
+        "User Approved.",
+        "Campaign Approved."
+      ];
 
-      // if (!actionableMessages.includes(p_message)) {
-      //   return res.status(200).json({ message: p_message, p_status, source: "db" });
-      // }
+      if (!actionableMessages.includes(p_message)) {
+        return res.status(200).json({ message: p_message, p_status, source: "db" });
+      }
 
-      // -----------------------------------
-      // USER APPROVAL / REJECTION
-      // -----------------------------------
+      // ------------------
+      // USER APPROVAL 
+      // ------------------
       if (p_userid && !p_campaignid) {
         const userResult = await client.query(
           `SELECT id, firstname, email FROM ins.users WHERE id = $1`,
@@ -244,12 +238,12 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
 
         await sendingMailFormatForAdmin(
           email,
-          `Your Profile ${p_message }`,
-          userProfileEmailHTML({ userName: firstName, status: p_message  })
+          `Your Profile Approved`,
+          userProfileEmailHTML({ userName: firstName  })
         );
       }
 
-      // CAMPAIGN APPROVAL / REJECTION
+      // CAMPAIGN APPROVAL 
       else if (p_campaignid && !p_userid) {
         const campaignOwnerResult = await client.query(
           `SELECT 
@@ -275,11 +269,11 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
 
         await sendingMailFormatForAdmin(
           email,
-          `Your Campaign ${p_status}`,
+          `Your Campaign Approved`,
           campaignEmailHTML({
             userName: firstName,
             campaignName,
-            status: p_status ,
+            status: "Approved" ,
           })
         );
       }

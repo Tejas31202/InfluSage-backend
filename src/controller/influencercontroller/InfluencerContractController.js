@@ -243,11 +243,9 @@ export const getContractContentTypes = async (req, res) => {
         select  * from ins.fn_get_contractcontenttype($1::bigint,$2::bigint)`,
       [p_contractid, p_influencerid ]
     )
-    const responseData = contractContentTypes.rows[0].fn_get_contractcontenttype;
-
-    console.log("Result =>", responseData);
-
+    const responseData = contractContentTypes.rows[0].fn_get_contractcontenttype[0];
     return res.status(200).json(responseData);
+    
   } catch (error) {
     console.error("Error fetching contract content types:", error);
     return res.status(500).json({

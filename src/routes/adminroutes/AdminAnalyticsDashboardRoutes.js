@@ -5,7 +5,9 @@ import {
   getUpdatedAnalyticsContents,
   getAllContentHistories,
   getInfluencerContentHistory,
-  insertOrEditAnalyticsRecord
+  insertOrEditAnalyticsRecord,
+  getUserPlatformAnalytics,
+  getAnalyticList
 } from '../../controller/admincontroller/AdminAnalyticsDashboardController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 
@@ -38,5 +40,17 @@ routes.post(
   authenticateUser(["Admin"]),
   insertOrEditAnalyticsRecord
 );
+
+routes.get(
+  "/user-Platform-Analytics",
+  authenticateUser(["Admin"]),
+  getUserPlatformAnalytics
+)
+
+routes.get(
+  "/getAnalyticList",
+  authenticateUser(["Admin"]),
+  getAnalyticList
+)
 
 export default routes;

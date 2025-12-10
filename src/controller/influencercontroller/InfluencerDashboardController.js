@@ -157,9 +157,9 @@ export const getInfluencerFeedBack = async (req, res) => {
 
     const feedBackResult = influencerFeedback.rows[0].fn_get_influencerfeedbacklist;
 
-    if (!feedBackResult.length) {
-      return res.status(404).json({ Message: "Feedback Not Available" });
-    }
+    // if (!feedBackResult.length) {
+    //   return res.status(404).json({ Message: "Feedback Not Available" });
+    // }
 
     return res.status(200).json({
       Message: "Vendor Performance Summary Successfully Fetched",
