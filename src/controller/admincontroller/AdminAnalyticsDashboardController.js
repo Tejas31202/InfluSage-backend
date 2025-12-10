@@ -232,18 +232,19 @@ export const insertOrEditAnalyticsRecord = async (req, res) => {
 export const getUserPlatformAnalytics = async (req, res) => {
 
   const p_adminid = req.user?.id;
+  const p_userplatformanalyticid = req.query.p_userplatformanalyticid;
 
   if (!p_adminid) return res.status(400).json({ Message: "Admin ID Required." })
 
+  if (!p_userplatformanalyticid) return res.status(400).json({ Message: "p_userplatformanalyticid Required." })
+
+
   try {
-
-    const p_userplatformanalyticid = req.query.p_userplatformanalyticid;
-
     const result = await client.query(`SELECT * FROM ins.fn_get_userplatformanalytic($1::BIGINT,$2::BIGINT)`,
       [p_adminid, p_userplatformanalyticid]
     )
 
-    const userPlatformAnalytics = result.rows[0].fn_get_userplatformanalytic || [];
+    const userPlatformAnalytics = result.rows[0].fn_get_userplatformanalytic[0];
 
     if (!userPlatformAnalytics.length) {
       return res.status(200).json({
@@ -285,7 +286,7 @@ export const getAnalyticList = async (req, res) => {
     $6::int,
     $7::text
     )`,
-       [
+      [
         p_adminid,
         p_providers || null,
         p_contenttype || null,
