@@ -245,7 +245,7 @@ export const getUserPlatformAnalytics = async (req, res) => {
       [p_adminid, p_userplatformanalyticid]
     )
 
-    const userPlatformAnalytics = result.rows[0].fn_get_userplatformanalytic;
+    const userPlatformAnalytics = result.rows[0].fn_get_userplatformanalytic || [];
 
     if (!userPlatformAnalytics.length) {
       return res.status(200).json({
