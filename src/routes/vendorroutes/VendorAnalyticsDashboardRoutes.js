@@ -1,8 +1,12 @@
 import express from 'express';
 import {
   getVendorAnalyticsSummary,
+  getVendorCampaignOverview,
   getPerformanceTimeline,
-  getGraphFiltersDropdown
+  getTopPerformingContent,
+  getGraphFiltersDropdown,
+  getPlatformBreakdown,
+  getVendorRecentContents
 } from '../../controller/vendorcontroller/VendorAnalyticsDashboardController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 
@@ -16,11 +20,34 @@ routes.get(
   getVendorAnalyticsSummary
 );
 
+routes.get(
+  "/analytics/campaign-overview",
+  authenticateUser(['Vendor']),
+  getVendorCampaignOverview
+);
 
 routes.get(
   "/analytics/performance-timeline",
   authenticateUser(['Vendor']),
   getPerformanceTimeline
+);
+
+routes.get(
+  "/analytics/top-performing-content",
+  authenticateUser(['Vendor']),
+  getTopPerformingContent
+);
+
+routes.get(
+  "/analytics/platform-breakdown",
+  authenticateUser(['Vendor']),
+  getPlatformBreakdown
+);
+
+routes.get(
+  "/analytics/recent-contents",
+  authenticateUser(['Vendor']),
+  getVendorRecentContents
 );
 
 export default routes;

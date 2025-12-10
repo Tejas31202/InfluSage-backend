@@ -4,17 +4,38 @@ export const getVendorAnalyticsSummary = async (req, res) => {
   try {
     const p_userid = req.user?.id || req.query.p_userid;
     const result = await client.query(
-      "SELECT * FROM ins.fn_get_vendoranalytic($1::bigint);",
+      "select * from ins.getVendorAnalyticsSummary($1::bigint);",
       [p_userid]
     );
-  
-    const data = result.rows[0].fn_get_vendoranalytic;
+    //this function return conunts:-totalcampaign,totalimpression,engagementrate,totalcontentpieces,avg engegment per influe
+    const data = result.rows[0];
     return res.status(200).json({
       message: "Analytics summary retrieved successfully",
       data: data,
     });
   } catch (error) {
     console.error("error in getVendorAnalyticsSummary:", error);
+    return res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+export const getVendorCampaignOverview = async (req, res) => {
+  try {
+    const p_userid = req.user?.id || req.query.p_userid;
+    const result = await client.query(
+      "select * from ins.getVendorCampaignOverview($1::bigint);",
+      [p_userid]
+    );
+    //this function return campaignname,platforms,views,engagement,status 
+    const data = result.rows[0];
+    return res.status(200).json({
+      message: "Campaign overview retrieved successfully.",
+      data: data,
+    });
+  } catch (error) {
+    console.error("error in getVendorCampaignOverview:", error);
     return res.status(500).json({
       message: error.message,
     });
@@ -43,6 +64,27 @@ export const getPerformanceTimeline = async (req, res) => {
   }
 };
 
+export const getTopPerformingContent = async (req, res) => {
+  try {
+    const p_userid = req.user?.id || req.query.p_userid;
+    const result = await client.query(
+      "select * from ins.getTopPerformingContent($1::bigint);",
+      [p_userid]
+    );
+    //this function return content-title,view-conunt,engagement
+    const data = result.rows[0];
+    return res.status(200).json({
+      message: "Top-performing content fetched successfully.",
+      data: data,
+    });
+  } catch (error) {
+    console.error("error in getTopPerformingContent:", error);
+    return res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
 export const getGraphFiltersDropdown=async (req, res) => {
   try {
     const result = await client.query(
@@ -61,3 +103,44 @@ export const getGraphFiltersDropdown=async (req, res) => {
   }
 };
 
+export const getPlatformBreakdown = async (req, res) => {
+  try {
+    const p_userid = req.user?.id || req.query.p_userid;
+    const result = await client.query(
+      "select * from ins.getPlatformBreakdown($1::bigint);",
+      [p_userid]
+    );
+    //this function return :- platform and view count
+    const data = result.rows[0];
+    return res.status(200).json({
+      message: "Platform breakdown data fetched successfully.",
+      data: data,
+    });
+  } catch (error) {
+    console.error("error in getPlatformBreakdown:", error);
+    return res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+export const getVendorRecentContents= async (req, res) => {
+  try {
+    const p_userid = req.user?.id || req.query.p_userid;
+    const result = await client.query(
+      "select * from ins.getVendorRecentContents($1::bigint);",
+      [p_userid]
+    );
+    //this function return content item posted by influe :-1>thubnail,2>postDate,3>views/likes/comments 
+    const data = result.rows[0];
+    return res.status(200).json({
+      message: "Recent contents fetched successfully.",
+      data: data,
+    });
+  } catch (error) {
+    console.error("error in getVendorRecentContents:", error);
+    return res.status(500).json({
+      message: error.message,
+    });
+  }
+};

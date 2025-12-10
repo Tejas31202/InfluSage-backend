@@ -197,6 +197,8 @@ export const insertOrEditAnalyticsRecord = async (req, res) => {
 
     const { p_status, p_message } = result.rows[0];
 
+    // console.log("p stauts==>", p_status)
+
     if (p_status === 1) {
       return res.status(200).json({
         message: p_message,
