@@ -5,7 +5,8 @@ import {
   campaignEmailHTML,
   userProfileBlockEmailHTML,
   userProfileRejectEmailHTML,
-  campaignRejectEmailHTML
+  campaignRejectEmailHTML,
+  userCampaignBlockEmailHTML
 } from "../utils/EmailTemplates.js";
 import { io } from '../../app.js'
 
@@ -429,7 +430,7 @@ export const userBlockReason = async (req, res) => {
   }
 };
 
-export const blockInfluencerApplication = async (req, res) => {
+export const blockInfluencerAndCampaignApplication = async (req, res) => {
   const p_adminid = req.user?.id || req.body.p_adminid;
   const { p_userid, p_campaignid, p_objective } = req.body;
 
@@ -519,7 +520,7 @@ export const blockInfluencerApplication = async (req, res) => {
         await sendingMailFormatForAdmin(
           data.email,
           `Your Campaign blocked by influsage admin team`,
-          userProfileBlockEmailHTML({
+          userCampaignBlockEmailHTML({
             userName: data.firstname,
             campaignName: data.campaignname
           })
