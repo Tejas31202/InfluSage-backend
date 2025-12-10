@@ -1,6 +1,6 @@
 import { client } from "../../config/Db.js";
 import { createClient } from "@supabase/supabase-js";
-import redis from "redis";
+import Redis from '../../utils/RedisWrapper.js';
 import path from "path";
 import fs from "fs";
 
@@ -9,8 +9,8 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const redisClient = redis.createClient({ url: process.env.REDIS_URL });
-redisClient.connect().catch(console.error);
+// const Redis = redis.createClient({ url: process.env.REDIS_URL });
+// Redis.connect().catch(console.error);
 
 // const calculateProfileCompletion = (profileParts) => {
 //   const partsArray = Object.values(profileParts);
@@ -85,7 +85,7 @@ export const completeUserProfile = async (req, res) => {
     };
 
     const saveToRedis = async (data) => {
-      await redisClient.setEx(redisKey, 604800, JSON.stringify(data));
+       await Redis.setEx(redisKey, 604800, finalData); // 7 days TTL
     };
 
     // Parse JSON fields
@@ -105,17 +105,17 @@ export const completeUserProfile = async (req, res) => {
       const supabasePath = `${profileFolderPath}/${fileName}`;
 
       const { data: existingFiles } = await supabase.storage
-        .from("uploads")
+        .from(process.env.SUPABASE_BUCKET)
         .list(profileFolderPath);
       if (existingFiles?.length > 0) {
         const oldPaths = existingFiles.map(
           (f) => `${profileFolderPath}/${f.name}`
         );
-        await supabase.storage.from("uploads").remove(oldPaths);
+        await supabase.storage.from(process.env.SUPABASE_BUCKET).remove(oldPaths);
       }
 
       const { error: uploadError } = await supabase.storage
-        .from("uploads")
+        .from(process.env.SUPABASE_BUCKE)
         .upload(supabasePath, file.buffer, {
           contentType: file.mimetype,
           upsert: true,
@@ -126,7 +126,7 @@ export const completeUserProfile = async (req, res) => {
           .json({ message: "Failed to upload profile photo" });
 
       const { data: publicUrlData } = supabase.storage
-        .from("uploads")
+        .from(process.env.SUPABASE_BUCKE)
         .getPublicUrl(supabasePath);
       const photoUrl = publicUrlData?.publicUrl;
 
@@ -146,13 +146,13 @@ export const completeUserProfile = async (req, res) => {
         const supabasePath = `Influencer/${userId}/Portfolio/${fileName}`;
 
         const { data: existingFiles } = await supabase.storage
-          .from("uploads")
+          .from(process.env.SUPABASE_BUCKE)
           .list(`Influencer/${userId}/Portfolio`);
 
         const alreadyExists = existingFiles?.some((f) => f.name === fileName);
         if (!alreadyExists) {
           const { error: uploadError } = await supabase.storage
-            .from("uploads")
+            .from(process.env.SUPABASE_BUCKE)
             .upload(supabasePath, file.buffer, {
               contentType: file.mimetype,
               upsert: false,
@@ -164,7 +164,7 @@ export const completeUserProfile = async (req, res) => {
         }
 
         const { data: publicUrlData } = supabase.storage
-          .from("uploads")
+          .from(process.env.SUPABASE_BUCKE)
           .getPublicUrl(supabasePath);
         uploadedFiles.push({ filepath: publicUrlData.publicUrl });
       }
@@ -192,9 +192,12 @@ export const completeUserProfile = async (req, res) => {
       ...(paymentjson && { paymentjson: safeParse(paymentjson) }),
     };
 
-    const existingRedis = await redisClient.get(redisKey).catch(() => null);
-    const redisData = existingRedis ? safeParse(existingRedis) : {};
-    const finalData = { ...redisData, ...mergedData };
+    const existingRedis = await Redis.get(redisKey) || {}; // Already parsed object
+    const finalData = {
+      ...existingRedis,      // keep old pages
+      ...mergedData          // update current page
+    };
+
 
     // Define the required profile parts
     const requiredParts = [
@@ -232,7 +235,7 @@ export const completeUserProfile = async (req, res) => {
           ]
         );
         await client.query("COMMIT");
-        await redisClient.del(redisKey);
+        await Redis.del(redisKey);
         return res
           .status(200)
           .json({ message: "Profile saved successfully (DB)", source: "db" });
@@ -282,7 +285,7 @@ export const completeUserProfile = async (req, res) => {
         await client.query("COMMIT");
         const { p_status, p_message } = result.rows[0];
         if (p_status) {
-          await redisClient.del(redisKey);
+          await Redis.del(redisKey);
           return res.status(200).json({
             message: p_message,
             source: "db",
@@ -348,8 +351,7 @@ export const getUserProfile = async (req, res) => {
 
   try {
     // 1. Redis data (may contain partial edits)
-    const cachedData = await redisClient.get(redisKey);
-    const redisParsed = cachedData ? JSON.parse(cachedData) : {};
+    const redisParsed = await Redis.get(redisKey) || {};
 
     // 2. DB full data
     const result = await client.query(
@@ -449,16 +451,16 @@ export const deletePortfolioFile = async (req, res) => {
     const redisKey = `getInfluencerProfile:${userId}`;
 
     // 1 Redis se data fetch
-    let profileData = await redisClient.get(redisKey);
+    let profileData = await Redis.get(redisKey);
     if (profileData) {
-      profileData = JSON.parse(profileData);
+      // profileData = JSON.parse(profileData);
 
       if (profileData.portfoliojson) {
         profileData.portfoliojson = profileData.portfoliojson.filter(
           (file) => file.filepath !== filePathToDelete
         );
         //Redis store data for 3h->10800sec
-        await redisClient.setEx(redisKey, 10800, JSON.stringify(profileData));
+        await Redis.setEx(redisKey, 604800, profileData);;
       }
     }
 
@@ -472,10 +474,9 @@ export const deletePortfolioFile = async (req, res) => {
       console.log(" File deleted from local folder:", fullPath);
     }
 
-    // 3 Supabase se delete (actual storage path nikalo)
+    
     const bucketName = "uploads";
 
-    // Public URL ko relative storage path me convert karo
     const supabaseFilePath = filePathToDelete
       .split("/storage/v1/object/public/" + bucketName + "/")[1]
       ?.trim();

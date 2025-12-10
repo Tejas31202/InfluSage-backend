@@ -1,5 +1,5 @@
 import { client } from '../../config/Db.js';
-import redis from 'redis';
+import Redis from '../../utils/RedisWrapper.js';
 import path from 'path';
 
 import { createClient } from '@supabase/supabase-js';
@@ -9,8 +9,8 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const redisClient = redis.createClient({ url: process.env.REDIS_URL });
-redisClient.connect().catch(console.error);
+// const Redis = redis.createClient({ url: process.env.REDIS_URL });
+// Redis.connect().catch(console.error);
 
 const calculateProfileCompletion = (profileParts) => {
   const partsArray = Object.values(profileParts);
@@ -27,18 +27,18 @@ export const getCompanySizes = async (req, res) => {
   const redisKey = "company_sizes";
 
   try {
-    const cachedData = await redisClient.get(redisKey);
+    const cachedData = await Redis.get(redisKey);
 
     if (cachedData) {
       return res.status(200).json({
-        companySizes: JSON.parse(cachedData),
+        companySizes: cachedData,
         source: "redis",
       });
     }
 
     const result = await client.query("SELECT * FROM ins.fn_get_companysize()");
-    //Redis Store data for 1h -> 3600 sec
-    await redisClient.setEx(redisKey, 3600, JSON.stringify(result.rows)); // TTL 10 mins
+
+    await Redis.setEx(redisKey, 3600, result.rows);
 
     return res.status(200).json({
       companySizes: result.rows,
@@ -50,15 +50,16 @@ export const getCompanySizes = async (req, res) => {
   }
 };
 
+
 export const getInfluencerTiers = async (req, res) => {
   const redisKey = "influencer_tiers";
 
   try {
-    const cachedData = await redisClient.get(redisKey);
+    const cachedData = await Redis.get(redisKey);
 
     if (cachedData) {
       return res.status(200).json({
-        influencerTiers: JSON.parse(cachedData),
+        influencerTiers:cachedData,
         source: "redis",
       });
     }
@@ -67,7 +68,7 @@ export const getInfluencerTiers = async (req, res) => {
       "SELECT * FROM ins.fn_get_influencertiers()"
     );
 
-    await redisClient.setEx(redisKey, 3600, JSON.stringify(result.rows)); // TTL 60 mins
+    await Redis.setEx(redisKey, 3600, result.rows); // TTL 60 mins
 
     return res.status(200).json({
       influencerTiers: result.rows,
@@ -111,10 +112,11 @@ export const getVendorProfile = async (req, res) => {
   const redisKey = `vendorprofile:${vendorId}`;
 
   try {
-    const cachedData = await redisClient.get(redisKey);
+    const cachedData = await Redis.get(redisKey);
 
     if (cachedData) {
-      const parsed = JSON.parse(cachedData);
+      const parsed = cachedData; // already parsed
+
 
       const profileParts = {
         p_profile: parsed.profilejson || {},
@@ -231,19 +233,19 @@ export const completeVendorProfile = async (req, res) => {
 
       // List & remove old profile photos (optional cleanup)
       const { data: existingFiles, error: listError } = await supabase.storage
-        .from("uploads")
+        .from(process.env.SUPABASE_BUCKE)
         .list(profileFolderPath, { limit: 100 });
 
       if (!listError && existingFiles?.length > 0) {
         const oldFilePaths = existingFiles.map(
           (f) => `${profileFolderPath}/${f.name}`
         );
-        await supabase.storage.from("uploads").remove(oldFilePaths);
+        await supabase.storage.from(process.env.SUPABASE_BUCKE).remove(oldFilePaths);
       }
 
       // Upload new photo
       const { error: uploadError } = await supabase.storage
-        .from("uploads")
+        .from(process.env.SUPABASE_BUCKE)
         .upload(supabasePath, file.buffer, {
           contentType: file.mimetype,
           upsert: true,
@@ -257,7 +259,7 @@ export const completeVendorProfile = async (req, res) => {
 
       // Get public URL for uploaded image
       const { data: publicUrlData } = supabase.storage
-        .from("uploads")
+        .from(process.env.SUPABASE_BUCKE)
         .getPublicUrl(supabasePath);
 
       if (!publicUrlData?.publicUrl) {
@@ -345,16 +347,17 @@ export const completeVendorProfile = async (req, res) => {
       }
     } else {
       // 1 Try to fetch Redis partials
-      let redisData = {};
-      const existingRedis = await redisClient.get(redisKey);
-      if (existingRedis) {
-        try {
-          redisData = JSON.parse(existingRedis);
-        } catch (e) {
-          console.warn("Redis data corrupted:", e);
-        }
-      }
+      // let redisData = {};
+      // const existingRedis = await Redis.get(redisKey);
+      // if (existingRedis) {
+      //   try {
+      //     redisData = JSON.parse(existingRedis);
+      //   } catch (e) {
+      //     console.warn("Redis data corrupted:", e);
+      //   }
+      // }
 
+      const redisData = (await Redis.get(redisKey)) || {};
       // 2 Merge Redis + current request body (request takes priority)
       const finalData = {
         ...redisData,
@@ -378,11 +381,11 @@ export const completeVendorProfile = async (req, res) => {
 
       //  CASE B: User new or incomplete → check Redis
       if (!allPartsPresent) {
-        const existingRedis = await redisClient.get(redisKey);
-        let redisData = existingRedis ? JSON.parse(existingRedis) : {};
+        const existingRedis = await Redis.get(redisKey);
+        let redisData = existingRedis || {};
         redisData = { ...redisData, ...mergedData };
 
-        await redisClient.setEx(redisKey,86400, JSON.stringify(redisData));
+        await Redis.setEx(redisKey, 86400, redisData);
         return res.status(200).json({
           message: "Partial data saved in Redis (first-time user)",
           source: "redis",
@@ -411,7 +414,7 @@ export const completeVendorProfile = async (req, res) => {
         const { p_status, p_message } = result.rows[0] || {};
 
       if (p_status === 1) {
-        await redisClient.del(redisKey);
+        await Redis.del(redisKey);
         return res.status(200).json({ message: p_message, p_status });
       }
 
@@ -440,18 +443,18 @@ export const getObjectives = async (req, res) => {
   const redisKey = "vendor_objectives";
 
   try {
-    const cachedData = await redisClient.get(redisKey);
+    const cachedData = await Redis.get(redisKey);
 
     if (cachedData) {
       return res.status(200).json({
-        objectives: JSON.parse(cachedData),
+        objectives:cachedData,
         source: "redis",
       });
     }
 
     const result = await client.query("SELECT * FROM ins.fn_get_objectives();");
 
-    await redisClient.setEx(redisKey, 86400, JSON.stringify(result.rows)); // TTL: 24h
+    await Redis.setEx(redisKey, 86400, result.rows);
 
     return res.status(200).json({
       objectives: result.rows,

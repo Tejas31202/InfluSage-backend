@@ -152,7 +152,7 @@ export const insertMessage = async (req, res) => {
 
       // Upload file to Supabase
       const { data, error } = await supabase.storage
-        .from("uploads") // bucket name
+        .from(process.env.SUPABASE_BUCKET) // bucket name
         .upload(uniqueFileName, file.buffer, {
           contentType: file.mimetype,
           upsert: false,
@@ -162,7 +162,7 @@ export const insertMessage = async (req, res) => {
 
       // Get public URL
       const { data: publicData } = supabase.storage
-        .from("uploads")
+        .from(process.env.SUPABASE_BUCKET)
         .getPublicUrl(uniqueFileName);
 
       uploadedUrls.push(publicData.publicUrl);

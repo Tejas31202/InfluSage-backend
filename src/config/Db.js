@@ -19,17 +19,17 @@ client.connect()
   .catch((err) => console.error(" PostgreSQL connection error:", err));
  
 // ---------- Redis Client Setup ----------
-export const redisClient = redis.createClient({
-  url: process.env.REDIS_URL,
-});
+// export const redisClient = redis.createClient({
+//   url: process.env.REDIS_URL,
+// });
  
-redisClient.connect()
-  .then(() => console.log(" Connected to Redis"))
-  .catch((err) => console.error(" Redis connection error:", err));
+// redisClient.connect()
+//   .then(() => console.log(" Connected to Redis"))
+//   .catch((err) => console.error(" Redis connection error:", err));
  
 export default {
   client,
-  redisClient,
+  // redisClient,
 };
  
  

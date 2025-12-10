@@ -1,8 +1,8 @@
 import { client } from '../config/Db.js';
-import redis from 'redis';
+import Redis from '../utils/RedisWrapper.js';
 
-const redisClient = redis.createClient({ url: process.env.REDIS_URL });
-redisClient.connect().catch(console.error);
+// const Redis = redis.createClient({ url: process.env.REDIS_URL });
+// Redis.connect().catch(console.error);
 
 export const getRoles = async (req, res) => {
   try {
@@ -74,18 +74,19 @@ export const getCategories = async (req, res) => {
   const redisKey = "categories";
 
   try {
-    const cachedData = await redisClient.get(redisKey);
+    const cachedData = await Redis.get(redisKey);
 
     if (cachedData) {
       return res.status(200).json({
-        categories: JSON.parse(cachedData),
+        // categories: JSON.parse(cachedData),
+        categories:cachedData,
         source: "redis",
       });
     }
 
     const result = await client.query("select * from ins.fn_get_categories();");
 
-    await redisClient.setEx(redisKey, 7200, JSON.stringify(result.rows)); // TTL 2h
+    await Redis.setEx(redisKey, 7200, result.rows); // TTL 2h
 
     return res.status(200).json({
       categories: result.rows,

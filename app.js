@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import authRoutes from './src/routes/AuthRoutes.js';
 import cookieParser from 'cookie-parser';
+import Redis from './src/utils/RedisWrapper.js';
 
 import InfluencerRoutes from './src/routes/influencerroutes/InfluencerRoutes.js';
 import InfluencerProfileDetailRoutes from './src/routes/influencerroutes/InfluencerProfileDetailRoutes.js';
@@ -46,7 +47,9 @@ app.use(
 app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: process.env.FRONTEND_URL, // your Netlify URL
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   })
 );
@@ -86,10 +89,24 @@ const PORT = process.env.BACKEND_PORT || 3001;
 const server = createServer(app);
 const onlineUsers = new Map();
 
+const redisType = process.env.REDIS_PROVIDER === "upstash" ? "Upstash" : "Local";
+console.log(`🚀 Redis type active: ${redisType}`);
+
+(async () => {
+  try {
+    await Redis.set("connection:test", { status: "ok", Redis: redisType });
+    const test = await Redis.get("connection:test");
+    console.log("✅ Redis connected successfully:", test);
+  } catch (err) {
+    console.error("❌ Redis connection failed:", err);
+  }
+})();
+
 export const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
-    methods: ["GET", "POST"],
+    origin: process.env.FRONTEND_URL,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   },
 });
