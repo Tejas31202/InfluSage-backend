@@ -5,7 +5,7 @@ import {
   getUpdatedAnalyticsContents,
   getAllContentHistories,
   getInfluencerContentHistory,
-  insertOrEditAnalyticsRecord,
+  insertAnalyticsRecord,
   getUserPlatformAnalytics,
   getAnalyticList
 } from '../../controller/admincontroller/AdminAnalyticsDashboardController.js';
@@ -38,7 +38,7 @@ routes.get(
 routes.post(
   "/analytics/data/insert-edit",
   authenticateUser(["Admin"]),
-  insertOrEditAnalyticsRecord
+  insertAnalyticsRecord
 );
 
 routes.get(

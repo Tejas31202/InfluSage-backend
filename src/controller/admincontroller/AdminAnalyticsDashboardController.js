@@ -153,18 +153,18 @@ export const getInfluencerContentHistory = async (req, res) => {
   }
 };
 
-export const insertOrEditAnalyticsRecord = async (req, res) => {
+export const insertAnalyticsRecord = async (req, res) => {
+  console.log("insert Analytics called")
   try {
     const p_adminid = req.user?.id || req.query.p_adminid;
     const {
-      p_userplatformanalyticid,
       p_campaignid,
       p_influencerid,
       p_contentlinkid,
       p_metricsjson
     } = req.body || {};
 
-    // console.log("Data==>",req.body)
+    console.log("Data==>",req.body)
 
     if (!p_campaignid || !p_influencerid || !p_contentlinkid || !p_metricsjson) {
       return res.status(400).json({
@@ -173,19 +173,17 @@ export const insertOrEditAnalyticsRecord = async (req, res) => {
     }
 
     const result = await client.query(
-      `CALL ins.usp_upsert_userplatformanalytic(
+      `CALL ins.usp_insert_userplatformanalytic(
         $1::bigint,
         $2::bigint,
         $3::bigint,
         $4::bigint,
-        $5::bigint,
-        $6::json,
-        $7::smallint,
-        $8::text
+        $5::json,
+        $6::smallint,
+        $7::text
       );`,
       [
         p_adminid,
-        p_userplatformanalyticid || null,
         p_campaignid,
         p_influencerid,
         p_contentlinkid,
@@ -195,7 +193,14 @@ export const insertOrEditAnalyticsRecord = async (req, res) => {
       ]
     );
 
+    console.log("result",result)
+
     const { p_status, p_message } = result.rows[0];
+
+    console.log("p_status",p_status);
+    console.log("p_Message",p_message);
+
+
 
     if (p_status === 1) {
       return res.status(200).json({
@@ -222,7 +227,7 @@ export const insertOrEditAnalyticsRecord = async (req, res) => {
       });
     }
   } catch (error) {
-    console.error("Error in insertOrEditAnalyticsRecord:", error);
+    console.error("Error in insert AnalyticsRecord:", error);
     return res.status(500).json({
       message: error.message,
     });
