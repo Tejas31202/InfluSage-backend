@@ -153,18 +153,18 @@ export const getInfluencerContentHistory = async (req, res) => {
   }
 };
 
-export const insertOrEditAnalyticsRecord = async (req, res) => {
+export const insertAnalyticsRecord = async (req, res) => {
+  console.log("insert Analytics called")
   try {
     const p_adminid = req.user?.id || req.query.p_adminid;
     const {
-      p_userplatformanalyticid,
       p_campaignid,
       p_influencerid,
       p_contentlinkid,
       p_metricsjson
     } = req.body || {};
 
-    // console.log("Data==>",req.body)
+    console.log("Data==>",req.body)
 
     if (!p_campaignid || !p_influencerid || !p_contentlinkid || !p_metricsjson) {
       return res.status(400).json({
@@ -173,19 +173,17 @@ export const insertOrEditAnalyticsRecord = async (req, res) => {
     }
 
     const result = await client.query(
-      `CALL ins.usp_upsert_userplatformanalytic(
+      `CALL ins.usp_insert_userplatformanalytic(
         $1::bigint,
         $2::bigint,
         $3::bigint,
         $4::bigint,
-        $5::bigint,
-        $6::json,
-        $7::smallint,
-        $8::text
+        $5::json,
+        $6::smallint,
+        $7::text
       );`,
       [
         p_adminid,
-        p_userplatformanalyticid || null,
         p_campaignid,
         p_influencerid,
         p_contentlinkid,
@@ -195,7 +193,10 @@ export const insertOrEditAnalyticsRecord = async (req, res) => {
       ]
     );
 
+    console.log("result",result)
+
     const { p_status, p_message } = result.rows[0];
+
 
     // console.log("p stauts==>", p_status)
 
@@ -224,7 +225,7 @@ export const insertOrEditAnalyticsRecord = async (req, res) => {
       });
     }
   } catch (error) {
-    console.error("Error in insertOrEditAnalyticsRecord:", error);
+    console.error("Error in insert AnalyticsRecord:", error);
     return res.status(500).json({
       message: error.message,
     });
@@ -234,18 +235,19 @@ export const insertOrEditAnalyticsRecord = async (req, res) => {
 export const getUserPlatformAnalytics = async (req, res) => {
 
   const p_adminid = req.user?.id;
+  const p_userplatformanalyticid = req.query.p_userplatformanalyticid;
 
   if (!p_adminid) return res.status(400).json({ Message: "Admin ID Required." })
 
+  if (!p_userplatformanalyticid) return res.status(400).json({ Message: "p_userplatformanalyticid Required." })
+
+
   try {
-
-    const p_userplatformanalyticid = req.query.p_userplatformanalyticid;
-
     const result = await client.query(`SELECT * FROM ins.fn_get_userplatformanalytic($1::BIGINT,$2::BIGINT)`,
       [p_adminid, p_userplatformanalyticid]
     )
 
-    const userPlatformAnalytics = result.rows[0].fn_get_userplatformanalytic;
+    const userPlatformAnalytics = result.rows[0].fn_get_userplatformanalytic[0];
 
     if (!userPlatformAnalytics.length) {
       return res.status(200).json({
@@ -287,18 +289,19 @@ export const getAnalyticList = async (req, res) => {
     $6::int,
     $7::text
     )`,
-      [p_adminid,
-        p_providers ? JSON.parse(p_providers) : null,
-        p_contenttype ? JSON.parse(p_contenttype) : null,
-        p_sortorder || null,
-        Number(p_pagenumber) || 1,
-        Number(p_pagesize) || 10,
-        p_search || null
+      [
+        p_adminid,
+        p_providers || null,
+        p_contenttype || null,
+        p_sortorder || "DESC",
+        p_pagenumber || 1,
+        p_pagesize || 20,
+        p_search || null,
       ]);
 
     const result = analyticsList.rows;
 
-    console.log("AnalyticsList==>", result[0].fn_get_analyticlist)
+    // console.log("AnalyticsList==>", result[0].fn_get_analyticlist)
 
     if (!result.length) return res.status(404).json({ message: "Analytic List Not Available." })
 

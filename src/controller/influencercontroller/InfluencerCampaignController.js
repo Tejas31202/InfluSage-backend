@@ -104,7 +104,7 @@ export const applyNowCampaign = async (req, res) => {
           // Step 1: Check if file already exists in Supabase bucket
           const { data: existingFiles, error: listError } = await supabase.storage
             .from("uploads")
-            .list(`Influencer/${userFolder}/CampaignId_${campaignId}/ApplyCampaigns/`, {
+            .list(`Influencer/${userFolder}/Campaigns/${campaignId}/ApplyCampaigns/`, {
               search: newFileName,
             });
 

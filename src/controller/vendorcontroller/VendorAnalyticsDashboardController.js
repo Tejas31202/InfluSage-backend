@@ -4,11 +4,11 @@ export const getVendorAnalyticsSummary = async (req, res) => {
   try {
     const p_userid = req.user?.id || req.query.p_userid;
     const result = await client.query(
-      "select * from ins.getVendorAnalyticsSummary($1::bigint);",
+      "SELECT * FROM ins.fn_get_vendoranalytic($1::bigint);",
       [p_userid]
     );
-    //this function return conunts:-totalcampaign,totalimpression,engagementrate,totalcontentpieces,avg engegment per influe
-    const data = result.rows[0];
+  
+    const data = result.rows[0].fn_get_vendoranalytic;
     return res.status(200).json({
       message: "Analytics summary retrieved successfully",
       data: data,

@@ -70,6 +70,25 @@ export const userProfileRejectEmailHTML = ({ userName, reason }) => `
   </div>
 `;
 
+export const userCampaignBlockEmailHTML = ({ userName, campaignName }) => `
+  <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;border-radius:10px;background-color:#f9f9f9;border:1px solid #e0e0e0;">
+    <h2 style="color:#333;">Hello ${userName},</h2>
+    <p style="font-size:16px;color:#555;">
+      We wanted to inform you that your campaign <strong>"${campaignName}"</strong> has been <strong>Blocked</strong> by our admin team.
+    </p>
+    <p style="font-size:15px;color:#555;">
+      This action may have been taken due to a policy violation or content issue. Please review your campaign details and contact our support team if you believe this was done in error.
+    </p>
+    <br />
+    <p style="font-size:15px;color:#555;">
+      You can reach out to our support team for further clarification or assistance.
+    </p>
+    <br />
+    <p style="font-size:14px;color:#777;">The InfluSage Team</p>
+  </div>
+`;
+
+
 export const campaignRejectEmailHTML = ({ userName, campaignName, reason }) => `
   <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;border-radius:10px;">
     <h2 style="color:#333;">Hello ${userName},</h2>
