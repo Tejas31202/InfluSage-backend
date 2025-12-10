@@ -122,30 +122,39 @@ io.on("connection", (socket) => {
       );
 
       const notifyData = notifs.rows[0]?.fn_get_notificationlist || [];
+      // console.log("new data", notifyData);
 
      if (notifyData.length === 0) {
           console.log("No notifications found.");
-        } else {
-          const latest = notifyData[0];
-          const toUserId = latest.receiverid;
+          return;
+      } 
+        const latest = notifyData[0];
+        const toUserId = latest.receiverid;
 
-          if (toUserId) {
-            io.to(`user_${toUserId}`).emit("receiveNotification", latest);
-            console.log("📩 Sent to:", toUserId);
-          }
-        }
+        if (!toUserId) return;
 
-    } catch (err) {
-      console.error("Notification fetch error", err);
-    }
+        io.to(`user_${toUserId}`).emit("receiveNotification", latest);
+      } catch (err) {
+        console.error("Error fetching notifications", err);
+      }
 
     console.log(`User ${userId} registered`);
     io.on("connection", (socket) => {
-      console.log("🔌 User connected", socket.id);
+      console.log("🔗 SOCKET CONNECTED");
+      console.log("   socket.id =", socket.id);
 
       socket.on("joinUserRoom", (userId) => {
-        socket.join(`user_${userId}`);
-        console.log("✅ User joined notification room:", `user_${userId}`);
+        const room = `user_${userId}`;
+        socket.join(room);
+
+        console.log("✅ JOIN USER ROOM");
+        console.log("   socket.id =", socket.id);
+        console.log("   userId   =", userId);
+        console.log("   room     =", room);
+      });
+
+      socket.on("disconnect", () => {
+        console.log("❌ SOCKET DISCONNECTED:", socket.id);
       });
     });
  

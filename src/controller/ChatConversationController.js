@@ -85,17 +85,13 @@ export const startConversation = async (req, res) => {
       // Emit notifications via socket
       if (notifyData.length === 0) {
           console.log("No notifications found.");
-        } else {
-          console.log(notifyData);
-          const latest = notifyData[0];
+         return;
+      }
+        const latest = notifyData[0];
+        const toUserId = latest.receiverid;
+        if (!toUserId) return;
 
-          const toUserId = latest.receiverid;
-
-          if (toUserId) {
-            io.to(`user_${toUserId}`).emit("receiveNotification", notifyData);
-            console.log("📩 Sent to:", toUserId);
-          }
-        }
+        io.to(`user_${toUserId}`).emit("receiveNotification", notifyData);     
 
       return res.status(200).json({
         status: true,
@@ -208,7 +204,7 @@ export const insertMessage = async (req, res) => {
     const p_message = row.p_message;
 
     if (p_status === 1) {
-      const recipientId = roleId === 1 ? vendorId : influencerId;
+      // const recipientId = roleId === 1 ? vendorId : influencerId;
 
       io.to(String(p_conversationid)).emit("receiveMessage", {
         conversationid: p_conversationid,
@@ -392,16 +388,21 @@ export const updateUndoMessage = async (req, res) => {
 
 export const unreadMessageList = async (req, res) => {
   const userId = req.user?.id || req.body.userId;
+
   try {
     if (!userId) {
-      res.json({ message: "please enter userId" });
+      return res.status(400).json({ message: "please enter userId" });
     }
+
     const result = await client.query(
       `SELECT * FROM ins.fn_get_unreadmessagelist($1::bigint);`,
       [userId]
-
     );
-    const lists = result.rows[0].fn_get_unreadmessagelist;
+    const lists = result.rows?.[0]?.fn_get_unreadmessagelist ?? [];
+
+    // io.to(`user_${userId}`).emit("receiveUnreadMessages", lists);
+
+    // console.log("📤 UNREAD MESSAGE EMITTED TO:", `user_${userId}`);
 
     return res.status(200).json({
       message: "Unread message list fetched successfully",
@@ -410,7 +411,7 @@ export const unreadMessageList = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Failed to update message:", error);
+    console.error("Failed to fetch unread messages:", error);
     return res.status(500).json({ message: error.message });
   }
 };

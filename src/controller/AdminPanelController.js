@@ -298,15 +298,13 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
           notificationRes.rows[0]?.fn_get_notificationlist || [];
         if (notifyData.length === 0) {
           console.log("No notifications found.");
-        } else {
+          return;
+        } 
           const latest = notifyData[0];
           const toUserId = latest.receiverid;
 
-          if (toUserId) {
-            io.to(`user_${toUserId}`).emit("receiveNotification", latest);
-            console.log("📩 Sent to:", toUserId);
-          }
-        }
+        if (!toUserId) return;
+        io.to(`user_${toUserId}`).emit("receiveNotification", latest);          
       }
 
       return res.status(200).json({
@@ -545,7 +543,7 @@ export const blockInfluencerApplication = async (req, res) => {
       // SOCKET NOTIFICATIONS
       // -------------------------------
       const p_role = 'RECEIVER';
-      
+
       if (recipientId) {
         const notificationRes = await client.query(
           `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean, $3::text)`,
@@ -555,17 +553,13 @@ export const blockInfluencerApplication = async (req, res) => {
         const notifyData = notificationRes.rows[0]?.fn_get_notificationlist || [];
         if (notifyData.length === 0) {
           console.log("No notifications found.");
-        } else {
-          console.log(notifyData);
+          return;
+        } 
           const latest = notifyData[0];
-
           const toUserId = latest.receiverid;
-
-          if (toUserId) {
-            io.to(`user_${toUserId}`).emit("receiveNotification", notifyData);
-            console.log("📩 Sent to:", toUserId);
-          }
-        }
+          if (!toUserId) return;
+      
+            io.to(`user_${toUserId}`).emit("receiveNotification", notifyData);  
       }
 
       return res.status(200).json({ message: p_message, status: true, p_status, source: "db" });

@@ -188,22 +188,21 @@ export const applyNowCampaign = async (req, res) => {
           `select * from ins.fn_get_notificationlist($1::bigint,$2::boolean,$3::text)`,
           [userId, null, p_role]
         );
+
         const notifyData = notification.rows[0]?.fn_get_notificationlist || [];
-        console.log("new data", notifyData );
+        console.log("new data:", notifyData);
 
         if (notifyData.length === 0) {
           console.log("No notifications found.");
-        } else {
-          console.log(notifyData);
-          const latest = notifyData[0];
-
-          const toUserId = latest.receiverid;
-
-          if (toUserId) {
-            io.to(`user_${toUserId}`).emit("receiveNotification", notifyData);
-            console.log("📩 Sent to:", toUserId);
-          }
+          return;
         }
+
+        const latest = notifyData[0];
+        const toUserId = latest.receiverid;
+
+        if (!toUserId) return;
+
+        io.to(`user_${toUserId}`).emit("receiveNotification", latest);
       } catch (err) {
         console.error("Error fetching notifications", err);
       }
