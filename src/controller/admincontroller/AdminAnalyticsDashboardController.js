@@ -285,18 +285,19 @@ export const getAnalyticList = async (req, res) => {
     $6::int,
     $7::text
     )`,
-      [p_adminid,
-        p_providers ? JSON.parse(p_providers) : null,
-        p_contenttype ? JSON.parse(p_contenttype) : null,
-        p_sortorder || null,
-        Number(p_pagenumber) || 1,
-        Number(p_pagesize) || 10,
-        p_search || null
+       [
+        p_adminid,
+        p_providers || null,
+        p_contenttype || null,
+        p_sortorder || "DESC",
+        p_pagenumber || 1,
+        p_pagesize || 20,
+        p_search || null,
       ]);
 
     const result = analyticsList.rows;
 
-    console.log("AnalyticsList==>", result[0].fn_get_analyticlist)
+    // console.log("AnalyticsList==>", result[0].fn_get_analyticlist)
 
     if (!result.length) return res.status(404).json({ message: "Analytic List Not Available." })
 
