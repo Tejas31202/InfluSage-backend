@@ -14,11 +14,7 @@
       "@dotenvx/dotenvx": "^1.48.2",
       "@sendgrid/mail": "^8.1.6",
       "@supabase/supabase-js": "^2.75.0",
-<<<<<<< HEAD
-      "@upstash/redis": "^1.35.6",
-=======
       "@upstash/redis": "^1.35.7",
->>>>>>> main
       "apple-signin-auth": "^2.0.0",
       "arctic": "^3.7.0",
       "bcrypt": "^6.0.0",
