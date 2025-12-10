@@ -4,6 +4,7 @@ import { Redis } from "@upstash/redis";
 
 dotenv.config();
 
+
 const { Client } = pkg;
 
 let client;

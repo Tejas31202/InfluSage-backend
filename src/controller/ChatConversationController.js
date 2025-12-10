@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { client } from '../config/Db.js';
+import { io } from '../../app.js'
 // import authenticateUser from '../middleware/AuthMiddleware.js';
 
 // Create Supabase client once at the top
@@ -12,26 +13,26 @@ export const resolveUsername = async (req, res, next) => {
   let username = "user";
 
   try {
-   if (req.user?.name) {
-    // Split by space and take first word
-    username = req.user.name.split(" ")[0].trim();
-  }
-
-  //  Fallback: from request body
-  else if (req.body?.firstName) {
-    username = req.body.firstName.trim();
-  }
-
-  // Final fallback: from DB
-  else {
-    const dbUser = await client.query(
-      "SELECT firstname FROM ins.users WHERE id=$1",
-      [userId]
-    );
-    if (dbUser.rows[0]?.firstname) {
-      username = dbUser.rows[0].firstname.trim();
+    if (req.user?.name) {
+      // Split by space and take first word
+      username = req.user.name.split(" ")[0].trim();
     }
-  }
+
+    //  Fallback: from request body
+    else if (req.body?.firstName) {
+      username = req.body.firstName.trim();
+    }
+
+    // Final fallback: from DB
+    else {
+      const dbUser = await client.query(
+        "SELECT firstname FROM ins.users WHERE id=$1",
+        [userId]
+      );
+      if (dbUser.rows[0]?.firstname) {
+        username = dbUser.rows[0].firstname.trim();
+      }
+    }
     req.username = username || "user";
     next();
   } catch (err) {
@@ -43,6 +44,8 @@ export const resolveUsername = async (req, res, next) => {
 
 export const startConversation = async (req, res) => {
   const { p_campaignapplicationid } = req.body;
+  const p_userid = req.user?.id;
+
 
   if (!p_campaignapplicationid) {
     return res.status(400).json({
@@ -55,7 +58,7 @@ export const startConversation = async (req, res) => {
     const result = await client.query(
       `call ins.usp_upsert_conversation(
         $1::bigint,
-        $2::boolean,
+        $2::smallint,
         $3::text
        )`,
       [
@@ -65,14 +68,53 @@ export const startConversation = async (req, res) => {
       ]
     );
 
-    const { p_status, p_message } = result.rows[0];
+    const row = result.rows[0] || {};
+    const p_status = Number(row.p_status);
+    const p_message = row.p_message;
+    const p_role = 'RECEIVER';
 
-    if (p_status) {
-      return res
-        .status(200)
-        .json({ message: p_message, p_status, source: "db" });
-    } else {
-      return res.status(400).json({ message: p_message, p_status });
+    if (p_status === 1) {
+      // Fetch notifications
+      const notifRes = await client.query(
+        `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean, $3::text)`,
+        [p_userid, null, p_role]
+      );
+
+      const notifyData = notifRes.rows[0]?.fn_get_notificationlist || [];
+
+      // Emit notifications via socket
+      if (notifyData.length === 0) {
+          console.log("No notifications found.");
+        } else {
+          console.log(notifyData);
+          const latest = notifyData[0];
+
+          const toUserId = latest.receiverid;
+
+          if (toUserId) {
+            io.to(`user_${toUserId}`).emit("receiveNotification", notifyData);
+            console.log("📩 Sent to:", toUserId);
+          }
+        }
+
+      return res.status(200).json({
+        status: true,
+        message: p_message || "Conversation started successfully",
+        source: "db",
+      });
+    } else if (p_status === 0) {
+      return res.status(400).json({
+        status: false,
+        message: p_message || "Failed to start conversation",
+        source: "db",
+      });
+    }
+    
+     else {
+      return res.status(500).json({
+        status: false,
+        message: p_message || "Unexpected database response",
+      });
     }
   } catch (error) {
     console.log(error);
@@ -81,7 +123,9 @@ export const startConversation = async (req, res) => {
 };
 
 export const insertMessage = async (req, res) => {
-  const { p_conversationid, p_roleid, p_messages, p_replyid, p_messageid, campaignid, campaignName, influencerId, influencerName, vendorId, vendorName} = req.body || {};
+  const { p_conversationid, p_roleid, p_messages, p_replyid, p_messageid, campaignid, campaignName, influencerId, influencerName, vendorId, vendorName } = req.body || {};
+  const roleId = req.user?.roleId || p_roleid; // sender's role
+  // const userId = req.user?.id; // sender's id
 
   let p_filepaths = null;
   if (req.files && req.files.length > 0) {
@@ -102,7 +146,7 @@ export const insertMessage = async (req, res) => {
       //Created Folder Path For Vendor And Influencer saved in vendor side
       if (Number(roleId) === 2) {
         uniqueFileName = `Vendor/${userId}/Campaigns/${campaignid}/Chat/${influencerId}/${newFileName}`;
-      } else if ((Number(roleId) === 1)){
+      } else if ((Number(roleId) === 1)) {
         uniqueFileName = `Vendor/${vendorId}/Campaigns/${campaignid}/Chat/${userId}/${newFileName}`;
       }
 
@@ -111,7 +155,7 @@ export const insertMessage = async (req, res) => {
         .from(process.env.SUPABASE_BUCKET) // bucket name
         .upload(uniqueFileName, file.buffer, {
           contentType: file.mimetype,
-          upsert: false, 
+          upsert: false,
         });
 
       if (error) throw error;
@@ -142,7 +186,7 @@ export const insertMessage = async (req, res) => {
         $2::smallint, 
         $3::text,
         $4::text, 
-        $5::boolean, 
+        $5::smallint, 
         $6::text,
         $7::bigint,
         $8::bigint
@@ -159,16 +203,52 @@ export const insertMessage = async (req, res) => {
       ]
     );
 
-    const { p_status, p_message } = result.rows[0] || {};
+    const row = result.rows[0] || {};
+    const p_status = Number(row.p_status);
+    const p_message = row.p_message;
 
-    if (p_status) {
+    if (p_status === 1) {
+      const recipientId = roleId === 1 ? vendorId : influencerId;
+
+      io.to(String(p_conversationid)).emit("receiveMessage", {
+        conversationid: p_conversationid,
+        message: p_messages || "",
+        filepaths: p_filepaths ? p_filepaths.split(",") : [],
+        roleid: p_roleid,
+        replyid: p_replyid || null,
+        createddate: new Date().toISOString(),
+        userid: req.user?.id,
+        campaignid,
+        influencerId,
+        vendorId,
+        readbyvendor: false,
+        readbyinfluencer: false,
+      });
+
       return res.status(200).json({
+        status: p_status,
         message: p_message,
-        p_status,
+        source: "db",
         filePaths: p_filepaths ? p_filepaths.split(",") : [],
       });
+    } else if (p_status === 0) {
+      return res.status(400).json({
+        status: false,
+        message: p_message,
+        source: "db",
+      });
+    } else if (p_status === -1) {
+      return res.status(500).json({
+        status: p_status,
+        message: "Unexpected database error",
+        source: "db",
+      });
     } else {
-      return res.status(400).json({ message: p_message, p_status });
+      return res.status(500).json({
+        status: p_status,
+        message: "Unknown database response",
+        source: "db",
+      });
     }
   } catch (error) {
     console.error("Failed to upsert message:", error);
@@ -271,19 +351,39 @@ export const updateUndoMessage = async (req, res) => {
         $1::BIGINT,
         $2::SMALLINT,
         $3::TEXT,
-        $4::BOOLEAN,
+        $4::SMALLINT,
         $5::VARCHAR
       )`,
       [p_messageid, p_roleid, p_action, null, null]
     );
-    const { p_status, p_message } = result.rows[0] || {};
-    if (p_status) {
+    const row = result.rows?.[0] || {};
+    const p_status = Number(row.p_status);
+    const p_message = row.p_message;
+
+    // ----------------- HANDLE p_status -----------------
+    if (p_status === 1) {
       return res.status(200).json({
-        message: p_message,
+        message: p_message || "Message updated successfully",
         p_status,
       });
-    } else {
-      return res.status(400).json({ message: p_message, p_status });
+    } 
+    else if (p_status === 0) {
+      return res.status(400).json({
+        message: p_message || "Validation failed",
+        p_status,
+      });
+    } 
+    else if (p_status === -1) {
+      return res.status(500).json({
+        message: "Something went wrong. Please try again later.",
+        p_status: false,
+      });
+    } 
+    else {
+      return res.status(500).json({
+        message: "Unexpected database response",
+        p_status: false,
+      });
     }
   } catch (error) {
     console.error("Failed to update message:", error);

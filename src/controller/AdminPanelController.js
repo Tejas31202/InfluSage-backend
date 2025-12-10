@@ -7,6 +7,8 @@ import {
   userProfileRejectEmailHTML,
   campaignRejectEmailHTML
 } from "../utils/EmailTemplates.js";
+import { io } from '../../app.js'
+
 
 export const getUserStatusList = async (req, res) => {
   try {
@@ -175,98 +177,168 @@ export const getRequestedCampaignList = async (req, res) => {
 };
 
 export const insertApprovedOrRejectedApplication = async (req, res) => {
+
+  const p_adminid=req.user.id;
   const { p_userid, p_campaignid, p_statusname } = req.body;
 
-  if (!p_userid && !p_campaignid) {
+  if (!p_adminid && !p_userid ) {
     return res.status(400).json({
-      message:
-        "Required field missing: p_userid or p_campaignid must be specified.",
+      message: "Required field missing: p_adminid or p_userid must be specified.",
     });
   }
-  if (!p_statusname) {
-    return res
-      .status(400)
-      .json({ message: "Required field missing : p_statusname" });
-  }
+  // if (!p_statusname) {
+  //   return res.status(400).json({ message: "Required field missing : p_statusname" });
+  // }
 
   try {
     const result = await client.query(
       `CALL ins.usp_update_approvalstatus(
-      $1::bigint,
-      $2::bigint,
-      $3::varchar,
-      $4::boolean,
-      $5::text);`,
-      [p_userid || null, p_campaignid || null, p_statusname, null, null]
+        $1::bigint,
+        $2::bigint,
+        $3::bigint,
+        $4::smallint,
+        $5::character
+      );`,
+      [p_adminid,p_userid || null, p_campaignid || null,null, null]
     );
 
-    const { p_status, p_message } = result.rows[0];
+    const row = result.rows?.[0] || {};
+    const p_status = Number(row.p_status);
+    const p_message = row.p_message;
 
-    const actionableMessages = [
-      "User Approved.",
-      "User Rejected.",
-      "User Blocked.",
-      "Campaign Approved.",
-      "Campaign Rejected.",
-    ];
+    // ----------------- HANDLE p_status -----------------
+    if (p_status === 1) {
+      // Proceed with emails + notifications as before
+      let recipientId = null;
+      let email = null;
+      let firstName = null;
+      let campaignName = null;
 
-    if (!actionableMessages.includes(p_message)) {
-      console.log("No email sent — DB message:", p_message);
-      return res
-        .status(200)
-        .json({ message: p_message, p_status, source: "db" });
-    }
+      // const actionableMessages = [
+      //   "User Approved.",
+      //   "User Rejected.",
+      //   "User Blocked.",
+      //   "Campaign Approved.",
+      //   "Campaign Rejected.",
+      // ];
 
-    //  Decide who receives the email
-    if (p_userid && !p_campaignid) {
-      // Profile approval/rejection
-      const userResult = await client.query(
-        "SELECT firstname, email FROM ins.users WHERE id = $1",
-        [p_userid]
-      );
-      const user = userResult.rows[0];
+      // if (!actionableMessages.includes(p_message)) {
+      //   return res.status(200).json({ message: p_message, p_status, source: "db" });
+      // }
 
-      await sendingMailFormatForAdmin(
-        user.email,
-        `Your Profile ${p_statusname}`,
-        userProfileEmailHTML({ userName: user.firstname, status: p_statusname })
-      );
-    } else if (p_campaignid && !p_userid) {
-      // Campaign approval/rejection
-      const campaignOwnerResult = await client.query(
-        `SELECT 
-          c.name AS campaignname,
-          u.firstname,
-          u.email
-        FROM ins.campaigns c
-        INNER JOIN ins.users u ON u.id = c.ownerid
-        WHERE c.id = $1`,
-        [p_campaignid]
-      );
+      // -----------------------------------
+      // USER APPROVAL / REJECTION
+      // -----------------------------------
+      if (p_userid && !p_campaignid) {
+        const userResult = await client.query(
+          `SELECT id, firstname, email FROM ins.users WHERE id = $1`,
+          [p_userid]
+        );
 
-      const data = campaignOwnerResult.rows[0];
+        const user = userResult.rows[0];
+        if (!user) return res.status(404).json({ message: p_message || "User not found" });
 
-      if (!data) {
-        return res.status(404).json({ message: "Campaign or owner not found" });
+        recipientId = user.id;
+        email = user.email;
+        firstName = user.firstname;
+
+        await sendingMailFormatForAdmin(
+          email,
+          `Your Profile ${p_message }`,
+          userProfileEmailHTML({ userName: firstName, status: p_message  })
+        );
       }
 
-      // Send email to campaign owner
-      await sendingMailFormatForAdmin(
-        data.email,
-        `Your Campaign ${p_statusname}`,
-        campaignEmailHTML({
-          userName: data.firstname,
-          campaignName: data.campaignname,
-          status: p_statusname,
-        })
-      );
-    } else {
-      return res.status(400).json({
-        message: "Invalid request: provide either userId or campaignId",
+      // CAMPAIGN APPROVAL / REJECTION
+      else if (p_campaignid && !p_userid) {
+        const campaignOwnerResult = await client.query(
+          `SELECT 
+            c.name AS campaignname,
+            u.id AS ownerid,
+            u.firstname,
+            u.email
+          FROM ins.campaigns c
+          INNER JOIN ins.users u ON u.id = c.ownerid
+          WHERE c.id = $1`,
+          [p_campaignid]
+        );
+        
+        const data = campaignOwnerResult.rows[0];
+        if (!data) {
+          return res.status(404).json({ message: p_message ||"Campaign or owner not found" });
+        }
+
+        recipientId = data.ownerid;
+        email = data.email;
+        firstName = data.firstname;
+        campaignName = data.campaignname;
+
+        await sendingMailFormatForAdmin(
+          email,
+          `Your Campaign ${p_status}`,
+          campaignEmailHTML({
+            userName: firstName,
+            campaignName,
+            status: p_status ,
+          })
+        );
+      }
+
+      // -----------------------------------
+      // FETCH NOTIFICATIONS + SOCKET EMIT
+      // -----------------------------------
+      const p_role = 'RECEIVER';
+      if (recipientId) {
+        const notificationRes = await client.query(
+          `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean, $3::text)`,
+          [recipientId, null, p_role]
+        );
+
+        const notifyData =
+          notificationRes.rows[0]?.fn_get_notificationlist || [];
+        if (notifyData.length === 0) {
+          console.log("No notifications found.");
+        } else {
+          const latest = notifyData[0];
+          const toUserId = latest.receiverid;
+
+          if (toUserId) {
+            io.to(`user_${toUserId}`).emit("receiveNotification", latest);
+            console.log("📩 Sent to:", toUserId);
+          }
+        }
+      }
+
+      return res.status(200).json({
+        message: p_message,
+        status: p_status
       });
     }
 
-    return res.status(200).json({ message: p_message, source: "db" });
+    // Case 2: p_status = 0 → DB validation fail
+    else if (p_status === 0) {
+      return res.status(400).json({
+        status: p_status,
+        message: p_message || "Validation failed"
+      });
+    }
+
+    // Case 3: p_status = -1 → SP failed
+    else if (p_status === -1) {
+      return res.status(500).json({
+        status: p_status,
+        message: p_message ||"Something went wrong. Please try again later."
+      });
+    }
+
+    // Fallback: unexpected value
+    else {
+      return res.status(500).json({
+        status: false,
+        message: "Unexpected database response",
+      });
+    }
+
   } catch (error) {
     console.error("Error in insertApprovedOrRejectedApplication:", error);
     return res.status(500).json({ message: error.message });
@@ -338,12 +410,12 @@ export const getCampaignDetails = async (req, res) => {
 export const campaignBlockReason = async (req, res) => {
   try {
     const result = await client.query("SELECT * FROM ins.fn_get_campaignblockreason();");
-    
+
     const BlockReason = result.rows;
 
     return res.status(200).json({
       message: "Campaign Block Reasons fetched successfully",
-      data:BlockReason
+      data: BlockReason
     });
   } catch (error) {
     console.error("Error fetching Campaign Block Reason:", error);
@@ -365,92 +437,163 @@ export const userBlockReason = async (req, res) => {
   }
 };
 
-
 export const blockInfluencerApplication = async (req, res) => {
-  const p_adminid=req.user?.id||req.body.p_adminid;
-  const {p_userid,p_campaignid,p_objective } = req.body;
+  const p_adminid = req.user?.id || req.body.p_adminid;
+  const { p_userid, p_campaignid, p_objective } = req.body;
 
   if (!p_userid && !p_campaignid) {
     return res.status(400).json({
-      message:
-        "Required field missing: p_userid or p_campaignid must be specified.",
+      message: "Required field missing: p_userid or p_campaignid must be specified.",
     });
   }
+
   try {
     const result = await client.query(
       `CALL ins.usp_insert_entityblock(
-      $1::bigint,
-      $2::bigint,
-      $3::bigint,
-      $4::smallint,
-      $5::boolean,
-      $6::text);`,
-      [p_adminid,p_userid || null, p_campaignid || null,p_objective, null, null]
+        $1::bigint,
+        $2::bigint,
+        $3::bigint,
+        $4::smallint,
+        $5::smallint,
+        $6::text
+      );`,
+      [p_adminid, p_userid || null, p_campaignid || null, p_objective, null, null]
     );
 
+    const row = result.rows[0] || {};
+    const p_status = Number(row.p_status);
+    const p_message = row.p_message;
+
+    // -------------------------------
+    //      ACTIONABLE MESSAGES CHECK
+    // -------------------------------
     const actionableMessages = [
       "User Blocked Successfully.",
       "Campaign Blocked Successfully."
     ];
 
-    const { p_status, p_message } = result.rows[0];
     if (!actionableMessages.includes(p_message)) {
-      console.log("No email sent — DB message:", p_message);
-      return res
-        .status(200)
-        .json({ message: p_message, p_status, source: "db" });
+      // Non-actionable → just return message and p_status
+      return res.status(200).json({ message: p_message, p_status, source: "db" });
     }
 
-    if (p_userid && !p_campaignid) {
-      // Profile block
-      const userResult = await client.query(
-        "SELECT firstname, email FROM ins.users WHERE id = $1",
-        [p_userid]
-      );
-      const user = userResult.rows[0];
+    // -------------------------------
+    //       STATUS HANDLING
+    // -------------------------------
+    if (p_status === 1) {
+      let recipientId = null;
 
-      await sendingMailFormatForAdmin(
-        user.email,
-        `Your Profile blocked by influsage admin team`,
-        userProfileBlockEmailHTML({ userName: user.firstname})
-      );
-    } 
-    // else if (p_campaignid && !p_userid) {
-    //   // Campaign block
-    //   const campaignOwnerResult = await client.query(
-    //     `SELECT 
-    //       c.name AS campaignname,
-    //       u.firstname,
-    //       u.email
-    //     FROM ins.campaigns c
-    //     INNER JOIN ins.users u ON u.id = c.ownerid
-    //     WHERE c.id = $1`,
-    //     [p_campaignid]
-    //   );
+      // -------------------------------
+      // USER BLOCK → EMAIL + SOCKET
+      // -------------------------------
+      if (p_userid && !p_campaignid) {
+        const userResult = await client.query(
+          `SELECT id, firstname, email FROM ins.users WHERE id = $1`,
+          [p_userid]
+        );
+        const user = userResult.rows[0];
+        if (!user) return res.status(404).json({ message: "User not found" });
 
-    //   const data = campaignOwnerResult.rows[0];
+        recipientId = user.id;
 
-    //   if (!data) {
-    //     return res.status(404).json({ message: "Campaign or owner not found" });
-    //   }
+        await sendingMailFormatForAdmin(
+          user.email,
+          `Your Profile blocked by influsage admin team`,
+          userProfileBlockEmailHTML({ userName: user.firstname })
+        );
+      }
 
-    //   // Send email to campaign owner
-    //   await sendingMailFormatForAdmin(
-    //     data.email,
-    //     `Your Campaign blocked by influsage admin team`,
-    //     userProfileBlockEmailHTML({
-    //       userName: data.firstname,
-    //       campaignName: data.campaignname,
-    //       status: p_statusname,
-    //     })
-    //   );
-    // } else {
-    //   return res.status(400).json({
-    //     message: "Invalid request: provide either userId or campaignId",
-    //   });
-    // }
+      // -------------------------------
+      // CAMPAIGN BLOCK → EMAIL + SOCKET
+      // -------------------------------
+      else if (p_campaignid && !p_userid) {
+        const campaignOwner = await client.query(
+          `SELECT 
+              u.id AS ownerid,
+              u.firstname,
+              u.email,
+              c.name AS campaignname
+           FROM ins.campaigns c
+           INNER JOIN ins.users u ON u.id = c.ownerid
+           WHERE c.id = $1`,
+          [p_campaignid]
+        );
 
-    return res.status(200).json({ message: p_message, source: "db" });
+        const data = campaignOwner.rows[0];
+        if (!data) return res.status(404).json({ message: "Campaign or owner not found" });
+
+        recipientId = data.ownerid;
+
+        await sendingMailFormatForAdmin(
+          data.email,
+          `Your Campaign blocked by influsage admin team`,
+          userProfileBlockEmailHTML({
+            userName: data.firstname,
+            campaignName: data.campaignname
+          })
+        );
+      }
+
+      // Safety fallback
+      else {
+        return res.status(400).json({
+          message: "Invalid request: provide either userId or campaignId",
+        });
+      }
+
+      // -------------------------------
+      // SOCKET NOTIFICATIONS
+      // -------------------------------
+      const p_role = 'RECEIVER';
+      
+      if (recipientId) {
+        const notificationRes = await client.query(
+          `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean, $3::text)`,
+          [recipientId, null, p_role]
+        );
+
+        const notifyData = notificationRes.rows[0]?.fn_get_notificationlist || [];
+        if (notifyData.length === 0) {
+          console.log("No notifications found.");
+        } else {
+          console.log(notifyData);
+          const latest = notifyData[0];
+
+          const toUserId = latest.receiverid;
+
+          if (toUserId) {
+            io.to(`user_${toUserId}`).emit("receiveNotification", notifyData);
+            console.log("📩 Sent to:", toUserId);
+          }
+        }
+      }
+
+      return res.status(200).json({ message: p_message, status: true, p_status, source: "db" });
+    }
+
+    // VALIDATION FAIL → p_status = 0
+    else if (p_status === 0) {
+      return res.status(400).json({ message: p_message || "Validation failed", status: false, p_status });
+    }
+
+    // SP FAILED → p_status = -1
+    else if (p_status === -1) {
+      return res.status(500).json({
+        message: "Something went wrong. Please try again later.",
+        status: false,
+        p_status
+      });
+    }
+
+    // Unexpected fallback
+    else {
+      return res.status(500).json({
+        message: "Unexpected database response",
+        status: false,
+        p_status
+      });
+    }
+
   } catch (error) {
     console.error("Error in blockInfluencerApplication:", error);
     return res.status(500).json({ message: error.message });
@@ -482,7 +625,7 @@ export const adminRejectInfluencerOrCampaign = async (req, res) => {
         $2::bigint,
         $3::bigint,
         $4::varchar,
-        $5::boolean,
+        $5::smallint,
         $6::varchar
       );`,
       [p_adminid, p_userid || null, p_campaignid || null, p_text, null, null]
@@ -493,7 +636,7 @@ export const adminRejectInfluencerOrCampaign = async (req, res) => {
       "Campaign rejected successfully.",
     ];
     const { p_status, p_message } = result.rows[0];
-    
+
     if (!actionableMessages.includes(p_message)) {
       return res
         .status(200)
@@ -534,7 +677,7 @@ export const adminRejectInfluencerOrCampaign = async (req, res) => {
 
     if (p_campaignid && !p_userid) {
       const campaignOwnerResult = await client.query(
-        `SELECT 
+        `SELECT
            c.name AS campaignname,
            u.firstname,
            u.email

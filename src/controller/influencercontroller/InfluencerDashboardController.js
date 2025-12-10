@@ -88,7 +88,7 @@ export const insertOrEditOrDeleteToDo = async (req, res) => {
       $4::date, 
       $5::boolean, 
       $6::boolean,
-      $7::boolean,
+      $7::smallint,
       $8::varchar
       );`,
       [
@@ -103,23 +103,75 @@ export const insertOrEditOrDeleteToDo = async (req, res) => {
       ]
     );
 
-    const { p_status, p_message } = result.rows[0];
+    const row = result.rows[0] || {};
+    const p_status = Number(row.p_status);
+    const p_message = row.p_message;
 
-    if (p_status) {
+    if (p_status === 1) {
       return res.status(200).json({
+        status: true,
         message: p_message,
         source: "db",
       });
-    } else {
+    } else if (p_status === 0) {
       return res.status(400).json({
+        status: false,
         message: p_message,
-        status: p_status,
+        source: "db",
+      });
+    } else if (p_status === -1) {
+      return res.status(500).json({
+        status: false,
+        message: "Unexpected database error",
+        source: "db",
+      });
+    } else {
+      return res.status(500).json({
+        status: false,
+        message: "Unknown database response",
+        source: "db",
       });
     }
   } catch (error) {
     console.error("Error in insertOrEditToDo:", error);
     return res.status(500).json({
       message: error.message,
+    });
+  }
+};
+
+export const getInfluencerFeedBack = async (req, res) => {
+  const p_userid = req.user?.id;
+
+  if (!p_userid) {
+    return res.status(400).json({
+      Message: "User Id Required for Feedback"
+    });
+  }
+
+  try {
+    const influencerFeedback = await client.query(
+      `SELECT * FROM ins.fn_get_influencerfeedbacklist($1::BIGINT)`,
+      [p_userid]
+    );
+
+    const feedBackResult = influencerFeedback.rows[0].fn_get_influencerfeedbacklist;
+
+    if (!feedBackResult.length) {
+      return res.status(404).json({ Message: "Feedback Not Available" });
+    }
+
+    return res.status(200).json({
+      Message: "Vendor Performance Summary Successfully Fetched",
+      Data: feedBackResult,
+      source: "db"
+    });
+
+  } catch (error) {
+    console.error("Error in Get Vendor Performance Summary:", error);
+    return res.status(500).json({
+      Message: "Internal Server Error",
+      Error: error.message
     });
   }
 };

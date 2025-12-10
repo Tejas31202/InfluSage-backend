@@ -1,6 +1,8 @@
 import { client } from '../config/Db.js';
-import { redisClient } from "../config/redis.js";
+import Redis from '../utils/RedisWrapper.js';
 
+// const Redis = redis.createClient({ url: process.env.REDIS_URL });
+// Redis.connect().catch(console.error);
 
 export const getRoles = async (req, res) => {
   try {
@@ -72,20 +74,19 @@ export const getCategories = async (req, res) => {
   const redisKey = "categories";
 
   try {
-    const cachedData = await redisClient.get(redisKey);
+    const cachedData = await Redis.get(redisKey);
 
     if (cachedData) {
       return res.status(200).json({
-        categories: cachedData,   // <-- Direct Object
+        // categories: JSON.parse(cachedData),
+        categories:cachedData,
         source: "redis",
       });
     }
 
     const result = await client.query("select * from ins.fn_get_categories();");
 
-    // 
-    // ✔ Upstash automatically JSON store
-    await redisClient.set(redisKey, result.rows, { ex: 300 });
+    await Redis.setEx(redisKey, 7200, result.rows); // TTL 2h
 
     return res.status(200).json({
       categories: result.rows,
@@ -162,3 +163,61 @@ export const getUserNameAndPhoto = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
+
+export const getCountries = async (req, res) => {
+  try {
+    const result = await client.query("SELECT * FROM ins.fn_get_countries();");
+    return res.status(200).json({
+      countries: result.rows,
+      source: "db",
+    });
+  } catch (error) {
+    console.error("Error fetching countries:", error);
+    return res.status(500).json({ message: "Failed to fetch countries" });
+  }
+};
+
+export const getStatesByCountry = async (req, res) => {
+  try {
+    const { countryId } = req.params;
+
+    if (!countryId) {
+      return res.status(400).json({ message: "countryId is required" });
+    }
+    const result = await client.query(
+      "SELECT * FROM ins.fn_get_statesbycountry($1::bigint);",
+      [countryId]
+    );
+    return res.status(200).json({
+      states: result.rows,
+      source: "db",
+    });
+  } catch (error) {
+    console.error("Error fetching states by country:", error);
+    return res.status(500).json({ message: "Failed to fetch states" });
+  }
+}
+
+export const getCityiesByState = async (req, res) => {
+  try {
+    const { stateId } = req.params;
+    if (!stateId) {
+      return res.status(400).json({ message: "stateId is required" });
+    }
+    const result = await client.query(
+      "SELECT * FROM ins.fn_get_citiesbystate($1::bigint);",
+      [stateId] 
+    );
+    return res.status(200).json({
+      cities: result.rows,
+      source: "db",
+    });
+  }
+  catch (error) {
+    console.error("Error fetching cities by state:", error);
+    return res.status(500).json({ message: "Failed to fetch cities" });
+  }
+}
+
+
+

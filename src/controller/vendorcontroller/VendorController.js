@@ -3,6 +3,13 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import {sendingMail} from '../../utils/MailUtils.js';
+<<<<<<< HEAD
+=======
+import Redis from '../../utils/RedisWrapper.js';
+
+// const Redis = redis.createClient({ url: process.env.REDIS_URL });
+// Redis.connect().catch(console.error);
+>>>>>>> main
 
 import { redisClient } from "../../config/redis.js";
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -35,6 +42,7 @@ export const requestRegistration = async (req, res) => {
     const passwordhash = await bcrypt.hash(password, 10);
     const otpCode = generateOTP();
 
+<<<<<<< HEAD
     // Store vendor data and hashed password in Redis for 120 seconds
     await redisClient.set(
     `pendingVendor:${email}`,
@@ -43,6 +51,12 @@ export const requestRegistration = async (req, res) => {
     );
 
     await redisClient.set(`otp:${email}`, otpCode, { ex: 60 });
+=======
+    await Redis.setEx(`pendingVendor:${email}`, 300, { firstName, lastName, email, roleId, passwordhash });
+
+    //store otp for 5 min
+    await Redis.setEx(`otp:${email}`, 300, otpCode);
+>>>>>>> main
 
     await sendingMail(email, "InflueSage OTP Verification", otpCode);
 
@@ -61,7 +75,7 @@ export const requestRegistration = async (req, res) => {
 export const verifyOtpAndRegister = async (req, res) => {
   const { email, otp } = req.body;
   try {
-    const storedOtp = await redisClient.get(`otp:${email}`);
+    const storedOtp = await Redis.get(`otp:${email}`);
     if (!storedOtp) {
       return res.status(400).json({ message: "OTP expired or not found." });
     }
@@ -69,7 +83,7 @@ export const verifyOtpAndRegister = async (req, res) => {
       return res.status(400).json({ message: "Invalid OTP." });
     }
 
-    const vendorDataStr = await redisClient.get(`pendingVendor:${email}`);
+    const vendorDataStr = await Redis.get(`pendingVendor:${email}`);
     if (!vendorDataStr) {
       return res
         .status(400)
@@ -87,8 +101,8 @@ export const verifyOtpAndRegister = async (req, res) => {
     const { p_code, p_message } = result.rows[0];
 
     // Clean up Redis
-    await redisClient.del(`otp:${email}`);
-    await redisClient.del(`pendingVendor:${email}`);
+    await Redis.del(`otp:${email}`);
+    await Redis.del(`pendingVendor:${email}`);
 
     return res.status(p_code).json({ message: p_message });
   } catch (error) {
@@ -157,12 +171,17 @@ export const resendOtp = async (req, res) => {
     // Send Email with OTP
     await sendingMail(email, "InflueSage OTP Verification - Resend", otpCode);
 
+<<<<<<< HEAD
     // Store OTP in Redis with 120 sec expiry
     await redisClient.set(`otp:${email}`, otpCode, { ex: 120 });
+=======
+    // Store OTP in Redis with 5 min expiry
+    await Redis.setEx(`otp:${email}`, 300, otpCode);
+>>>>>>> main
 
-    const vendorData = await redisClient.get(`pendingVendor:${email}`);
+    const vendorData = await Redis.get(`pendingVendor:${email}`);
     if (vendorData) {
-      await redisClient.expire(`pendingVendor:${email}`, 300); // Reset TTL to 60 seconds
+      await Redis.setEx(`pendingVendor:${email}`, 300); // Reset TTL to 60 seconds
     }
 
     return res.status(200).json({ message: "OTP resent successfully." });
@@ -193,7 +212,11 @@ export const forgotPassword = async (req, res) => {
     const resetToken = crypto.randomBytes(32).toString("hex");
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
+<<<<<<< HEAD
     await redisClient.set(`reset:${resetToken}`, vendorId, { ex: 300 });
+=======
+    await Redis.setEx(`reset:${resetToken}`, 600, vendorId);
+>>>>>>> main
 
     // Send Email with reset url
     await sendingMail(
@@ -215,7 +238,7 @@ export const resetPassword = async (req, res) => {
   const { token, password } = req.body;
   try {
     // Get email from Redis using token
-    const vendorId = await redisClient.get(`reset:${token}`);
+    const vendorId = await Redis.get(`reset:${token}`);
     if (!vendorId) {
       return res
         .status(400)
@@ -233,7 +256,7 @@ export const resetPassword = async (req, res) => {
 
     const { p_status, p_message } = updateResult.rows[0];
     // Remove token from Redis
-    await redisClient.del(`reset:${token}`);
+    await Redis.del(`reset:${token}`);
 
     if (p_status) {
       return res.status(200).json({ message: p_message });

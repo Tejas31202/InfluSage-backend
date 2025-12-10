@@ -3,7 +3,12 @@ import authenticateUser from '../../middleware/AuthMiddleware.js';
 
 
 import {
-    getVendorCompleteProfilePercentage
+    getVendorCompleteProfilePercentage,
+    getvendorperformancesummary,
+    getTotalVendorCampaigns,
+    getCampaignSummary,
+    getVendorRecentCampaigns,
+    getVendorRecentApplications
 } from '../../controller/vendorcontroller/VendorDashboardController.js'
 
 const routes = express.Router();
@@ -12,6 +17,36 @@ routes.get(
     "/dashboard/profile-completion-perctange",
     authenticateUser(["Vendor"]),
     getVendorCompleteProfilePercentage
+);
+
+routes.get(
+    "/dashboard/performancesummary",
+    authenticateUser(["Vendor"]),
+    getvendorperformancesummary
+
+)
+routes.get(
+    "/dashboard/total-campaigns",
+    authenticateUser(["Vendor"]),
+    getTotalVendorCampaigns
+);
+
+routes.get(
+    "/dashboard/campaign-summary",
+    authenticateUser(["Vendor"]),
+    getCampaignSummary
+);
+
+routes.get(
+    "/dashboard/recent-campaigns",
+    authenticateUser(["Vendor"]),
+    getVendorRecentCampaigns
+);
+
+routes.get(
+    "/dashboard/recent-applications",
+    authenticateUser(["Vendor"]),
+    getVendorRecentApplications
 );
 
 export default routes;

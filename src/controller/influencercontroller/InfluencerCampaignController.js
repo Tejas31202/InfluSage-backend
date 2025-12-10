@@ -4,6 +4,8 @@ import { redisClient } from "../../config/redis.js";
 import path from 'path';
 import fs from 'fs';
 import fsPromises from 'fs/promises';
+import { io } from '../../../app.js'
+
 
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -86,13 +88,13 @@ export const applyNowCampaign = async (req, res) => {
 
     // File upload to Supabase
     if (req.files && req.files.portfolioFiles) {
-  const uploadedFiles = [];
+      const uploadedFiles = [];
 
-  for (const file of req.files.portfolioFiles) {
-    const fileName = file.originalname;
-    const newFileName = `${fileName}`;
-    const uniqueFileName = `Influencer/${userFolder}/Campaigns/${campaignId}/ApplyCampaigns/${newFileName}`;
-    const fileBuffer = file.buffer;
+      for (const file of req.files.portfolioFiles) {
+        const fileName = file.originalname;
+        const newFileName = `${fileName}`;
+        const uniqueFileName = `Influencer/${userFolder}/Campaigns/${campaignId}/ApplyCampaigns/${newFileName}`;
+        const fileBuffer = file.buffer;
 
     try {
       // Step 1: Check if file already exists in Supabase bucket
@@ -102,44 +104,52 @@ export const applyNowCampaign = async (req, res) => {
           search: newFileName,
         });
 
-      if (listError) {
-        console.error("Supabase list error:", listError);
-        return res.status(500).json({ message: "Error checking existing files" });
+          if (listError) {
+            console.error("Supabase list error:", listError);
+            return res.status(500).json({ message: "Error checking existing files" });
+          }
+
+          const fileExists = existingFiles?.some((f) => f.name === newFileName);
+
+          if (fileExists) {
+            // res.status(400).json({ message: `File already exists: ${fileName}, skipping upload.` });
+
+            //add existing file URL to uploadedFiles
+            const { data: publicData } = supabase.storage
+              .from(process.env.SUPABASE_BUCKET)
+              .getPublicUrl(uniqueFileName);
+            uploadedFiles.push({ filepath: publicData.publicUrl });
+
+            continue; // Skip upload, go to next file
+
+          }
+
+          // Step 2: Upload if file doesn’t exist
+          const { error: uploadError } = await supabase.storage
+            .from(process.env.SUPABASE_BUCKET)
+            .upload(uniqueFileName, fileBuffer, {
+              contentType: file.mimetype,
+              upsert: false,
+            });
+
+          if (uploadError) {
+            console.error("Supabase upload error:", uploadError);
+            return res
+              .status(500)
+              .json({ message: "Failed to upload file to cloud storage" });
+          }
+
+          // Step 3: Get public URL for the uploaded file
+          const { data: publicUrlData } = supabase.storage
+            .from(process.env.SUPABASE_BUCKET)
+            .getPublicUrl(uniqueFileName);
+
+          uploadedFiles.push({ filepath: publicUrlData.publicUrl });
+        } catch (err) {
+          console.error("Upload error:", err);
+          return res.status(500).json({ message: "Unexpected upload error" });
+        }
       }
-
-      const fileExists = existingFiles?.some((f) => f.name === newFileName);
-
-      if (fileExists) {
-       res.status(400).json({message:`File already exists: ${fileName}, skipping upload.`});
-      }
-
-      // Step 2: Upload if file doesn’t exist
-      const { error: uploadError } = await supabase.storage
-        .from(process.env.SUPABASE_BUCKET)
-        .upload(uniqueFileName, fileBuffer, {
-          contentType: file.mimetype,
-          upsert: false, 
-        });
-
-      if (uploadError) {
-        console.error("Supabase upload error:", uploadError);
-        return res
-          .status(500)
-          .json({ message: "Failed to upload file to cloud storage" });
-      }
-
-      // Step 3: Get public URL for the uploaded file
-      const { data: publicUrlData } = supabase.storage
-        .from(process.env.SUPABASE_BUCKET)
-        .getPublicUrl(uniqueFileName);
-
-      uploadedFiles.push({ filepath: publicUrlData.publicUrl });
-    } catch (err) {
-      console.error("Upload error:", err);
-      return res.status(500).json({ message: "Unexpected upload error" });
-    }
-  }
-
       // Merge old + new filepaths
       if (applycampaignjson.filepaths && Array.isArray(applycampaignjson.filepaths)) {
         applycampaignjson.filepaths = [...applycampaignjson.filepaths, ...uploadedFiles];
@@ -154,23 +164,78 @@ export const applyNowCampaign = async (req, res) => {
         $1::bigint,
         $2::bigint,
         $3::json,
-        $4::boolean,
+        $4::smallint,
         $5::text
       )`,
       [userId, campaignId, JSON.stringify(applycampaignjson), null, null]
     );
 
-    const { p_status, p_message } = result.rows[0];
+    // After stored procedure call
+    const row = result.rows[0];
+    const p_status = Number(row?.p_status);
+    const p_role = 'SENDER';
+    const p_message = row?.p_message;
 
-    if (p_status) {
-      await redisClient.del(redisKey);
+    // Case 1: p_status = 1 → SUCCESS
+    if (p_status === 1) {
+      try {
+        const notification = await client.query(
+          `select * from ins.fn_get_notificationlist($1::bigint,$2::boolean,$3::text)`,
+          [userId, null, p_role]
+        );
+        const notifyData = notification.rows[0]?.fn_get_notificationlist || [];
+        console.log("new data", notifyData );
+
+        if (notifyData.length === 0) {
+          console.log("No notifications found.");
+        } else {
+          console.log(notifyData);
+          const latest = notifyData[0];
+
+          const toUserId = latest.receiverid;
+
+          if (toUserId) {
+            io.to(`user_${toUserId}`).emit("receiveNotification", notifyData);
+            console.log("📩 Sent to:", toUserId);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching notifications", err);
+      }
+
+      await Redis.del(redisKey);
+
       return res.status(200).json({
+        status: true,
         message: p_message || "Application saved successfully",
         source: "db",
       });
-    } else {
-      return res.status(400).json({ message: p_message });
     }
+
+    // Case 2: p_status = 0 → DB VALIDATION FAIL
+    else if (p_status === 0) {
+      return res.status(400).json({
+        status: false,
+        message: p_message || "Validation failed",
+      });
+    }
+
+    // Case 3: p_status = -1 → PROCEDURE FAILED
+    else if (p_status === -1) {
+      return res.status(500).json({
+        status: false,
+        message: "Something went wrong. Please try again later.",
+      });
+    }
+
+    // Fallback: if unexpected value
+    else {
+      return res.status(500).json({
+        status: false,
+        message: "Unexpected database response",
+      });
+    }
+
   } catch (error) {
     console.error("Error applying to campaign:", error);
     return res.status(500).json({ message: error.message });
@@ -195,10 +260,10 @@ export const getUsersAppliedCampaigns = async (req, res) => {
     const redisKey = `applyCampaign:${userId}:${p_sortby}:${p_sortorder}:${p_pagenumber}:${p_pagesize}`;
 
     //Try Cache First From Redis
-    const cachedData = await redisClient.get(redisKey);
+    const cachedData = await Redis.get(redisKey);
     if (cachedData) {
       return res.status(200).json({
-        data: (cachedData),
+        data: cachedData,
         source: "redis",
       });
     }
@@ -239,25 +304,72 @@ export const saveCampaign = async (req, res) => {
     const campaignId = req.params.campaignId;
 
     if (!campaignId || !userId) {
-      return res
-        .status(400)
-        .json({ message: "User ID and Campaign ID are required." });
+      return res.status(400).json({
+        status: false,
+        message: "User ID and Campaign ID are required.",
+      });
     }
 
-    const SaveCampaign = await client.query(
-      `CALL ins.usp_insert_campaignsave($1::bigint,$2::bigint, $3, $4)`,
+    // Call stored procedure
+    const result = await client.query(
+      `CALL ins.usp_insert_campaignsave(
+        $1::bigint,
+        $2::bigint,
+        $3,
+        $4
+      )`,
       [userId, campaignId, null, null]
     );
 
-    const { p_message } = SaveCampaign.rows[0];
-    return res.status(201).json({
-      message: p_message,
-    });
+    const row = result.rows[0];
+    const p_status = Number(row?.p_status);
+    const p_message = row?.p_message;
+
+    // -------------------------
+    //      STATUS HANDLING
+    // -------------------------
+
+    // Case 1 → p_status = 1 (Success)
+    if (p_status === 1) {
+      return res.status(200).json({
+        status: true,
+        message: p_message || "Campaign saved successfully",
+      });
+    }
+
+    // Case 2 → p_status = 0 (Validation fail)
+    else if (p_status === 0) {
+      return res.status(400).json({
+        status: false,
+        message: p_message || "Validation failed",
+      });
+    }
+
+    // Case 3 → p_status = -1 (SP failed)
+    else if (p_status === -1) {
+      return res.status(500).json({
+        status: false,
+        message: "Something went wrong. Please try again later.",
+      });
+    }
+
+    // Unexpected case
+    else {
+      return res.status(500).json({
+        status: false,
+        message: "Unexpected database response",
+      });
+    }
+
   } catch (error) {
-    console.error("Error saving campaign application:", error);
-    return res.status(500).json({ message: "Internal Server Error" });
+    console.error("Error saving campaign:", error);
+    return res.status(500).json({
+      status: false,
+      message: "Internal Server Error",
+    });
   }
 };
+
 
 //For Get Save Camapign
 export const getSaveCampaign = async (req, res) => {
@@ -309,10 +421,10 @@ export const getSingleApplyCampaign = async (req, res) => {
     const redisKey = `applyCampaign:${userId}:${campaignId}`;
 
     // 1 Try cache first
-    const cachedData = await redisClient.get(redisKey);
+    const cachedData = await Redis.get(redisKey);
     if (cachedData) {
       return res.status(200).json({
-        data: (cachedData),
+        data: cachedData,
         source: "redis",
       });
     }
@@ -368,10 +480,10 @@ export const getUserCampaignWithDetails = async (req, res) => {
 
     // 2 Get applied campaign details (check Redis first)
     const redisKey = `applyCampaign:${userId}:${campaignId}`;
-    const cachedData = await redisClient.get(redisKey);
+    const cachedData = await Redis.get(redisKey);
 
     if (cachedData) {
-      responseData.appliedDetails = (cachedData);
+      responseData.appliedDetails = cachedData;
     } else {
       const appliedResult = await client.query(
         `SELECT ins.fn_get_campaignapplicationdetails($1,$2)`,
@@ -463,18 +575,39 @@ export const withdrawApplication = async (req, res) => {
       `CALL ins.usp_update_applicationstatus(
         $1::bigint,
         $2::varchar,
-        $3::boolean,
+        $3::smallint,
         $4::text
       )`,
       [p_applicationid, p_statusname, null, null]
     );
 
-    const { p_status, p_message } = result.rows[0];
+    const row = result.rows?.[0] || {};
+    const p_status = Number(row.p_status);
+    const p_message = row.p_message;
 
-    if (p_status) {
-      return res.status(200).json({ message: p_message, source: "db" });
+    // ----------------- HANDLE p_status -----------------
+    if (p_status === 1) {
+      return res.status(200).json({
+        status: true,
+        message: p_message || "Application withdrawn successfully",
+        source: "db",
+      });
+    } else if (p_status === 0) {
+      return res.status(400).json({
+        status: false,
+        message: p_message || "Validation failed",
+        source: "db",
+      });
+    } else if (p_status === -1) {
+      return res.status(500).json({
+        status: false,
+        message: "Something went wrong. Please try again later.",
+      });
     } else {
-      return res.status(400).json({ message: p_message, p_status });
+      return res.status(500).json({
+        status: false,
+        message: "Unexpected database response",
+      });
     }
   } catch (error) {
     console.error("Error in withdraw application:", error.message);
@@ -493,7 +626,7 @@ export const deleteApplyNowPortfolioFile = async (req, res) => {
     }
 
     // Step 1: Redis se data fetch karo
-    let campaignData = await redisClient.get(redisKey);
+    let campaignData = await Redis.get(redisKey);
     if (campaignData) {
       campaignData = (campaignData);
 
@@ -505,7 +638,7 @@ export const deleteApplyNowPortfolioFile = async (req, res) => {
           );
 
         // Update Redis data
-        await redisClient.set(redisKey, (campaignData));
+        await Redis.setEx(redisKey, 7200, campaignData);
       }
     }
 

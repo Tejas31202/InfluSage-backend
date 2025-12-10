@@ -7,7 +7,10 @@ import {
   getCategories,
   getProviders,
   getInfluencerTiers,
-  getUserNameAndPhoto
+  getUserNameAndPhoto,
+  getCountries,
+  getStatesByCountry,
+  getCityiesByState
 } from '../controller/CommonController.js';
 import authenticateUser from '../middleware/AuthMiddleware.js';
 
@@ -21,5 +24,8 @@ routes.get("/categories", getCategories);
 routes.get("/providers", getProviders);
 routes.get("/influencer-type", getInfluencerTiers);
 routes.get("/user-profile-info",authenticateUser(["Influencer","Vendor","Admin"]),getUserNameAndPhoto);
+routes.get("/countries",getCountries);
+routes.get("/states/:countryId",getStatesByCountry);
+routes.get("/cities/:stateId",getCityiesByState);
 
 export default routes;
