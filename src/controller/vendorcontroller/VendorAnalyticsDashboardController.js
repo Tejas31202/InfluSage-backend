@@ -45,13 +45,27 @@ export const getVendorCampaignOverview = async (req, res) => {
 export const getPerformanceTimeline = async (req, res) => {
   try {
     const p_userid = req.user?.id || req.query.p_userid;
-    const labalid=req.query.labalid;
+    
+    const p_filtertype =req.query.p_filtertype;
+    
+    if(!p_filtertype){
+      res.status(400).json({message:"p_filtertype is required"})
+    }
+      // Allow only week / month / year
+    const allowedFilters = ["week", "month", "year"];
+    if (!p_filtertype || !allowedFilters.includes(p_filtertype)) {
+      return res.status(400).json({
+        message: "Invalid p_filtertype. Allowed values: week, month, year"
+      });
+    }
+  
     const result = await client.query(
-      "select * from ins.getPerformanceTimeline($1::bigint,$2::smallint);",
-      [p_userid,labalid]
+      "SELECT ins.fn_get_vendorperformanceovertime($1::bigint,$2::varchar(55));",
+      [p_userid,p_filtertype ]
     );
-    //this function return views,likes,comments,count base on filter like weekly/monthly/yearly
-    const data = result.rows[0];
+
+    const data = result.rows[0].fn_get_vendorperformanceovertime;
+   
     return res.status(200).json({
       message: "Performance data over time retrieved successfully.",
       data: data,
@@ -89,7 +103,6 @@ export const getGraphFiltersDropdown=async (req, res) => {
   try {
     const result = await client.query(
       "select * from ins.getGraphFiltersDropdown();");
-    //this function return filter list:-monthly,weekly,yearly
     const data = result.rows[0];
     return res.status(200).json({
       message: "Graph filter dropdown data fetched successfully.",
