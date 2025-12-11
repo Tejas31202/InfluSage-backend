@@ -98,9 +98,7 @@ export const uploadContentLink = async (req, res) => {
 
     const row = result.rows[0] || {};
     const p_status = Number(row.p_status);
-    const p_message = row.p_message;
-    console.log("Message Form Db==>",p_message)
-    
+    const p_message = row.p_message;  
 
     if (p_status === 1) {
       return res.status(200).json({

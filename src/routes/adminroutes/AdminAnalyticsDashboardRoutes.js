@@ -29,7 +29,7 @@ routes.get(
 );
 
 routes.get(
-  "/analytics/content-history/:p_influencerid",
+  "/analytics/content-history/:p_contractcontentlinkid",
   authenticateUser(["Admin"]),
   getInfluencerContentHistory
 );

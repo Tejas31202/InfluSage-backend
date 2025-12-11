@@ -129,16 +129,22 @@ export const getAllContentHistories = async (req, res) => {
 export const getInfluencerContentHistory = async (req, res) => {
   try {
     const p_adminid = req.user?.id || req.query.p_adminid;
-    const p_influencerid = req.params.p_influencerid;
+    const p_contractcontentlinkid = req.params.p_contractcontentlinkid;
+
+    if (!p_adminid) {
+      return res.status(400).json({ message: "p_adminid is required." });
+    }
+
+    if (!p_contractcontentlinkid) {
+      return res.status(400).json({ message: "p_contractcontentlinkid is required." });
+    }
 
     const result = await client.query(
-      "SELECT * FROM ins.getInfluencerContentHistory($1::bigint,$2::bigint);",
-      [p_adminid, p_influencerid]
+      "select * from ins.fn_get_analytichistorydetails($1::bigint,$2::bigint);",
+      [p_adminid, p_contractcontentlinkid]
     );
 
-    // This function returns analytics update history:
-    // comments, likes, views (admin-updated analytics data)
-    const data = result.rows[0];
+    const data = result.rows[0].fn_get_analytichistorydetails;
 
     return res.status(200).json({
       message: "Content history retrieved successfully.",
