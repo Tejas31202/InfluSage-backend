@@ -100,7 +100,7 @@ export const applyNowCampaign = async (req, res) => {
       // Step 1: Check if file already exists in Supabase bucket
       const { data: existingFiles, error: listError } = await supabase.storage
         .from(process.env.SUPABASE_BUCKET)
-        .list(`Influencer/${userFolder}/CampaignId_${campaignId}/ApplyCampaigns/`, {
+        .list(`Influencer/${userFolder}/Campaigns/${campaignId}/ApplyCampaigns/`, {
           search: newFileName,
         });
 
@@ -241,7 +241,6 @@ export const applyNowCampaign = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
- 
 
 //For Applied Campaign
 export const getUsersAppliedCampaigns = async (req, res) => {
