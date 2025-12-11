@@ -53,51 +53,21 @@ export const getAdminAnalyticsNewContents = async (req, res) => {
   }
 };
 
-export const getUpdatedAnalyticsContents = async (req, res) => {
+export const getStatusFilterForAnalytics = async (req, res) => {
   try {
-    const p_adminid = req.user?.id || req.query.p_adminid;
-
-    const {
-      p_providers,
-      p_sortby,
-      p_sortorder,
-      p_pagenumber,
-      p_pagesize,
-      p_search
-    } = req.query;
 
     const result = await client.query(
-      `SELECT * FROM ins.getUpdatedAnalyticsContents(
-        $1::bigint,
-        $2::json,
-        $3::text,
-        $4::text,
-        $5::integer,
-        $6::integer,
-        $7::text
-      );`,
-      [
-        p_adminid,
-        p_providers || null,
-        p_sortby || "createddate",
-        p_sortorder || "DESC",
-        p_pagenumber || 1,
-        p_pagesize || 20,
-        p_search || null
-      ]
+      `SELECT * FROM ins.fn_get_analyticcampaignstatus();`,
     );
 
-    // This function returns:
-    // influencer_image, influencer_name, campaign_name,
-    // platforms, content_links, updated_date is admin update analytic date
-    const data = result.rows[0];
+    const data = result.rows;
 
     return res.status(200).json({
-      message: "Updated contents retrieved successfully",
+      message: "Status Filters retrieved successfully",
       data
     });
   } catch (error) {
-    console.error("Error in getUpdatedAnalyticsContents:", error);
+    console.error("Error in getStatusFilterForAnalytics:", error);
     return res.status(500).json({
       message: error.message
     });
@@ -107,14 +77,43 @@ export const getUpdatedAnalyticsContents = async (req, res) => {
 export const getAllContentHistories = async (req, res) => {
   try {
     const p_adminid = req.user?.id || req.query.p_adminid;
+    if(!p_adminid){
+      return res.status(400).json({message:"p_adminid is required."})
+    }
+    const {
+      p_statusid,
+      p_providers,
+      p_contenttype,
+      p_sortorder,
+      p_pagenumber,
+      p_pagesize,
+      p_search
+    }=req.query;
+  
     const result = await client.query(
-      "select * from ins.getAllContentHistories($1::bigint);",
-      [p_adminid]
+      `select * from ins.fn_get_analytichistory(
+      $1::bigint,
+      $2::smallint,
+      $3::json,
+      $4::json,
+      $5::text,
+      $6::integer,
+      $7::integer,
+      $8::text
+      );`,
+      [
+        p_adminid,
+        p_statusid||null,
+        p_providers||null,
+        p_contenttype||null,
+        p_sortorder||"DESC",
+        p_pagenumber||1,
+        p_pagesize||20,
+        p_search||null
+      ]
     );
-    // This function returns:
-    // influencer_image, influencer_name, campaign_name,
-    // platforms, content_links,first_updated and lastupdated_date 
-    const data = result.rows[0];
+    
+    const data = result.rows[0].fn_get_analytichistory;
     return res.status(200).json({
       message: "All content history retrieved successfully.",
       data: data,
@@ -154,7 +153,6 @@ export const getInfluencerContentHistory = async (req, res) => {
 };
 
 export const insertAnalyticsRecord = async (req, res) => {
-  console.log("insert Analytics called")
   try {
     const p_adminid = req.user?.id || req.query.p_adminid;
     const {
@@ -163,8 +161,6 @@ export const insertAnalyticsRecord = async (req, res) => {
       p_contentlinkid,
       p_metricsjson
     } = req.body || {};
-
-    console.log("Data==>",req.body)
 
     if (!p_campaignid || !p_influencerid || !p_contentlinkid || !p_metricsjson) {
       return res.status(400).json({
@@ -193,12 +189,7 @@ export const insertAnalyticsRecord = async (req, res) => {
       ]
     );
 
-    console.log("result",result)
-
     const { p_status, p_message } = result.rows[0];
-
-
-    // console.log("p stauts==>", p_status)
 
     if (p_status === 1) {
       return res.status(200).json({
@@ -232,55 +223,55 @@ export const insertAnalyticsRecord = async (req, res) => {
   }
 };
 
-export const getUserPlatformAnalytics = async (req, res) => {
-
+export const getLastInsertAnlyticsData = async (req, res) => {
   const p_adminid = req.user?.id;
   const p_userplatformanalyticid = req.query.p_userplatformanalyticid;
 
-  if (!p_adminid) return res.status(400).json({ Message: "Admin ID Required." })
+  if (!p_adminid)
+    return res.status(400).json({ Message: "Admin ID Required." });
 
-  if (!p_userplatformanalyticid) return res.status(400).json({ Message: "p_userplatformanalyticid Required." })
-
+  if (!p_userplatformanalyticid)
+    return res
+      .status(400)
+      .json({ Message: "p_userplatformanalyticid Required." });
 
   try {
-    const result = await client.query(`SELECT * FROM ins.fn_get_userplatformanalytic($1::BIGINT,$2::BIGINT)`,
+    const result = await client.query(
+      `SELECT * FROM ins.fn_get_userplatformanalytic($1::BIGINT,$2::BIGINT)`,
       [p_adminid, p_userplatformanalyticid]
-    )
+    );
 
     const userPlatformAnalytics = result.rows[0].fn_get_userplatformanalytic[0];
 
-    if (!userPlatformAnalytics.length) {
-      return res.status(200).json({
-        Message: "No analytics found.",
-        data: userPlatformAnalytics
-      });
-    }
-
-    // console.log("Analytics", userPlatformAnalytics);
-
     return res.status(200).json({
-      Message: "Successfully fetched userPlatformAnalytics",
+      Message: "Successfully fetched userPlatformAnalytics data ",
       data: userPlatformAnalytics,
-      source: "db"
-    })
-
+      source: "db",
+    });
   } catch (error) {
-    console.error("user plateformAnalytics fetching error ", error)
+    console.error("error in getLastInsertAnlyticsData", error);
     return res.status(500).json({ Message: "Internal Server Error" });
-
   }
 };
 
-export const getAnalyticList = async (req, res) => {
+export const getUpdatedContentsAnalyticList = async (req, res) => {
   const p_adminid = req.user?.id;
 
-  if (!p_adminid) return res.status(400).json({ Message: "Admin Id Required." });
+  if (!p_adminid)
+    return res.status(400).json({ Message: "Admin Id Required." });
 
-  const { p_providers, p_contenttype, p_sortorder, p_pagenumber, p_pagesize, p_search } = req.query;
+  const {
+    p_providers,
+    p_contenttype,
+    p_sortorder,
+    p_pagenumber,
+    p_pagesize,
+    p_search,
+  } = req.query;
 
   try {
-
-    const analyticsList = await client.query(`select * from ins.fn_get_analyticlist(
+    const analyticsList = await client.query(
+      `select * from ins.fn_get_analyticlist(
     $1::bigint,
     $2::json,
     $3::json,
@@ -297,22 +288,18 @@ export const getAnalyticList = async (req, res) => {
         p_pagenumber || 1,
         p_pagesize || 20,
         p_search || null,
-      ]);
+      ]
+    );
 
     const result = analyticsList.rows;
 
-    // console.log("AnalyticsList==>", result[0].fn_get_analyticlist)
-
-    if (!result.length) return res.status(404).json({ message: "Analytic List Not Available." })
-
     return res.status(200).json({
-      message: "Successfully fetched analytics list",
+      message: "Successfully fetched updated contents analytics list",
       data: result[0].fn_get_analyticlist,
-      source: "db"
-    })
-
+      source: "db",
+    });
   } catch (error) {
-    console.log("Error Getting AnalyticsList", error)
+    console.error("Error getUpdatedContentsAnalyticList", error);
     return res.status(500).json({ Message: "Internal Server Error" });
   }
 };

@@ -2,25 +2,24 @@ import express from 'express';
 const routes = express.Router();
 import {
   getAdminAnalyticsNewContents,
-  getUpdatedAnalyticsContents,
+  getStatusFilterForAnalytics,
   getAllContentHistories,
   getInfluencerContentHistory,
   insertAnalyticsRecord,
-  getUserPlatformAnalytics,
-  getAnalyticList
+  getLastInsertAnlyticsData,
+  getUpdatedContentsAnalyticList
 } from '../../controller/admincontroller/AdminAnalyticsDashboardController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
+
+routes.get(
+  "/analytics/status-filters",
+  getStatusFilterForAnalytics
+);
 
 routes.get(
   "/analytics/new-contents",
   authenticateUser(["Admin"]),
   getAdminAnalyticsNewContents
-);
-
-routes.get(
-  "/analytics/updated-contents",
-  authenticateUser(["Admin"]),
-  getUpdatedAnalyticsContents
 );
 
 routes.get(
@@ -44,13 +43,13 @@ routes.post(
 routes.get(
   "/user-Platform-Analytics",
   authenticateUser(["Admin"]),
-  getUserPlatformAnalytics
+  getLastInsertAnlyticsData
 )
 
 routes.get(
   "/getAnalyticList",
   authenticateUser(["Admin"]),
-  getAnalyticList
+  getUpdatedContentsAnalyticList
 )
 
 export default routes;
