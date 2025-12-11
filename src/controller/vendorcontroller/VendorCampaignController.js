@@ -90,7 +90,7 @@ export const finalizeCampaign = async (req, res) => {
 
       // Move photo files
       const { data: tempPhotos } = await supabase.storage
-        .from(process.env.SUPABASE_BUCKE)
+        .from(process.env.SUPABASE_BUCKET)
         .list(`${baseTempFolder}/campaign_profile`);
       if (tempPhotos?.length > 0) {
         for (const file of tempPhotos) {
@@ -98,19 +98,19 @@ export const finalizeCampaign = async (req, res) => {
           const newPath = `${finalPhotoFolder}/${file.name}`;
 
           const { data: fileData, error: downloadErr } = await supabase.storage
-            .from(process.env.SUPABASE_BUCKE)
+            .from(process.env.SUPABASE_BUCKET)
             .download(oldPath);
 
           if (!downloadErr) {
-            await supabase.storage.from(process.env.SUPABASE_BUCKE).upload(newPath, fileData, { upsert: true });
-            await supabase.storage.from(process.env.SUPABASE_BUCKE).remove([oldPath]);
+            await supabase.storage.from(process.env.SUPABASE_BUCKET).upload(newPath, fileData, { upsert: true });
+            await supabase.storage.from(process.env.SUPABASE_BUCKET).remove([oldPath]);
           }
         }
       }
 
       // Move portfolio files
       const { data: tempPortfolios } = await supabase.storage
-        .from(process.env.SUPABASE_BUCKE)
+        .from(process.env.SUPABASE_BUCKET)
         .list(`${baseTempFolder}/campaign_portfolio`);
       if (tempPortfolios?.length > 0) {
         for (const file of tempPortfolios) {
@@ -118,18 +118,18 @@ export const finalizeCampaign = async (req, res) => {
           const newPath = `${finalPortfolioFolder}/${file.name}`;
 
           const { data: fileData, error: downloadErr } = await supabase.storage
-            .from(process.env.SUPABASE_BUCKE)
+            .from(process.env.SUPABASE_BUCKET)
             .download(oldPath);
 
           if (!downloadErr) {
-            await supabase.storage.from(process.env.SUPABASE_BUCKE).upload(newPath, fileData, { upsert: true });
-            await supabase.storage.from(process.env.SUPABASE_BUCKE).remove([oldPath]);
+            await supabase.storage.from(process.env.SUPABASE_BUCKET).upload(newPath, fileData, { upsert: true });
+            await supabase.storage.from(process.env.SUPABASE_BUCKET).remove([oldPath]);
           }
         }
       }
 
       // Clean up temp folders and Redis cache
-      await supabase.storage.from(process.env.SUPABASE_BUCKE).remove([
+      await supabase.storage.from(process.env.SUPABASE_BUCKET).remove([
         `${baseTempFolder}/campaign_profile`,
         `${baseTempFolder}/campaign_portfolio`,
       ]);
@@ -687,7 +687,7 @@ export const upsertCampaign = async (req, res) => {
       const newFileName = file.originalname;
       const tempPhotoPath = `${tempPhotoFolder}/${newFileName}`;
 
-      const { error } = await supabase.storage.from(process.env.SUPABASE_BUCKE).upload(
+      const { error } = await supabase.storage.from(process.env.SUPABASE_BUCKET).upload(
         tempPhotoPath,
         file.buffer,
         { contentType: file.mimetype, upsert: true }
@@ -696,7 +696,7 @@ export const upsertCampaign = async (req, res) => {
 
       // // Only store filename in DB
       // p_campaignjson.photopath = newFileName;
-      const { data: publicData } = supabase.storage.from(process.env.SUPABASE_BUCKE).getPublicUrl(tempPhotoPath);
+      const { data: publicData } = supabase.storage.from(process.env.SUPABASE_BUCKET).getPublicUrl(tempPhotoPath);
         p_campaignjson.photopath = publicData.publicUrl; // store full URL for UI
     }
 
@@ -706,7 +706,7 @@ export const upsertCampaign = async (req, res) => {
         const newFileName = file.originalname;
         const tempPortfolioPath = `${tempPortfolioFolder}/${newFileName}`;
 
-        const { error } = await supabase.storage.from(process.env.SUPABASE_BUCKE).upload(
+        const { error } = await supabase.storage.from(process.env.SUPABASE_BUCKET).upload(
           tempPortfolioPath,
           file.buffer,
           { contentType: file.mimetype, upsert: true }
@@ -715,7 +715,7 @@ export const upsertCampaign = async (req, res) => {
 
         // // Only store filename in DB
         // campaignFiles.push({ filepath: newFileName });
-        const { data: publicData } = supabase.storage.from(process.env.SUPABASE_BUCKE).getPublicUrl(tempPortfolioPath);
+        const { data: publicData } = supabase.storage.from(process.env.SUPABASE_BUCKET).getPublicUrl(tempPortfolioPath);
         campaignFiles.push({filepath: publicData.publicUrl });
       }
     }
