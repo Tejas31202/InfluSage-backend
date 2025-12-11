@@ -115,7 +115,7 @@ export const completeUserProfile = async (req, res) => {
       }
 
       const { error: uploadError } = await supabase.storage
-        .from(process.env.SUPABASE_BUCKE)
+        .from(process.env.SUPABASE_BUCKET)
         .upload(supabasePath, file.buffer, {
           contentType: file.mimetype,
           upsert: true,
@@ -126,7 +126,7 @@ export const completeUserProfile = async (req, res) => {
           .json({ message: "Failed to upload profile photo" });
 
       const { data: publicUrlData } = supabase.storage
-        .from(process.env.SUPABASE_BUCKE)
+        .from(process.env.SUPABASE_BUCKET)
         .getPublicUrl(supabasePath);
       const photoUrl = publicUrlData?.publicUrl;
 
@@ -146,13 +146,13 @@ export const completeUserProfile = async (req, res) => {
         const supabasePath = `Influencer/${userId}/Portfolio/${fileName}`;
 
         const { data: existingFiles } = await supabase.storage
-          .from(process.env.SUPABASE_BUCKE)
+          .from(process.env.SUPABASE_BUCKET)
           .list(`Influencer/${userId}/Portfolio`);
 
         const alreadyExists = existingFiles?.some((f) => f.name === fileName);
         if (!alreadyExists) {
           const { error: uploadError } = await supabase.storage
-            .from(process.env.SUPABASE_BUCKE)
+            .from(process.env.SUPABASE_BUCKET)
             .upload(supabasePath, file.buffer, {
               contentType: file.mimetype,
               upsert: false,
@@ -164,7 +164,7 @@ export const completeUserProfile = async (req, res) => {
         }
 
         const { data: publicUrlData } = supabase.storage
-          .from(process.env.SUPABASE_BUCKE)
+          .from(process.env.SUPABASE_BUCKET)
           .getPublicUrl(supabasePath);
         uploadedFiles.push({ filepath: publicUrlData.publicUrl });
       }
