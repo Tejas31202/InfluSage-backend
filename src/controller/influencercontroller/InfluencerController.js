@@ -127,6 +127,7 @@ export const verifyOtpAndRegister = async (req, res) => {
     }
 
     if (p_status === -1) {
+      console.error("Stored Procedure Failure:", p_message);
       return res.status(500).json({ message: "something went wrong", p_status });
     }
 
@@ -217,6 +218,7 @@ export const loginUser = async (req, res) => {
         source: "db",
       });
     } else if (p_status === -1) {
+      console.error("Stored Procedure Failure:", p_message);
       return res.status(500).json({
         status: false,
         message: "Unexpected database error",
@@ -343,6 +345,7 @@ export const resetPassword = async (req, res) => {
         message: p_message || "Validation failed",
       });
     } else if (p_status === -1) {
+      console.error("Stored Procedure Failure:", p_message);
       return res.status(500).json({
         status: false,
         message: "Something went wrong. Please try again later.",

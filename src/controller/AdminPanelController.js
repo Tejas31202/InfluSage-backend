@@ -318,9 +318,10 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
 
     // Case 3: p_status = -1 → SP failed
     else if (p_status === -1) {
+      console.error("Stored Procedure Failure:", p_message);
       return res.status(500).json({
         status: p_status,
-        message: p_message ||"Something went wrong. Please try again later."
+        message:"Something went wrong. Please try again later."
       });
     }
 
@@ -567,6 +568,7 @@ export const blockInfluencerAndCampaignApplication = async (req, res) => {
 
     // SP FAILED → p_status = -1
     else if (p_status === -1) {
+      console.error("Stored Procedure Failure:", p_message);
       return res.status(500).json({
         message: "Something went wrong. Please try again later.",
         status: false,

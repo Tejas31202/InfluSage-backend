@@ -210,6 +210,7 @@ export const insertAnalyticsRecord = async (req, res) => {
       });
     }
     else if (p_status === -1) {
+      console.error("Stored Procedure Failure:", p_message);
       return res.status(500).json({
         message: "Something went wrong. Please try again later.",
         p_status: false,

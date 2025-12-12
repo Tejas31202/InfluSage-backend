@@ -234,6 +234,7 @@ export const insertMessage = async (req, res) => {
         source: "db",
       });
     } else if (p_status === -1) {
+      console.error("Stored Procedure Failure:", p_message);
       return res.status(500).json({
         status: p_status,
         message: "Unexpected database error",
@@ -369,6 +370,7 @@ export const updateUndoMessage = async (req, res) => {
       });
     } 
     else if (p_status === -1) {
+      console.error("Stored Procedure Failure:", p_message);
       return res.status(500).json({
         message: "Something went wrong. Please try again later.",
         p_status: false,

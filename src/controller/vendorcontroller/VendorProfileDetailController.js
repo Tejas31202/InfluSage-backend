@@ -333,7 +333,8 @@ export const completeVendorProfile = async (req, res) => {
           return res.status(400).json({ message: p_message, p_status });
 
         if (p_status === -1)
-          return res.status(500).json({ message: p_message, p_status });
+          // console.error("Stored Procedure Failure:", p_message);
+          return res.status(500).json({ message: "something went wrong" });
 
         return res.status(500).json({
           message: "Unknown database response",
