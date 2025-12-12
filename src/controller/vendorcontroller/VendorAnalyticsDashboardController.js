@@ -119,12 +119,19 @@ export const getGraphFiltersDropdown=async (req, res) => {
 export const getPlatformBreakdown = async (req, res) => {
   try {
     const p_userid = req.user?.id || req.query.p_userid;
+    const { p_year, p_month } = req.query;
+    if(!p_year){
+      res.status(400).json({message:"p_year is required"})
+    }
     const result = await client.query(
-      "select * from ins.getPlatformBreakdown($1::bigint);",
-      [p_userid]
+      " SELECT  * from ins.fn_get_vendorplatformbreakdown($1::bigint,$2::integer,$3::integer);",
+      [
+        p_userid,
+        p_year, 
+        p_month || null
+      ]
     );
-    //this function return :- platform and view count
-    const data = result.rows[0];
+    const data = result.rows[0].fn_get_vendorplatformbreakdown;
     return res.status(200).json({
       message: "Platform breakdown data fetched successfully.",
       data: data,
