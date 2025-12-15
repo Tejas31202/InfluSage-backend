@@ -4,15 +4,11 @@ import {
   getVendorCampaignOverview,
   getPerformanceTimeline,
   getTopPerformingContent,
-  getGraphFiltersDropdown,
-  getPlatformBreakdown,
-  getVendorRecentContents
+  getPlatformBreakdown
 } from '../../controller/vendorcontroller/VendorAnalyticsDashboardController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 
 const routes = express.Router();
-
-routes.get("/analytics/dropdowns", getGraphFiltersDropdown);
 
 routes.get(
   "/analytics/summary",
@@ -44,10 +40,5 @@ routes.get(
   getPlatformBreakdown
 );
 
-routes.get(
-  "/analytics/recent-contents",
-  authenticateUser(['Vendor']),
-  getVendorRecentContents
-);
 
 export default routes;
