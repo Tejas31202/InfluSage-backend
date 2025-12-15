@@ -226,6 +226,7 @@ export const applyNowCampaign = async (req, res) => {
 
     // Case 3: p_status = -1 → PROCEDURE FAILED
     else if (p_status === -1) {
+      console.error("Stored Procedure Failure:", p_message);
       return res.status(500).json({
         status: false,
         message: "Something went wrong. Please try again later.",
@@ -351,6 +352,7 @@ export const saveCampaign = async (req, res) => {
 
     // Case 3 → p_status = -1 (SP failed)
     else if (p_status === -1) {
+      console.error("Stored Procedure Failure:", p_message);
       return res.status(500).json({
         status: false,
         message: "Something went wrong. Please try again later.",
@@ -603,6 +605,7 @@ export const withdrawApplication = async (req, res) => {
         source: "db",
       });
     } else if (p_status === -1) {
+      console.error("Stored Procedure Failure:", p_message);
       return res.status(500).json({
         status: false,
         message: "Something went wrong. Please try again later.",

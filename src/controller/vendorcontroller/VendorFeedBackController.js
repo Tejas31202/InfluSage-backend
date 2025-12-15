@@ -52,6 +52,7 @@ export const vendorInsertFeedback = async (req, res) => {
                 data: feedbackRow
             });
         } else if (p_status === -1) {
+            console.error("Stored Procedure Failure:", p_message);
             // PROCEDURE FAILED
             return res.status(500).json({
                 status: false,

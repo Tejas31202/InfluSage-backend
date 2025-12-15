@@ -114,6 +114,7 @@ export const updateApplicationStatus = async (req, res) => {
         source: "db",
       });
     } else if (p_status === -1) {
+      console.error("Stored Procedure Failure:", p_message);
       return res.status(500).json({
         status: false,
         message: "Something went wrong. Please try again later.",

@@ -45,6 +45,7 @@ export const influencerApproveOrRejectContract = async (req, res) => {
       });
     }
     else if (p_status === -1) {
+      console.error("Stored Procedure Failure:", p_message);
       return res.status(500).json({
         message: "Something went wrong. Please try again later.",
         p_status: false,
@@ -114,6 +115,7 @@ export const uploadContentLink = async (req, res) => {
     }
     // Case 3: p_status = -1 → SP failed
     else if (p_status === -1) {
+      console.error("Stored Procedure Failure:", p_message);
       return res.status(500).json({
         status: false,
         message: "Something went wrong. Please try again later.",

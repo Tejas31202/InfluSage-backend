@@ -101,8 +101,9 @@ export const createTicketAndUpdateStatus = async (req, res) => {
     }
 
     if (p_status === -1) {
+      console.error("Stored Procedure Failure:", p_message);
       return res.status(500).json({
-        message: p_message,
+        message:"Something went wrong. Please try again later.",
         p_status,
       });
     }
@@ -338,6 +339,7 @@ export const sendSupportMessage = async (req, res) => {
         filePaths: p_filepath,
       });
     } else if (p_status === -1) {
+      console.error("Stored Procedure Failure:", p_message);
       return res.status(500).json({
         status: false,
         message: "Something went wrong. Please try again later.",
