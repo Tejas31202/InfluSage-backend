@@ -286,12 +286,16 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("messageRead", async ({ messageId, conversationId, role }) => {
+  socket.on("messageRead", ({ messageId, conversationId, role }) => {
+    if (!messageId || !conversationId) {
+      console.log("❌ INVALID READ EVENT", { messageId, conversationId, role });
+      return;
+    }
 
-    io.to(`conversation_${conversationId}`).emit("updateMessageStatus", {
+    io.to(String(conversationId)).emit("updateMessageStatus", {
       messageId,
-      readbyvendor: role === 1 ? true : undefined,
-      readbyinfluencer: role === 2 ? true : undefined,
+      readbyinfluencer: Number(role) === 1 ? true : undefined,
+      readbyvendor: Number(role) === 2 ? true : undefined,
     });
   });
 

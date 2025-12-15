@@ -119,7 +119,7 @@ export const startConversation = async (req, res) => {
 };
 
 export const insertMessage = async (req, res) => {
-  const { p_conversationid, p_roleid, p_messages, p_replyid, p_messageid, campaignid, campaignName, influencerId, influencerName, vendorId, vendorName } = req.body || {};
+  const { p_conversationid, p_roleid, p_messages, p_replyid, p_messageid, campaignid, campaignName, influencerId, influencerName, vendorId, vendorName, tempId  } = req.body || {};
   const roleId = req.user?.roleId || p_roleid; // sender's role
   // const userId = req.user?.id; // sender's id
 
@@ -200,34 +200,43 @@ export const insertMessage = async (req, res) => {
     );
 
     const row = result.rows[0] || {};
+    console.log("RAW RESULT ROWS:", result.rows);
     const p_status = Number(row.p_status);
     const p_message = row.p_message;
+    const newMessageId = tempId;
 
     if (p_status === 1) {
-      // const recipientId = roleId === 1 ? vendorId : influencerId;
 
-      io.to(String(p_conversationid)).emit("receiveMessage", {
-        conversationid: p_conversationid,
-        message: p_messages || "",
-        filepaths: p_filepaths ? p_filepaths.split(",") : [],
-        roleid: p_roleid,
-        replyid: p_replyid || null,
-        createddate: new Date().toISOString(),
-        userid: req.user?.id,
-        campaignid,
-        influencerId,
-        vendorId,
-        readbyvendor: false,
-        readbyinfluencer: false,
-      });
+    const payload = {
+      tempId,
+      messageid: tempId,
+      conversationid: p_conversationid,
+      message: p_messages || "",
+      filepaths: p_filepaths ? p_filepaths.split(",") : [],
+      roleid: p_roleid,
+      replyid: p_replyid || null,
+      createddate: new Date().toISOString(),
+      userid: req.user?.id,
+      campaignid,
+      influencerId,
+      vendorId,
+      readbyvendor: false,
+      readbyinfluencer: false,
+    };
 
-      return res.status(200).json({
-        status: p_status,
-        message: p_message,
-        source: "db",
-        filePaths: p_filepaths ? p_filepaths.split(",") : [],
-      });
-    } else if (p_status === 0) {
+    console.log("Emitting receiveMessage:", payload);
+
+    io.to(String(p_conversationid)).emit("receiveMessage", payload);
+
+    return res.status(200).json({
+      status: p_status,
+      message: p_message,
+      tempId,
+      messageid: newMessageId,
+      filePaths: p_filepaths ? p_filepaths.split(",") : [],
+      source: "db",
+    });
+  } else if (p_status === 0) {
       return res.status(400).json({
         status: false,
         message: p_message,
@@ -399,10 +408,6 @@ export const unreadMessageList = async (req, res) => {
       [userId]
     );
     const lists = result.rows?.[0]?.fn_get_unreadmessagelist ?? [];
-
-    // io.to(`user_${userId}`).emit("receiveUnreadMessages", lists);
-
-    // console.log("📤 UNREAD MESSAGE EMITTED TO:", `user_${userId}`);
 
     return res.status(200).json({
       message: "Unread message list fetched successfully",
