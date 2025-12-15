@@ -24,11 +24,24 @@ export const getVendorAnalyticsSummary = async (req, res) => {
 export const getVendorCampaignOverview = async (req, res) => {
   try {
     const p_userid = req.user?.id || req.query.p_userid;
+    const p_filtertype =req.query.p_filtertype;
+    
+    if(!p_filtertype){
+      res.status(400).json({message:"p_filtertype is required"})
+    }
+      // Allow only week / month / year
+    const allowedFilters = ["week", "month", "year"];
+    if (!p_filtertype || !allowedFilters.includes(p_filtertype)) {
+      return res.status(400).json({
+        message: "Invalid p_filtertype. Allowed values: week, month, year"
+      });
+    }
+  
     const result = await client.query(
-      "select * from ins.getVendorCampaignOverview($1::bigint);",
-      [p_userid]
+      "select * from ins.fn_get_vendorcampaignoverview($1::bigint,$2::varchar(15));",
+      [p_userid,p_filtertype]
     );
-    //this function return campaignname,platforms,views,engagement,status 
+    
     const data = result.rows[0];
     return res.status(200).json({
       message: "Campaign overview retrieved successfully.",

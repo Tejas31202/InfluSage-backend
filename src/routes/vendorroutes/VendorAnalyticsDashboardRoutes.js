@@ -40,5 +40,4 @@ routes.get(
   getPlatformBreakdown
 );
 
-
 export default routes;
