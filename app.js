@@ -292,12 +292,15 @@ io.on("connection", (socket) => {
       return;
     }
 
-    io.to(String(conversationId)).emit("updateMessageStatus", {
+    const payload = {
       messageId,
-      readbyinfluencer: Number(role) === 1 ? true : undefined,
-      readbyvendor: Number(role) === 2 ? true : undefined,
-    });
-  });
+      readbyinfluencer: Number(role) === 1,
+      readbyvendor: Number(role) === 2,
+    };
+  // console.log("📡 EMIT updateMessageStatus", payload);
+
+    io.to(String(conversationId)).emit("updateMessageStatus", payload);
+});
 
   // Edit message
   socket.on("editMessage", ({ id, content, file, conversationId, replyId }) => {
