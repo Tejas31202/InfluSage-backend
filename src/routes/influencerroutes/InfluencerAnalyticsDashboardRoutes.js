@@ -5,7 +5,9 @@ import {
     getInfluencerSocialStats,
     getInfluencerContentTypeStats,
     getInfluencerContentInsight,
-    getInfluencerTopPerformingContent
+    getInfluencerTopPerformingContent,
+    getInfluencerPerformanceOvertime,
+    getInfluencerAnalyticsPlatformBreakdown
 } from '../../controller/influencercontroller/InfluencerAnalyticsDashboardController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 
@@ -43,6 +45,17 @@ routes.get(
     "/analytics/top-performing-content",
     authenticateUser(["Influencer"]),
     getInfluencerTopPerformingContent
+);
+
+routes.get(
+    "/analytics/performance-overtime",
+    authenticateUser(["Influencer"]),
+    getInfluencerPerformanceOvertime
+)
+routes.get(
+    "/analytics/platform-breakdown",
+    authenticateUser(["Influencer"]),
+    getInfluencerAnalyticsPlatformBreakdown
 );
 
 export default routes;

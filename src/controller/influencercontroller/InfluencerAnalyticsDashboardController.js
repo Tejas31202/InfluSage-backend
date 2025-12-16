@@ -348,8 +348,7 @@ export const getInfluencerTopPerformingContent = async (req, res) => {
     }
 
     const topPerformingContent = await client.query(
-      `
-             select * from ins.fn_get_influencertopperformingcontent($1::bigint,$2::character)`,
+      `select * from ins.fn_get_influencertopperformingcontent($1::bigint,$2::character)`,
       [p_userid, p_filtertype]
     );
     console.log("-->", p_userid, p_filtertype);
@@ -381,6 +380,7 @@ export const getInfluencerPerformanceOvertime = async (req, res) => {
       ` select * from ins.fn_get_influencerperformanceovertime($1::bigint,$2::character)`,
       [p_userid, p_filtertype]
     );
+    console.log(p_userid, p_filtertype);
 
     const performanceOvertimeRes = performanceOverTime.rows[0];
 
@@ -392,6 +392,40 @@ export const getInfluencerPerformanceOvertime = async (req, res) => {
     });
   } catch (error) {
     console.error("error in Get Influencer Performance OverTime:", error);
+    return res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+export const getInfluencerAnalyticsPlatformBreakdown = async (req, res) => {
+  try {
+    const p_userid = req.user?.id || req.query.p_userid;
+
+    if (!p_userid)
+      return res.status(400).json({ Message: "p_userid is required." });
+
+    const { p_year, p_month } = req.query;
+    if (!p_year)
+      return res.status(400).json({ Message: "p_year is required." });
+
+    const plateFormBreakdown = await client.query(
+      `select * from ins.fn_get_influencerplatformbreakdown(
+            $1::bigint,
+            $2::integer,
+            $3::integer 
+            )`,
+      [p_userid, p_year, p_month || null]
+    );
+
+    const breakDownRes =plateFormBreakdown.rows[0].fn_get_influencerplatformbreakdown;
+
+    return res.status(200).json({
+      Message: "InfluencerAnalyticsPlateForm Fetched Sucessfully",
+      result: breakDownRes,
+    });
+  } catch (error) {
+    console.error("error in getInfluencerAnalyticsPlatformBreakdown:", error);
     return res.status(500).json({
       message: error.message,
     });
