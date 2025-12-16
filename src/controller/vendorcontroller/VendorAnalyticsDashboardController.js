@@ -42,7 +42,7 @@ export const getVendorCampaignOverview = async (req, res) => {
       [p_userid,p_filtertype]
     );
     
-    const data = result.rows[0];
+    const data = result.rows[0].fn_get_vendorcampaignoverview;
     return res.status(200).json({
       message: "Campaign overview retrieved successfully.",
       data: data,
