@@ -75,6 +75,15 @@ export const requestRegistration = async (req, res) => {
 
 // Step 2: Verify OTP and Register User
 export const verifyOtpAndRegister = async (req, res) => {
+  const userId = req.user?.id || req.body.userId;
+
+  if (!userId) {
+    return res.status(401).json({
+      status: false,
+      message: "Unauthorized: user not found",
+    });
+  }
+
   const email = req.body.email.toLowerCase(); // normalize email
   const { otp } = req.body;
 
@@ -105,6 +114,10 @@ export const verifyOtpAndRegister = async (req, res) => {
     const { firstName, lastName, roleId, passwordhash } =
       JSON.parse(userDataStr);
 
+    await client.query(
+      "SELECT set_config('app.current_user_id', $1, true)",
+      [String(userId)]
+    );
     // Insert user into DB
     const result = await client.query(
       `CALL ins.usp_insert_user($1::VARCHAR, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::BOOLEAN, $6::SMALLINT, NULL, NULL)`,
@@ -320,6 +333,10 @@ export const resetPassword = async (req, res) => {
     // Hash new password
     const passwordhash = await bcrypt.hash(password, 10);
 
+    await client.query(
+      "SELECT set_config('app.current_user_id', $1, true)",
+      [String(userId)]
+    );
     // Update password in DB (adjust query as per your DB)
     const updateResult = await client.query(
       `CALL ins.usp_reset_userpassword($1::BIGINT, $2::VARCHAR, NULL, NULL)`,

@@ -161,7 +161,13 @@ export const applyNowCampaign = async (req, res) => {
       } else {
         applycampaignjson.filepaths = uploadedFiles;
       }
+      
+
     }
+    await client.query(
+      "SELECT set_config('app.current_user_id', $1, true)",
+      [String(userId)]
+    );
 
     // Save data in DB via stored procedure
     const result = await client.query(
@@ -174,6 +180,9 @@ export const applyNowCampaign = async (req, res) => {
       )`,
       [userId, campaignId, JSON.stringify(applycampaignjson), null, null]
     );
+
+    console.log("userId:", userId, typeof userId);
+console.log("campaignId:", campaignId, typeof campaignId);
 
     // After stored procedure call
     const row = result.rows[0];
@@ -315,6 +324,10 @@ export const saveCampaign = async (req, res) => {
       });
     }
 
+    await client.query(
+      "SELECT set_config('app.current_user_id', $1, true)",
+      [String(userId)]
+    );
     // Call stored procedure
     const result = await client.query(
       `CALL ins.usp_insert_campaignsave(
@@ -566,6 +579,14 @@ export const browseCampaigns = async (req, res) => {
 };
 
 export const withdrawApplication = async (req, res) => {
+  const userId = req.user?.id || req.body.userId;
+
+  if (!userId) {
+    return res.status(401).json({
+      status: false,
+      message: "Unauthorized: user not found",
+    });
+  }
   const { p_applicationid, p_statusname } = req.body || {};
 
   if (!p_applicationid || !p_statusname) {
@@ -577,6 +598,10 @@ export const withdrawApplication = async (req, res) => {
   try {
     const p_statusname = "Withdrawn";
 
+    await client.query(
+      "SELECT set_config('app.current_user_id', $1, true)",
+      [String(userId)]
+    );
     const result = await client.query(
       `CALL ins.usp_update_applicationstatus(
         $1::bigint,

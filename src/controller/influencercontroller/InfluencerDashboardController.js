@@ -80,6 +80,10 @@ export const insertOrEditOrDeleteToDo = async (req, res) => {
       p_isdeleted,
     } = req.body;
 
+    await client.query(
+      "SELECT set_config('app.current_user_id', $1, true)",
+      [String(p_userid)]
+    );
     const result = await client.query(
       `CALL ins.usp_upsert_todolist(
       $1::bigint, 

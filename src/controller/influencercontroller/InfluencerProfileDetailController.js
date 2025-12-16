@@ -217,6 +217,10 @@ export const completeUserProfile = async (req, res) => {
         // Save in DB, clear Redis
         await client.query("BEGIN");
         await client.query(
+          "SELECT set_config('app.current_user_id', $1, true)",
+          [String(userId)]
+        );
+        await client.query(
           `CALL ins.usp_upsert_userprofile(
               $1::bigint, $2::json, $3::json, $4::json, $5::json, $6::json, $7::smallint, $8::text
             )`,
@@ -264,6 +268,10 @@ export const completeUserProfile = async (req, res) => {
 
         // Fully completed → save all in DB
         await client.query("BEGIN");
+        await client.query(
+          "SELECT set_config('app.current_user_id', $1, true)",
+          [String(userId)]
+        );
         const result = await client.query(
           `CALL ins.usp_upsert_userprofile(
         $1::bigint, $2::json, $3::json, $4::json, $5::json, $6::json, $7::smallint, $8::text

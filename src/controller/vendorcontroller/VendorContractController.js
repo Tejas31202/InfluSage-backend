@@ -36,6 +36,14 @@ export const getAllSelectedInfluencer = async (req, res) => {
 
 export const createOrEditContract = async (req, res) => {
   try {
+    const userId = req.user?.id || req.body.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        status: false,
+        message: "Unauthorized: user not found",
+      });
+    }
     const {
       p_campaignapplicationid,
       p_contractid,
@@ -56,6 +64,10 @@ export const createOrEditContract = async (req, res) => {
       });
     }
 
+    await client.query(
+      "SELECT set_config('app.current_user_id', $1, true)",
+      [String(userId)]
+    );
     const result = await client.query(
       `CALL ins.usp_upsert_contractdetails(
         $1::bigint,

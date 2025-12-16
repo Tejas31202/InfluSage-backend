@@ -42,6 +42,10 @@ export const finalizeCampaign = async (req, res) => {
     // --------------- BEGIN DB TRANSACTION ---------------
     await client.query("BEGIN");
 
+    await client.query(
+      "SELECT set_config('app.current_user_id', $1, true)",
+      [String(userId)]
+    );
     const result = await client.query(
       `CALL ins.usp_upsert_campaigndetails(
         $1::BIGINT,
@@ -764,6 +768,10 @@ export const upsertCampaign = async (req, res) => {
 
     // DB Call for edit only startdate and enddate 
 
+    await client.query(
+      "SELECT set_config('app.current_user_id', $1, true)",
+      [String(p_userid)]
+    );
     const result = await client.query(
       `CALL ins.usp_upsert_campaigndetails(
         $1::BIGINT, 

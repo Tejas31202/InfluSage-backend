@@ -55,6 +55,10 @@ export const startConversation = async (req, res) => {
 
 
   try {
+    await client.query(
+          "SELECT set_config('app.current_user_id', $1, true)",
+          [String(p_userid)]
+        );
     const result = await client.query(
       `call ins.usp_upsert_conversation(
         $1::bigint,
@@ -119,6 +123,15 @@ export const startConversation = async (req, res) => {
 };
 
 export const insertMessage = async (req, res) => {
+   const userId = req.user?.id || req.body.userId;
+
+  if (!userId) {
+    return res.status(401).json({
+      status: false,
+      message: "Unauthorized: user not found",
+    });
+  }
+
   const { p_conversationid, p_roleid, p_messages, p_replyid, p_messageid, campaignid, campaignName, influencerId, influencerName, vendorId, vendorName, tempId  } = req.body || {};
   const roleId = req.user?.roleId || p_roleid; // sender's role
   // const userId = req.user?.id; // sender's id
@@ -176,6 +189,10 @@ export const insertMessage = async (req, res) => {
   }
 
   try {
+    await client.query(
+          "SELECT set_config('app.current_user_id', $1, true)",
+          [String(userId)]
+        );
     const result = await client.query(
       `CALL ins.usp_upsert_message(
         $1::bigint, 
@@ -344,6 +361,14 @@ export const getMessages = async (req, res) => {
 
 
 export const updateUndoMessage = async (req, res) => {
+  const userId = req.user?.id || req.body.userId;
+
+  if (!userId) {
+    return res.status(401).json({
+      status: false,
+      message: "Unauthorized: user not found",
+    });
+  }
   try {
     const { p_messageid, p_roleid, p_action } = req.body;
     if (!p_messageid || !p_roleid || !p_action) {
@@ -351,6 +376,11 @@ export const updateUndoMessage = async (req, res) => {
         .status(400)
         .json({ message: "Message ID, Role ID, and Action are required." });
     }
+
+    await client.query(
+          "SELECT set_config('app.current_user_id', $1, true)",
+          [String(userId)]
+        );
     const result = await client.query(
       `CALL ins.usp_update_undomessage(
         $1::BIGINT,

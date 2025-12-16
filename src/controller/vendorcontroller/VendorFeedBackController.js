@@ -2,6 +2,14 @@ import { client } from '../../config/Db.js';
 
 
 export const vendorInsertFeedback = async (req, res) => {
+    const userId = req.user?.id || req.body.userId;
+
+    if (!userId) {
+        return res.status(401).json({
+            status: false,
+            message: "Unauthorized: user not found",
+        });
+    }
 
     const { p_campaignid, influencerid, p_rating, p_text } = req.body;
     if (!p_campaignid || !influencerid) {
@@ -12,6 +20,10 @@ export const vendorInsertFeedback = async (req, res) => {
     }
 
     try {
+        await client.query(
+            "SELECT set_config('app.current_user_id', $1, true)",
+            [String(userId)]
+        );
         const insertFeedback = await client.query(`
             CALL ins.usp_insert_feedback (
             $1::BIGINT,

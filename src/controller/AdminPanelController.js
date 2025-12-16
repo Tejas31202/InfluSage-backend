@@ -189,6 +189,10 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
   }
 
   try {
+    await client.query(
+          "SELECT set_config('app.current_user_id', $1, true)",
+          [String(p_adminid)]
+        );
     const result = await client.query(
       `CALL ins.usp_update_approvalstatus(
         $1::bigint,
@@ -442,6 +446,10 @@ export const blockInfluencerAndCampaignApplication = async (req, res) => {
   }
 
   try {
+    await client.query(
+          "SELECT set_config('app.current_user_id', $1, true)",
+          [String(p_adminid)]
+        );
     const result = await client.query(
       `CALL ins.usp_insert_entityblock(
         $1::bigint,
@@ -609,6 +617,10 @@ export const adminRejectInfluencerOrCampaign = async (req, res) => {
     if (!p_text) {
       return res.status(400).json({ message: " p_text is required." });
     }
+    await client.query(
+          "SELECT set_config('app.current_user_id', $1, true)",
+          [String(p_adminid)]
+        );
     // Store rejection info in DB
     const result = await client.query(
       `CALL ins.usp_upsert_rejectentity(
