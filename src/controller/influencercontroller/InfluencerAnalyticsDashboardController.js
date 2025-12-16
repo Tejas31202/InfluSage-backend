@@ -348,19 +348,18 @@ export const getInfluencerTopPerformingContent = async (req, res) => {
     }
 
     const topPerformingContent = await client.query(
-      `select * from ins.fn_get_influencertopperformingcontent($1::bigint,$2::character)`,
+      `select * from ins.fn_get_influencertopperformingcontent($1::bigint,$2::varchar)`,
       [p_userid, p_filtertype]
     );
-    console.log("-->", p_userid, p_filtertype);
 
-    const topPerContentRes = topPerformingContent.rows[0];
+    const topPerContentRes = topPerformingContent.rows[0].fn_get_influencertopperformingcontent;
 
     return res.status(200).json({
-      Message: "Top Performing Content Successfully Get",
+      Message: "Influencer Top Performing Retrieved Content Successfully.",
       result: topPerContentRes,
     });
   } catch (error) {
-    console.error("error in Get Influencer Top Performing Content:", error);
+    console.error("error in getInfluencerTopPerformingContent:", error);
     return res.status(500).json({
       message: error.message,
     });
@@ -374,24 +373,24 @@ export const getInfluencerPerformanceOvertime = async (req, res) => {
     if (!p_userid) {
       return res.status(400).json({ Message: "p_userid Required" });
     }
-
     const { p_filtertype } = req.query;
+
+     if (!p_filtertype) {
+      return res.status(400).json({ Message: "p_filtertype is Required." });
+    }
     const performanceOverTime = await client.query(
-      ` select * from ins.fn_get_influencerperformanceovertime($1::bigint,$2::character)`,
+      ` select * from ins.fn_get_influencerperformanceovertime($1::bigint,$2::varchar)`,
       [p_userid, p_filtertype]
     );
-    console.log(p_userid, p_filtertype);
 
-    const performanceOvertimeRes = performanceOverTime.rows[0];
-
-    console.log("OverTimeData", performanceOverTime);
+    const performanceOvertimeRes = performanceOverTime.rows[0].fn_get_influencerperformanceovertime;
 
     return res.status(200).json({
-      Message: "Influencer Performance Over Time Successfully Get",
+      Message: "Influencer Performance Over Time Retrieved Successfully.",
       result: performanceOvertimeRes,
     });
   } catch (error) {
-    console.error("error in Get Influencer Performance OverTime:", error);
+    console.error("error in getInfluencerPerformanceOvertime:", error);
     return res.status(500).json({
       message: error.message,
     });
@@ -406,6 +405,7 @@ export const getInfluencerAnalyticsPlatformBreakdown = async (req, res) => {
       return res.status(400).json({ Message: "p_userid is required." });
 
     const { p_year, p_month } = req.query;
+
     if (!p_year)
       return res.status(400).json({ Message: "p_year is required." });
 
