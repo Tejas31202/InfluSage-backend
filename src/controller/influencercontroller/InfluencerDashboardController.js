@@ -80,6 +80,7 @@ export const insertOrEditOrDeleteToDo = async (req, res) => {
       p_isdeleted,
     } = req.body;
 
+    await client.query("BEGIN");
     await client.query(
       "SELECT set_config('app.current_user_id', $1, true)",
       [String(p_userid)]
@@ -106,6 +107,7 @@ export const insertOrEditOrDeleteToDo = async (req, res) => {
         null,
       ]
     );
+    await client.query("COMMIT");
 
     const row = result.rows[0] || {};
     const p_status = Number(row.p_status);

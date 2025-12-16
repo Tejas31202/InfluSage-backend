@@ -20,6 +20,7 @@ export const vendorInsertFeedback = async (req, res) => {
     }
 
     try {
+        await client.query("BEGIN");
         await client.query(
             "SELECT set_config('app.current_user_id', $1, true)",
             [String(userId)]
@@ -41,6 +42,7 @@ export const vendorInsertFeedback = async (req, res) => {
                 null,
                 null
             ])
+        await client.query("COMMIT");
 
         const feedbackRow = insertFeedback.rows?.[0] || {};
         const p_status = Number(feedbackRow.p_status);

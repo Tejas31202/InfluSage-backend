@@ -164,6 +164,8 @@ export const applyNowCampaign = async (req, res) => {
       
 
     }
+    await client.query("BEGIN");
+
     await client.query(
       "SELECT set_config('app.current_user_id', $1, true)",
       [String(userId)]
@@ -181,8 +183,8 @@ export const applyNowCampaign = async (req, res) => {
       [userId, campaignId, JSON.stringify(applycampaignjson), null, null]
     );
 
-    console.log("userId:", userId, typeof userId);
-console.log("campaignId:", campaignId, typeof campaignId);
+    await client.query("COMMIT");
+
 
     // After stored procedure call
     const row = result.rows[0];
@@ -324,6 +326,7 @@ export const saveCampaign = async (req, res) => {
       });
     }
 
+    await client.query("BEGIN");
     await client.query(
       "SELECT set_config('app.current_user_id', $1, true)",
       [String(userId)]
@@ -338,6 +341,7 @@ export const saveCampaign = async (req, res) => {
       )`,
       [userId, campaignId, null, null]
     );
+    await client.query("COMMIT");
 
     const row = result.rows[0];
     const p_status = Number(row?.p_status);
@@ -598,6 +602,7 @@ export const withdrawApplication = async (req, res) => {
   try {
     const p_statusname = "Withdrawn";
 
+    await client.query("BEGIN");
     await client.query(
       "SELECT set_config('app.current_user_id', $1, true)",
       [String(userId)]
@@ -611,6 +616,7 @@ export const withdrawApplication = async (req, res) => {
       )`,
       [p_applicationid, p_statusname, null, null]
     );
+    await client.query("COMMIT");
 
     const row = result.rows?.[0] || {};
     const p_status = Number(row.p_status);

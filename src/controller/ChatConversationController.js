@@ -55,6 +55,7 @@ export const startConversation = async (req, res) => {
 
 
   try {
+    await client.query("BEGIN");
     await client.query(
           "SELECT set_config('app.current_user_id', $1, true)",
           [String(p_userid)]
@@ -71,6 +72,7 @@ export const startConversation = async (req, res) => {
         null,
       ]
     );
+    await client.query("COMMIT");
 
     const row = result.rows[0] || {};
     const p_status = Number(row.p_status);
@@ -189,6 +191,7 @@ export const insertMessage = async (req, res) => {
   }
 
   try {
+    await client.query("BEGIN");
     await client.query(
           "SELECT set_config('app.current_user_id', $1, true)",
           [String(userId)]
@@ -215,6 +218,7 @@ export const insertMessage = async (req, res) => {
         p_messageid || null,
       ]
     );
+    await client.query("COMMIT");
 
     const row = result.rows[0] || {};
     console.log("RAW RESULT ROWS:", result.rows);
@@ -377,6 +381,7 @@ export const updateUndoMessage = async (req, res) => {
         .json({ message: "Message ID, Role ID, and Action are required." });
     }
 
+    await client.query("BEGIN");
     await client.query(
           "SELECT set_config('app.current_user_id', $1, true)",
           [String(userId)]
@@ -391,6 +396,7 @@ export const updateUndoMessage = async (req, res) => {
       )`,
       [p_messageid, p_roleid, p_action, null, null]
     );
+    await client.query("COMMIT");
     const row = result.rows?.[0] || {};
     const p_status = Number(row.p_status);
     const p_message = row.p_message;

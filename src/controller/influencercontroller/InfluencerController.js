@@ -114,6 +114,7 @@ export const verifyOtpAndRegister = async (req, res) => {
     const { firstName, lastName, roleId, passwordhash } =
       JSON.parse(userDataStr);
 
+      await client.query("BEGIN");
     await client.query(
       "SELECT set_config('app.current_user_id', $1, true)",
       [String(userId)]
@@ -123,6 +124,7 @@ export const verifyOtpAndRegister = async (req, res) => {
       `CALL ins.usp_insert_user($1::VARCHAR, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::BOOLEAN, $6::SMALLINT, NULL, NULL)`,
       [firstName, lastName, email, passwordhash, true, roleId]
     );
+      await client.query("COMMIT");
 
     const row = result.rows?.[0] || {};
     const p_status = Number(row.p_status);
@@ -333,6 +335,7 @@ export const resetPassword = async (req, res) => {
     // Hash new password
     const passwordhash = await bcrypt.hash(password, 10);
 
+    await client.query("BEGIN");
     await client.query(
       "SELECT set_config('app.current_user_id', $1, true)",
       [String(userId)]
@@ -342,6 +345,7 @@ export const resetPassword = async (req, res) => {
       `CALL ins.usp_reset_userpassword($1::BIGINT, $2::VARCHAR, NULL, NULL)`,
       [userId, passwordhash]
     );
+    await client.query("COMMIT");
 
     const row = updateResult.rows?.[0] || {};
     const p_status = Number(row.p_status);

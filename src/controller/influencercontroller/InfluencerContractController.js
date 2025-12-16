@@ -24,6 +24,7 @@ export const influencerApproveOrRejectContract = async (req, res) => {
         .json({ message: "p_contractid and p_statusname are required" });
     }
 
+    await client.query("BEGIN");
     await client.query(
       "SELECT set_config('app.current_user_id', $1, true)",
       [String(userId)]
@@ -38,6 +39,7 @@ export const influencerApproveOrRejectContract = async (req, res) => {
       );`,
       [p_influencerid, p_contractid, p_statusname, null, null]
     );
+    await client.query("COMMIT");
 
     const row = result.rows?.[0] || {};
     const p_status = Number(row.p_status);
@@ -99,6 +101,7 @@ export const uploadContentLink = async (req, res) => {
         .json({ message: "p_contractid and p_contentlinkjson are required" });
     }
 
+    await client.query("BEGIN");
     await client.query(
           "SELECT set_config('app.current_user_id', $1, true)",
           [String(userId)]
@@ -119,6 +122,7 @@ export const uploadContentLink = async (req, res) => {
         null,
       ]
     );
+    await client.query("COMMIT");
 
     const row = result.rows[0] || {};
     const p_status = Number(row.p_status);

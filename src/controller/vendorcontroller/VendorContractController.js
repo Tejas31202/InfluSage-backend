@@ -64,6 +64,7 @@ export const createOrEditContract = async (req, res) => {
       });
     }
 
+    await client.query("BEGIN");
     await client.query(
       "SELECT set_config('app.current_user_id', $1, true)",
       [String(userId)]
@@ -86,6 +87,7 @@ export const createOrEditContract = async (req, res) => {
         null,
       ]
     );
+    await client.query("COMMIT");
 
     const row = result.rows[0] || {};
     const p_status = Number(row.p_status);

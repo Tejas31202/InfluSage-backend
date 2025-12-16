@@ -95,6 +95,7 @@ export const updateApplicationStatus = async (req, res) => {
   }
 
   try {
+    await client.query("BEGIN");
     await client.query(
       "SELECT set_config('app.current_user_id', $1, true)",
       [String(userId)]
@@ -108,6 +109,7 @@ export const updateApplicationStatus = async (req, res) => {
         )`,
       [p_applicationid, p_statusname, null, null]
     );
+    await client.query("COMMIT");
     const row = result.rows?.[0] || {};
     const p_status = Number(row.p_status);
     const p_message = row.p_message;

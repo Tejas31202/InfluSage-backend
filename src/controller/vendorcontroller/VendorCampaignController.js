@@ -768,6 +768,7 @@ export const upsertCampaign = async (req, res) => {
 
     // DB Call for edit only startdate and enddate 
 
+    await client.query("BEGIN");
     await client.query(
       "SELECT set_config('app.current_user_id', $1, true)",
       [String(p_userid)]
@@ -800,7 +801,7 @@ export const upsertCampaign = async (req, res) => {
         null
       ]
     );
-
+    await client.query("COMMIT");
     const row = result.rows[0] || {};
     const p_status = Number(row.p_status);
     const p_message = row.p_message;
