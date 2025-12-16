@@ -4,7 +4,8 @@ import {
     getInfluencerEarningSummary,
     getInfluencerSocialStats,
     getInfluencerContentTypeStats,
-    getInfluencerContentInsight
+    getInfluencerContentInsight,
+    getInfluencerTopPerformingContent
 } from '../../controller/influencercontroller/InfluencerAnalyticsDashboardController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 
@@ -38,5 +39,10 @@ routes.get(
     getInfluencerContentInsight
 );
 
+routes.get(
+    "/analytics/top-performing-content",
+    authenticateUser(["Influencer"]),
+    getInfluencerTopPerformingContent
+);
 
 export default routes;

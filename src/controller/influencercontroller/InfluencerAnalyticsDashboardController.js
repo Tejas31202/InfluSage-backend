@@ -293,6 +293,72 @@ export const getInfluencerAudienceDemographic = async (req, res) => {
 };
 
 
+export const getInfluencerTopPerformingContent = async (req, res) => {
+       try {
+    const p_userid = req.user?.id || req.query.p_userid;
+
+    if (!p_userid){
+        return res.status(400).json({ Message: "p_userid is Required." });
+    } 
+
+    const { p_filtertype } = req.query;
+    
+    if (!p_filtertype){
+        return res.status(400).json({ Message: "p_filtertype is Required." });
+    } 
+
+        const topPerformingContent = await client.query(`
+             select * from ins.fn_get_influencertopperformingcontent($1::bigint,$2::character)`,
+            [p_userid, p_filtertype]
+        );
+
+        const topPerContentRes = topPerformingContent.rows[0].fn_get_influencertopperformingcontent;
+
+        return res.status(200).json({
+            Message: "Top Performing Content Successfully Get",
+            result: topPerContentRes
+        });
+    } catch (error) {
+        console.error("error in Get Influencer Top Performing Content:", error);
+        return res.status(500).json({
+            message: error.message
+        });
+
+    }
+
+
+};
+
+export const getInfluencerPerformanceOvertime = async (req, res) => {
+    try {
+           const p_userid = req.user?.id || req.query.p_userid;
+
+           if (!p_userid){
+                return res.status(400).json({ Message: "p_userid Required" })
+            } 
+
+           const {p_filtertype} = req.query;
+        const performanceOverTime = await client.query(
+            ` select * from ins.fn_get_influencerperformanceovertime($1::bigint,$2::character)`,
+            [p_userid, p_filtertype]
+        );
+
+        const performanceOvertimeRes = performanceOverTime.rows[0];
+
+        console.log("OverTimeData", performanceOverTime)
+
+        return res.status(200).json({
+            Message: "Influencer Performance Over Time Successfully Get",
+            result: performanceOvertimeRes
+        })
+    } catch (error) {
+        console.error("error in Get Influencer Performance OverTime:", error);
+        return res.status(500).json({
+            message: error.message
+        });
+    }
+}
+
 
 
 
