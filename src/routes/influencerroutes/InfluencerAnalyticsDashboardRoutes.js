@@ -9,7 +9,8 @@ import {
     getInfluencerPerformanceOvertime,
     getInfluencerAnalyticsPlatformBreakdown,
     getInfluencerEngagementScore,
-    getInfluencerImpressionInsight
+    getInfluencerImpressionInsight,
+    getInfluencerCampaignList
 } from '../../controller/influencercontroller/InfluencerAnalyticsDashboardController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 
@@ -71,6 +72,12 @@ routes.get(
     "/analytics/impression",
     authenticateUser(["Influencer"]),
     getInfluencerImpressionInsight
+);
+
+routes.get(
+    "/analytics/campaign-list",
+    authenticateUser(["Influencer"]),
+    getInfluencerCampaignList
 );
 
 export default routes;
