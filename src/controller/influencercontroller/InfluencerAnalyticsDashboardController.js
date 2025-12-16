@@ -65,13 +65,13 @@ import { client } from "../../config/Db.js";
 //platform → followers per platform by gender
 
 export const getInfluencerAnalyticsSummary = async (req, res) => {
- try {
-      const p_userid = req.user?.id || req.query.p_userid;
+  try {
+    const p_userid = req.user?.id || req.query.p_userid;
 
-      if (!p_userid)
-          return res
-            .status(400)
-            .json({ Message: "p_userid is required." });
+    if (!p_userid){
+      return res.status(400).json({ Message: "p_userid is required." });
+    }
+
     const result = await client.query(
       `select * from ins.fn_get_influenceranalytic($1::bigint);`,
       [p_userid]
@@ -428,6 +428,38 @@ export const getInfluencerAnalyticsPlatformBreakdown = async (req, res) => {
     console.error("error in getInfluencerAnalyticsPlatformBreakdown:", error);
     return res.status(500).json({
       message: error.message,
+    });
+  }
+};
+
+export const getInfluencerEngagementScore = async (req, res) => {
+  try {
+    const p_userid = req.user?.id || req.query.p_userid;
+    const { p_filtertype } = req.query;
+
+    if (!p_userid) {
+      return res.status(400).json({
+        message: "p_userid is Required.",
+      });
+    }
+
+    const result = await client.query(
+      ` SELECT ins.fn_get_influencerengagementscore($1::bigint,$2::varchar(15));`,
+      [p_userid, p_filtertype || "year"]
+    );
+
+    const data = result.rows[0].fn_get_influencerengagementscore[0];
+
+    return res.status(200).json({
+      message: "Engagement Score Retrieved Successfully",
+      data: data,
+    });
+
+  } catch (error) {
+    console.error("Error In getInfluencerEngagementScore:", error);
+    return res.status(500).json({
+      message: "Something went wrong while fetching engagement score.",
+      error: error.message,
     });
   }
 };
