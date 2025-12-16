@@ -175,7 +175,7 @@ export const completeVendorProfile = async (req, res) => {
   const userId = req.user?.id || req.body.userid;
   let username = "user";
 
-   if (req.user?.name) {
+  if (req.user?.name) {
     // Split by space and take first word
     username = req.user.name.split(" ")[0].trim();
   }
@@ -195,7 +195,7 @@ export const completeVendorProfile = async (req, res) => {
       username = dbUser.rows[0].firstname.trim();
     }
   }
-  
+
   const redisKey = `vendorprofile:${userId}`;
 
   try {
@@ -224,7 +224,7 @@ export const completeVendorProfile = async (req, res) => {
         return res.status(400).json({ message: "No valid file buffer found" });
       }
 
-      const fileName =file.originalname;
+      const fileName = file.originalname;
       // const newFileName = `${userId}_${username}_photo_${fileName}`;
       const profileFolderPath = `Vendor/${userId}/Profile`;
       const supabasePath = `${profileFolderPath}/${fileName}`;
@@ -303,6 +303,10 @@ export const completeVendorProfile = async (req, res) => {
       // CASE A: User already has provider  + objectives → update in DB
       try {
         await client.query("BEGIN");
+        await client.query(
+          "SELECT set_config('app.current_user_id', $1, true)",
+          [String(userId)]
+        );
         const result = await client.query(
           `CALL ins.usp_upsert_vendorprofile(
           $1::BIGINT, $2::JSON, $3::JSON, $4::JSON, $5::JSON, $6::JSON, $7::SMALLINT, $8::TEXT
@@ -383,7 +387,7 @@ export const completeVendorProfile = async (req, res) => {
         let redisData = existingRedis ? JSON.parse(existingRedis) : {};
         redisData = { ...redisData, ...mergedData };
 
-        await redisClient.setEx(redisKey,86400, JSON.stringify(redisData));
+        await redisClient.setEx(redisKey, 86400, JSON.stringify(redisData));
         return res.status(200).json({
           message: "Partial data saved in Redis (first-time user)",
           source: "redis",
@@ -393,6 +397,10 @@ export const completeVendorProfile = async (req, res) => {
       //  CASE C: All parts present → insert into DB
       try {
         await client.query("BEGIN");
+        await client.query(
+          "SELECT set_config('app.current_user_id', $1, true)",
+          [String(userId)]
+        );
         const result = await client.query(
           `CALL ins.usp_upsert_vendorprofile(
           $1::BIGINT, $2::JSON, $3::JSON, $4::JSON, $5::JSON, $6::JSON, $7::SMALLINT, $8::TEXT
@@ -411,26 +419,27 @@ export const completeVendorProfile = async (req, res) => {
         await client.query("COMMIT");
         const { p_status, p_message } = result.rows[0] || {};
 
-      if (p_status === 1) {
-        await redisClient.del(redisKey);
-        return res.status(200).json({ message: p_message, p_status });
+        if (p_status === 1) {
+          await redisClient.del(redisKey);
+          return res.status(200).json({ message: p_message, p_status });
+        }
+
+        if (p_status === 0)
+          return res.status(400).json({ message: p_message, p_status });
+
+        if (p_status === -1)
+          return res.status(500).json({ message: p_message, p_status });
+
+        return res.status(500).json({
+          message: "Unknown database response",
+          p_status,
+        });
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
       }
-
-      if (p_status === 0)
-        return res.status(400).json({ message: p_message, p_status });
-
-      if (p_status === -1)
-        return res.status(500).json({ message: p_message, p_status });
-
-      return res.status(500).json({
-        message: "Unknown database response",
-        p_status,
-      });
-    } catch (err) {
-      await client.query("ROLLBACK");
-      throw err;
     }
-  }} catch (error) {
+  } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error in completeVendorProfile:", error);
     return res.status(500).json({ message: error.message });

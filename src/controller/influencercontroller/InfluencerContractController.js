@@ -2,6 +2,14 @@ import { Console } from 'console';
 import { client } from '../../config/Db.js';
 
 export const influencerApproveOrRejectContract = async (req, res) => {
+  const userId = req.user?.id || req.body.userId;
+
+  if (!userId) {
+    return res.status(401).json({
+      status: false,
+      message: "Unauthorized: user not found",
+    });
+  }
   try {
     const p_influencerid = req.user?.id || req.body.p_influencerid;
     const { p_contractid, p_statusname } = req.body;
@@ -16,6 +24,11 @@ export const influencerApproveOrRejectContract = async (req, res) => {
         .json({ message: "p_contractid and p_statusname are required" });
     }
 
+    await client.query("BEGIN");
+    await client.query(
+      "SELECT set_config('app.current_user_id', $1, true)",
+      [String(userId)]
+    );
     const result = await client.query(
       `CALL ins.usp_update_contractstatus(
       $1::bigint,
@@ -26,6 +39,7 @@ export const influencerApproveOrRejectContract = async (req, res) => {
       );`,
       [p_influencerid, p_contractid, p_statusname, null, null]
     );
+    await client.query("COMMIT");
 
     const row = result.rows?.[0] || {};
     const p_status = Number(row.p_status);
@@ -66,6 +80,13 @@ export const influencerApproveOrRejectContract = async (req, res) => {
 };
 
 export const uploadContentLink = async (req, res) => {
+  const userId = req.user?.id || req.body.userId;
+  if (!userId) {
+    return res.status(401).json({
+      status: false,
+      message: "Unauthorized: user not found",
+    });
+  }
   try {
     const p_influencerid = req.user?.id || req.body.p_influencerid;
     const { p_contractid, p_contentlinkjson } = req.body;
@@ -80,6 +101,11 @@ export const uploadContentLink = async (req, res) => {
         .json({ message: "p_contractid and p_contentlinkjson are required" });
     }
 
+    await client.query("BEGIN");
+    await client.query(
+          "SELECT set_config('app.current_user_id', $1, true)",
+          [String(userId)]
+        );
     const result = await client.query(
       `CALL ins.usp_upsert_contentlink(
       $1::bigint,
@@ -96,6 +122,7 @@ export const uploadContentLink = async (req, res) => {
         null,
       ]
     );
+    await client.query("COMMIT");
 
     const row = result.rows[0] || {};
     const p_status = Number(row.p_status);

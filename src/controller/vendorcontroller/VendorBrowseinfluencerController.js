@@ -214,8 +214,15 @@ export const inviteInfluencerToCampaigns = async (req, res) => {
 };
 //..............InsertCampaignInvites........................
 export const insertCampaignInvites = async (req, res) => {
+  const userId = req.user?.id || req.body.userId;
   const { p_influencerid, p_campaignidjson } = req.body;
 
+  if (!userId) {
+    return res.status(401).json({
+      status: false,
+      message: "Unauthorized: user not found",
+    });
+  }
   if (!p_influencerid) {
     return res.status(400).json({
       message: "Influencerid Id Require",
@@ -228,6 +235,11 @@ export const insertCampaignInvites = async (req, res) => {
   }
 
   try {
+    await client.query("BEGIN");
+    await client.query(
+      "SELECT set_config('app.current_user_id', $1, true)",
+      [String(userId)]
+    );
     const result = await client.query(
       `CALL ins.usp_upsert_campaigninvites(
         $1::bigint,
@@ -242,6 +254,7 @@ export const insertCampaignInvites = async (req, res) => {
         null,
       ]
     );
+    await client.query("COMMIT");
 
     const row = result.rows[0] || {};
     const p_status = Number(row.p_status);

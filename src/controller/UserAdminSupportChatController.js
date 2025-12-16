@@ -66,6 +66,11 @@ export const createTicketAndUpdateStatus = async (req, res) => {
       }
     }
 
+    await client.query("BEGIN");
+    await client.query(
+          "SELECT set_config('app.current_user_id', $1, true)",
+          [String(p_userid)]
+        );
     const result = await client.query(
       `CALL ins.usp_upsert_usersupportticket(
       $1::bigint,
@@ -84,6 +89,7 @@ export const createTicketAndUpdateStatus = async (req, res) => {
         null,
       ]
     );
+    await client.query("COMMIT");
     const { p_status, p_message } = result.rows[0];
 
     if (p_status === 1) {
@@ -218,6 +224,15 @@ export const getTicketStatus = async (req, res) => {
 };
 
 export const sendSupportMessage = async (req, res) => {
+  const userId = req.user?.id || req.body.userId;
+
+  if (!userId) {
+    return res.status(401).json({
+      status: false,
+      message: "Unauthorized: user not found",
+    });
+  }
+
   try {
     const p_senderid = req.user?.id || req.body.p_senderid;
     const { p_usersupportticketid, p_messages, p_replyid } = req.body;
@@ -272,6 +287,11 @@ export const sendSupportMessage = async (req, res) => {
     }
 
     const p_filepath = filePaths.length > 0 ? filePaths[0] : null;
+    await client.query("BEGIN");
+    await client.query(
+          "SELECT set_config('app.current_user_id', $1, true)",
+          [String(userId)]
+        );
     // ----------------- DB CALL -----------------
     const result = await client.query(
       `CALL ins.usp_insert_usersupportticketmessage(
@@ -293,6 +313,7 @@ export const sendSupportMessage = async (req, res) => {
         p_replyid || null,
       ]
     );
+    await client.query("COMMIT");
 
     const row = result.rows?.[0] || {};
     const p_status = Number(row.p_status);

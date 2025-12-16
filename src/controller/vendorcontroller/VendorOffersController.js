@@ -78,6 +78,14 @@ export const getViewAllOffersForSingleCampaign = async (req, res) => {
 };
 
 export const updateApplicationStatus = async (req, res) => {
+  const userId = req.user?.id || req.body.userId;
+
+  if (!userId) {
+    return res.status(401).json({
+      status: false,
+      message: "Unauthorized: user not found",
+    });
+  }
   const { p_applicationid, p_statusname } = req.body || {};
 
   if (!p_applicationid || !p_statusname) {
@@ -87,6 +95,11 @@ export const updateApplicationStatus = async (req, res) => {
   }
 
   try {
+    await client.query("BEGIN");
+    await client.query(
+      "SELECT set_config('app.current_user_id', $1, true)",
+      [String(userId)]
+    );
     const result = await client.query(
       `CALL ins.usp_update_applicationstatus(
         $1::bigint,
@@ -96,6 +109,7 @@ export const updateApplicationStatus = async (req, res) => {
         )`,
       [p_applicationid, p_statusname, null, null]
     );
+    await client.query("COMMIT");
     const row = result.rows?.[0] || {};
     const p_status = Number(row.p_status);
     const p_message = row.p_message;

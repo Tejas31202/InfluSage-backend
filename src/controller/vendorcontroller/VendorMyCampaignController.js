@@ -153,6 +153,11 @@ export const insertCampiginCancleApplication = async (req, res) => {
     res.status(400).json({message:"required fields are :  p_campaignid and  p_objectiveid"})
   }
   try {
+    await client.query("BEGIN");
+    await client.query(
+      "SELECT set_config('app.current_user_id', $1, true)",
+      [String(userId)]
+    );
     const result = await client.query(
       `CALL ins.usp_upsert_campaigncacelreason(
       $1::bigint, 
@@ -163,6 +168,7 @@ export const insertCampiginCancleApplication = async (req, res) => {
     );`,
       [userId, p_campaignid, p_objectiveid, null, null]
     );
+    await client.query("COMMIT");
 
     const row = result.rows[0] || {};
     const p_status = Number(row.p_status);
@@ -202,8 +208,21 @@ export const insertCampiginCancleApplication = async (req, res) => {
 };
 
 export const pausedCampaignApplication = async (req, res) => {
+  const userId = req.user?.id || req.body.userId;
+
+  if (!userId) {
+    return res.status(401).json({
+      status: false,
+      message: "Unauthorized: user not found",
+    });
+  }
   const p_campaignid = req.params.p_campaignid;
   try {
+    await client.query("BEGIN");
+    await client.query(
+      "SELECT set_config('app.current_user_id', $1, true)",
+      [String(userId)]
+    );
     const result = await client.query(
       `CALL ins.usp_update_changecampaignstatus(
       $1::bigint,
@@ -212,6 +231,7 @@ export const pausedCampaignApplication = async (req, res) => {
     )`,
       [p_campaignid, null, null]
     );
+    await client.query("COMMIT");
 
     const { p_status, p_message } = result.rows[0];
     if (p_status) {

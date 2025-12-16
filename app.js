@@ -61,7 +61,7 @@ app.use("/user", InfluencerCampaignRoutes);
 app.use("/user", InfluencerMyCampaignRoutes);
 app.use("/user", InfluencerDashboardRoutes);
 app.use("/user", InfluencerContractRoutes);
-app.use("user", InfluencerAnalyticsDashboardRoutes);
+app.use("/user",InfluencerAnalyticsDashboardRoutes);
 app.use("/vendor", VendorRoutes);
 app.use("/vendor", VendorProfileDetailRoutes);
 app.use("/vendor", VendorCampaignRoutes);
