@@ -162,15 +162,13 @@ export const insertAnalyticsRecord = async (req, res) => {
   try {
     const p_adminid = req.user?.id || req.query.p_adminid;
     const {
-      p_campaignid,
-      p_influencerid,
       p_contentlinkid,
       p_metricsjson
     } = req.body || {};
 
-    if (!p_campaignid || !p_influencerid || !p_contentlinkid || !p_metricsjson) {
+    if (!p_contentlinkid || !p_metricsjson) {
       return res.status(400).json({
-        message: "Required fields: p_campaignid, p_influencerid, p_contentlinkid, p_metricsjson"
+        message: "Required fields:p_contentlinkid and p_metricsjson"
       });
     }
 
@@ -178,16 +176,12 @@ export const insertAnalyticsRecord = async (req, res) => {
       `CALL ins.usp_insert_userplatformanalytic(
         $1::bigint,
         $2::bigint,
-        $3::bigint,
-        $4::bigint,
-        $5::json,
-        $6::smallint,
-        $7::text
+        $3::json,
+        $4::smallint,
+        $5::text
       );`,
       [
         p_adminid,
-        p_campaignid,
-        p_influencerid,
         p_contentlinkid,
         JSON.stringify(p_metricsjson),
         null,
