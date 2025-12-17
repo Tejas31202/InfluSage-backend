@@ -66,7 +66,10 @@ export const getLanguages = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching languages:", error);
-    return res.status(500).json({ message: "Failed to fetch languages" });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -93,7 +96,10 @@ export const getCategories = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching categories:", error);
-    return res.status(500).json({ message: "Failed to fetch categories" });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -110,9 +116,8 @@ export const getProviders = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching providers:", error);
-    res.status(500).json({
-      status: false,
-      message: "Failed to fetch providers",
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
       error: error.message,
     });
   }
@@ -130,9 +135,10 @@ export const getInfluencerTiers = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching getInfluencerTiers:", error);
-    return res
-      .status(500)
-      .json({ message: "Failed to fetch getInfluencerTiers", error: error.message, });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -158,7 +164,10 @@ export const getUserNameAndPhoto = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching getUserNameAndPhoto:", error);
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -171,7 +180,10 @@ export const getCountries = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching countries:", error);
-    return res.status(500).json({ message: "Failed to fetch countries" });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -192,7 +204,10 @@ export const getStatesByCountry = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching states by country:", error);
-    return res.status(500).json({ message: "Failed to fetch states" });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 }
 
@@ -213,7 +228,10 @@ export const getCityiesByState = async (req, res) => {
   }
   catch (error) {
     console.error("Error fetching cities by state:", error);
-    return res.status(500).json({ message: "Failed to fetch cities" });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 }
 

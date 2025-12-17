@@ -1,7 +1,7 @@
-import { client } from "../config/Db.js";
+import { client } from '../../config/Db.js';
 import redis from "redis";
 import { createClient } from '@supabase/supabase-js';
-import {io} from "../../app.js"
+import {io} from '../../../app.js';
 
 // Create Supabase client once at the top
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -32,7 +32,8 @@ export const getSubjectListByRole = async (req, res) => {
   } catch (error) {
     console.error("error in getSubjectListByRole:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };
@@ -122,7 +123,8 @@ export const createTicketAndUpdateStatus = async (req, res) => {
   } catch (error) {
     console.error("error in createTicketAndUpdateStatus:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };
@@ -156,7 +158,8 @@ export const viewAllTicketByUserId = async (req, res) => {
   } catch (error) {
     console.error("error in viewAllTicketByUserId:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };
@@ -198,7 +201,8 @@ export const openChatByTicketId = async (req, res) => {
   } catch (error) {
     console.error("error in openChatByTicketId:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };
@@ -218,7 +222,8 @@ export const getTicketStatus = async (req, res) => {
   } catch (error) {
     console.error("error in getTicketStatus:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };
@@ -373,6 +378,9 @@ export const sendSupportMessage = async (req, res) => {
     }
     } catch (error) {
       console.error("Error in sendSupportMessage:", error);
-      return res.status(500).json({ message: error.message });
+      return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
     }
   };

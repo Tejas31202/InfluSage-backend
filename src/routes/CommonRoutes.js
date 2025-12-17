@@ -23,9 +23,14 @@ routes.get("/languages", getLanguages);
 routes.get("/categories", getCategories);
 routes.get("/providers", getProviders);
 routes.get("/influencer-type", getInfluencerTiers);
-routes.get("/user-profile-info",authenticateUser(["Influencer","Vendor","Admin"]),getUserNameAndPhoto);
 routes.get("/countries",getCountries);
 routes.get("/states/:countryId",getStatesByCountry);
 routes.get("/cities/:stateId",getCityiesByState);
+
+routes.get(
+  "/user-profile-info",
+  authenticateUser(["Influencer", "Vendor", "Admin"]),
+  getUserNameAndPhoto
+);
 
 export default routes;

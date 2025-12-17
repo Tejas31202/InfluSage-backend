@@ -16,7 +16,8 @@ export const getVendorAnalyticsSummary = async (req, res) => {
   } catch (error) {
     console.error("error in getVendorAnalyticsSummary:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };
@@ -50,7 +51,8 @@ export const getVendorCampaignOverview = async (req, res) => {
   } catch (error) {
     console.error("error in getVendorCampaignOverview:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };
@@ -86,7 +88,8 @@ export const getPerformanceTimeline = async (req, res) => {
   } catch (error) {
     console.error("error in getPerformanceTimeline:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };
@@ -120,7 +123,8 @@ export const getTopPerformingContent = async (req, res) => {
   } catch (error) {
     console.error("error in getTopPerformingContent:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };
@@ -148,7 +152,8 @@ export const getPlatformBreakdown = async (req, res) => {
   } catch (error) {
     console.error("error in getPlatformBreakdown:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };

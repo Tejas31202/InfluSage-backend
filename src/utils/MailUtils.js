@@ -17,8 +17,6 @@ export async function sendingMail(to, subject,htmlContent) {
   });
 }
 
-// export default sendingMail;
-
 export async function sendingMailFormatForAdmin(to,subject,html){
   await transporter.sendMail({
     from: process.env.EMAIL_USER,

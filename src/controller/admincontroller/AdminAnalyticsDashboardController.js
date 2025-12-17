@@ -48,20 +48,18 @@ export const getAdminAnalyticsNewContents = async (req, res) => {
   } catch (error) {
     console.error("Error in getAdminAnalyticsNewContents:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message
     });
   }
 };
 
 export const getStatusFilterForAnalytics = async (req, res) => {
   try {
-
     const result = await client.query(
       `SELECT * FROM ins.fn_get_analyticcampaignstatus();`,
     );
-
     const data = result.rows;
-
     return res.status(200).json({
       message: "Status Filters retrieved successfully",
       data
@@ -69,7 +67,8 @@ export const getStatusFilterForAnalytics = async (req, res) => {
   } catch (error) {
     console.error("Error in getStatusFilterForAnalytics:", error);
     return res.status(500).json({
-      message: error.message
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };
@@ -121,7 +120,8 @@ export const getAllContentHistories = async (req, res) => {
   } catch (error) {
     console.error("error in getAllContentHistories:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };
@@ -153,7 +153,8 @@ export const getInfluencerContentHistory = async (req, res) => {
   } catch (error) {
     console.error("Error in getInfluencerContentHistory:", error);
     return res.status(500).json({
-      message: error.message
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };
@@ -219,7 +220,8 @@ export const insertAnalyticsRecord = async (req, res) => {
   } catch (error) {
     console.error("Error in insert AnalyticsRecord:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };
@@ -251,7 +253,10 @@ export const getLastInsertAnlyticsData = async (req, res) => {
     });
   } catch (error) {
     console.error("error in getLastInsertAnlyticsData", error);
-    return res.status(500).json({ Message: "Internal Server Error" });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -301,6 +306,9 @@ export const getUpdatedContentsAnalyticList = async (req, res) => {
     });
   } catch (error) {
     console.error("Error getUpdatedContentsAnalyticList", error);
-    return res.status(500).json({ Message: "Internal Server Error" });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };

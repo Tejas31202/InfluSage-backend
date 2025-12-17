@@ -1,5 +1,5 @@
-import { client } from '../config/Db.js';
-import { sendingMailFormatForAdmin } from '../utils/MailUtils.js';
+import { client } from '../../config/Db.js';
+import { sendingMailFormatForAdmin } from '../../utils/MailUtils.js';
 import {
   userProfileEmailHTML,
   campaignEmailHTML,
@@ -7,8 +7,8 @@ import {
   userProfileRejectEmailHTML,
   campaignRejectEmailHTML,
   userCampaignBlockEmailHTML
-} from "../utils/EmailTemplates.js";
-import { io } from '../../app.js'
+} from "../../utils/EmailTemplates.js";
+import { io } from '../../../app.js'
 
 
 export const getUserStatusList = async (req, res) => {
@@ -27,7 +27,8 @@ export const getUserStatusList = async (req, res) => {
   } catch (error) {
     console.error("Error in getUserStatusList:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };
@@ -48,7 +49,8 @@ export const getCampaignStatusList = async (req, res) => {
   } catch (error) {
     console.error("Error in getCampaignStatusList:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 }
@@ -68,7 +70,10 @@ export const getDashboardCountList = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching getDashboardCountList:", error);
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -116,7 +121,10 @@ export const getRequestedUserList = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching getRequestedUserList:", error);
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -173,7 +181,10 @@ export const getRequestedCampaignList = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching getRequestedCampaignList:", error);
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -342,7 +353,10 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
 
   } catch (error) {
     console.error("Error in insertApprovedOrRejectedApplication:", error);
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -377,7 +391,10 @@ export const getUserDetails = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in getUserDetails:", error);
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -420,7 +437,10 @@ export const campaignBlockReason = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching Campaign Block Reason:", error);
-    return res.status(500).json({ message: "Internal Server Error" });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -434,7 +454,10 @@ export const userBlockReason = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching User Block Reason:", error);
-    return res.status(500).json({ message: "Internal Server Error" });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -601,7 +624,10 @@ export const blockInfluencerAndCampaignApplication = async (req, res) => {
 
   } catch (error) {
     console.error("Error in blockInfluencerApplication:", error);
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -732,7 +758,8 @@ export const adminRejectInfluencerOrCampaign = async (req, res) => {
   } catch (error) {
     console.error("Error in adminRejectInfluencerOrCampaign:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };

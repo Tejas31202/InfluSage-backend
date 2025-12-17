@@ -10,11 +10,9 @@ import {
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 import { upload } from '../../middleware/MulterMiddleware.js';
 
-
 const routes = express.Router();
 
 routes.get("/campaign/objectives", getCampaignObjectives);
-
 
 routes.get("/provider-content-type", getProvidorContentTypes);
 
@@ -25,9 +23,11 @@ routes.post(
   finalizeCampaign
 );
 
-
-routes.get("/campaign/:campaignId", authenticateUser(["Vendor","Admin"]), getCampaign);
-
+routes.get(
+  "/campaign/:campaignId",
+  authenticateUser(["Vendor", "Admin"]),
+  getCampaign
+);
 
 routes.post(
   "/campaign/delete-file",
@@ -35,10 +35,14 @@ routes.post(
   deleteCampaignFile
 );
 
-routes.post("/update-campaign/",upload.fields([
+routes.post(
+  "/update-campaign/",
+  upload.fields([
     { name: "photo", maxCount: 1 },
     { name: "Files", maxCount: 5 },
-  ]),authenticateUser(["Vendor"]),upsertCampaign);
-
+  ]),
+  authenticateUser(["Vendor"]),
+  upsertCampaign
+);
 
 export default routes;

@@ -12,36 +12,11 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
 redisClient.connect().catch(console.error);
 
-// const calculateProfileCompletion = (profileParts) => {
-//   const partsArray = Object.values(profileParts);
-//   const totalSections = partsArray.length;
-
-//   const filledSections = partsArray.filter(
-//     (part) => part && Object.keys(part).length > 0
-//   ).length;
-
-//   return Math.round((filledSections / totalSections) * 100);
-// };
 
 //New Code With Changes
 export const completeUserProfile = async (req, res) => {
   const userId = req.user?.id || req.body?.userId;
 
-  //Remove old code after testing
-  // let userpcode;
-  // try {
-  //   const { rows } = await client.query(
-  //     "SELECT * FROM ins.fn_get_userstatus($1)",
-  //     [userId]
-  //   );
-  //   // This UserpCode Comes From Db
-  //   userpcode = rows[0]?.fn_get_userstatus?.toUpperCase() || null;
-  // } catch (err) {
-  //   console.error("Error fetching user status:", err);
-  //   userpcode = null;
-  // }
-
-  //New Code For Testing userpcode comes from db
   let userpcode;
 
   try {
@@ -316,11 +291,12 @@ export const completeUserProfile = async (req, res) => {
           });
     }
   } catch (error) {
-    console.error("Error during DB transaction: ", error);
+    console.error("error in complateUserProfile:", error);
     await client.query("ROLLBACK").catch(() => {}); // fail-safe rollback
-    return res
-      .status(500)
-      .json({ message: "Internal server error", error: error.message });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -410,15 +386,18 @@ export const getUserProfile = async (req, res) => {
       profileCompletion,
       source: isMerged ? "merged" : "db",
     });
-  } catch (err) {
-    console.error("Error fetching user profile:", err);
-    return res.status(500).json({ message: "Internal server error" });
+  } catch (error) {
+    console.error("Error in getUserProfile:", error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
 // Get User Name by Email
 export const getUserNameByEmail = async (req, res) => {
-  const { email } = req.params; // or use req.body.email if POST
+  const { email } = req.params; 
 
   try {
     const result = await client.query(
@@ -437,8 +416,11 @@ export const getUserNameByEmail = async (req, res) => {
       lastname: user.lastname,
     });
   } catch (error) {
-    console.error("Error fetching user name:", error);
-    return res.status(500).json({ message: "Internal server error" });
+    console.error("Error in getUserNameByEmail:", error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -512,7 +494,10 @@ export const deletePortfolioFile = async (req, res) => {
       portfolioFiles: profileData?.portfoliojson || [],
     });
   } catch (error) {
-    console.error(" deletePortfolioFile error:", error);
-    return res.status(500).json({ status: false, message: error.message });
+    console.error("error in deletePortfolioFile:", error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };

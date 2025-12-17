@@ -1,69 +1,5 @@
 import { client } from "../../config/Db.js";
 
-//1. getInfluencerAnalyticsSummary()
-
-// Fetch top summary cards on dashboard.
-// Data Returned: 1 row with totals:
-// total_earnings → sum of all completed campaign earnings.
-// completed_campaigns → number of campaigns completed.
-// proposal_sent → number of proposals sent.
-// total_followers → aggregated followers across all platforms.
-// total_content → total number of posts/content pieces.
-// avg_engagement_rate → average engagement across all content
-
-// 2. getInfluencerEarningSummary()
-
-//Purpose: Provide detailed earning analytics (charts & trends).
-//Data Returned: Multiple rows, usually for charting or breakdown:
-//month → month name or number
-//campaign_id → campaign identifier
-//earnings → amount earned
-//year → year
-//total_campaigns → count of campaigns for that period
-
-//3. getInfluencerSocialStats()
-
-//Data Returned: Rows per platform:
-//platform → Instagram, YouTube, TikTok, Facebook
-//followers → followers on platform
-//posts → total posts
-//avg_engagement_rate → engagement on platform
-
-//4. getInfluencerContentTypeStats()
-
-//Data Returned: Rows per content type:
-//type → story, reel, video, short
-//count → total posts of that type
-//views, likes, comments, shares → aggregated per type
-
-//5. getInfluencerContentInsight()
-
-//Data Returned: Rows for each content piece:
-//content_id, type, platform, views, likes, comments, shares, posted_date
-//Can be filtered or sorted by type, engagement, or date
-
-//6. getInfluencerCampaignContribution()
-
-//Data Returned: Rows per campaign:
-//campaign_id, campaign_name, views, likes, comments
-
-//7. getInfluencerImpressionInsight()
-
-//Data Returned: Rows per platform:
-//platform, impressions
-
-//8. getInfluencerRecentContent()
-
-//Data Returned: Rows per content piece:
-//content_id, media_url, posted_date
-
-//9. getInfluencerAudienceDemographic()
-
-//Data Returned: JSON with structured demographic info:
-//gender → male, female, unknown
-//age → 13-17, 18-24, 25-34, 35-44, 45+
-//platform → followers per platform by gender
-
 export const getInfluencerAnalyticsSummary = async (req, res) => {
   try {
     const p_userid = req.user?.id || req.query.p_userid;
@@ -84,7 +20,8 @@ export const getInfluencerAnalyticsSummary = async (req, res) => {
   } catch (error) {
     console.error("error in InfluencerAnalyticsSummary:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };
@@ -114,10 +51,8 @@ export const getInfluencerEarningSummary = async (req, res) => {
     });
   } catch (error) {
     console.error("Error In InfluencerEarningSummary:", error);
-
     return res.status(500).json({
-      status: false,
-      message: "Internal Server Error",
+      message: "Something went wrong. Please try again later.",
       error: error.message,
     });
   }
@@ -144,10 +79,8 @@ export const getInfluencerSocialStats = async (req, res) => {
     });
   } catch (error) {
     console.error("Error In InfluencerEarningSummary:", error);
-
     return res.status(500).json({
-      status: false,
-      message: "Internal Server Error",
+      message: "Something went wrong. Please try again later.",
       error: error.message,
     });
   }
@@ -179,8 +112,7 @@ export const getInfluencerContentTypeStats = async (req, res) => {
   } catch (error) {
     console.error("Error in getInfluencerContentTypeStats:", error);
     return res.status(500).json({
-      status: false,
-      message: "Internal Server Error",
+      message: "Something went wrong. Please try again later.",
       error: error.message,
     });
   }
@@ -210,8 +142,7 @@ export const getInfluencerContentInsight = async (req, res) => {
   } catch (error) {
     console.error("Error in getInfluencerContentInsight:", error);
     return res.status(500).json({
-      status: false,
-      message: "Internal Server Error",
+      message: "Something went wrong. Please try again later.",
       error: error.message,
     });
   }
@@ -236,13 +167,10 @@ export const getInfluencerCampaignContribution = async (req, res) => {
       });
   } catch (error) {
     console.error("Error in getInfluencerCampaignContribution:", error);
-    return res
-      .status(500)
-      .json({
-        status: false,
-        message: "Internal Server Error",
-        error: error.message,
-      });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -272,7 +200,7 @@ export const getInfluencerImpressionInsight = async (req, res) => {
   } catch (error) {
     console.error("Error In getInfluencerImpressionInsight:", error);
     return res.status(500).json({
-      message: "Something went wrong.",
+      message: "Something went wrong. Please try again later.",
       error: error.message,
     });
   }
@@ -297,13 +225,10 @@ export const getInfluencerRecentContent = async (req, res) => {
       });
   } catch (error) {
     console.error("Error in getInfluencerRecentContent:", error);
-    return res
-      .status(500)
-      .json({
-        status: false,
-        message: "Internal Server Error",
-        error: error.message,
-      });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -326,13 +251,10 @@ export const getInfluencerAudienceDemographic = async (req, res) => {
       });
   } catch (error) {
     console.error("Error in getInfluencerAudienceDemographic:", error);
-    return res
-      .status(500)
-      .json({
-        status: false,
-        message: "Internal Server Error",
-        error: error.message,
-      });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -364,7 +286,8 @@ export const getInfluencerTopPerformingContent = async (req, res) => {
   } catch (error) {
     console.error("error in getInfluencerTopPerformingContent:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };
@@ -395,7 +318,8 @@ export const getInfluencerPerformanceOvertime = async (req, res) => {
   } catch (error) {
     console.error("error in getInfluencerPerformanceOvertime:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };
@@ -430,7 +354,8 @@ export const getInfluencerAnalyticsPlatformBreakdown = async (req, res) => {
   } catch (error) {
     console.error("error in getInfluencerAnalyticsPlatformBreakdown:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };
@@ -461,7 +386,7 @@ export const getInfluencerEngagementScore = async (req, res) => {
   } catch (error) {
     console.error("Error In getInfluencerEngagementScore:", error);
     return res.status(500).json({
-      message: "Something went wrong while fetching engagement score.",
+      message: "Something went wrong. Please try again later.",
       error: error.message,
     });
   }
@@ -490,7 +415,7 @@ export const getInfluencerCampaignList = async (req, res) => {
   } catch (error) {
     console.error("Error In getInfluencerCampaignList:", error);
     return res.status(500).json({
-      message: "Something went wrong.",
+      message: "Something went wrong. Please try again later.",
       error: error.message,
     });
   }

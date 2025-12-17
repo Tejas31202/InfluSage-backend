@@ -2,48 +2,57 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
-import authRoutes from './src/routes/AuthRoutes.js';
 import cookieParser from 'cookie-parser';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 
+// Routes
+
+import { client } from "./src/config/Db.js";
+import authRoutes from './src/routes/AuthRoutes.js';
+import CommonRoutes from './src/routes/CommonRoutes.js';
+
+// Influencer Routes
 import InfluencerRoutes from './src/routes/influencerroutes/InfluencerRoutes.js';
 import InfluencerProfileDetailRoutes from './src/routes/influencerroutes/InfluencerProfileDetailRoutes.js';
 import InfluencerDashboardRoutes from './src/routes/influencerroutes/InfluencerDashboardRoutes.js';
-import VendorRoutes from './src/routes/vendorroutes/VendorRoute.js';
+import InfluencerCampaignRoutes from './src/routes/influencerroutes/InfluencerCampaignRoutes.js';
+import InfluencerMyCampaignRoutes from './src/routes/influencerroutes/InfluencerMyCampaignRoutes.js';
+import InfluencerContractRoutes from './src/routes/influencerroutes/InfluencerContractRoutes.js';
+import InfluencerAnalyticsDashboardRoutes from './src/routes/influencerroutes/InfluencerAnalyticsDashboardRoutes.js';
+
+// Vendor Routes
 import VendorProfileDetailRoutes from './src/routes/vendorroutes/VendorProfileDetailRoutes.js';
 import VendorCampaignRoutes from './src/routes/vendorroutes/VendorCampaignRoutes.js';
-import InfluencerCampaignRoutes from './src/routes/influencerroutes/InfluencerCampaignRoutes.js';
 import VendorBrowseInfluencerRoutes from './src/routes/vendorroutes/VendorBrowseInfluencerRoutes.js';
 import VendorOffersRoutes from './src/routes/vendorroutes/VendorOffersRoutes.js';
-import VendorDashboardRoutes from './src/routes/vendorroutes/VendorDashboardRoutes.js';
-import VendorAnalyticsDashboardRoutes from './src/routes/vendorroutes/VendorAnalyticsDashboardRoutes.js';
-import CommonRoutes from './src/routes/CommonRoutes.js';
-import { createServer } from 'http';
-import { Server } from 'socket.io';
-import ChatRoutes from './src/routes/ChatRoutes.js';
 import VendorMyCampaignRoutes from './src/routes/vendorroutes/VendorMyCampaignRoutes.js';
-import InfluencerMyCampaignRoutes from './src/routes/influencerroutes/InfluencerMyCampaignRoutes.js';
-import NotificationRoutes from './src/routes/NotificationRoutes.js';
-import AdminPanelRoutes from './src/routes/AdminPanelRoutes.js';
-import AdminAnalyticsDashboardRoutes from './src/routes/adminroutes/AdminAnalyticsDashboardRoutes.js';
-import UserAdminSupportChatRoutes from './src/routes/UserAdminSupportChatRoutes.js';
-import { client } from "./src/config/Db.js";
+import VendorDashboardRoutes from './src/routes/vendorroutes/VendorDashboardRoutes.js';
 import VendorContractRoutes from './src/routes/vendorroutes/VendorContractRoutes.js';
-import InfluencerContractRoutes from './src/routes/influencerroutes/InfluencerContractRoutes.js';
 import VendorFeedbackRoutes from './src/routes/vendorroutes/VendorFeedbackRoutes.js';
-import InfluencerAnalyticsDashboardRoutes from './src/routes/influencerroutes/InfluencerAnalyticsDashboardRoutes.js';
+import VendorAnalyticsDashboardRoutes from './src/routes/vendorroutes/VendorAnalyticsDashboardRoutes.js';
+
+// Admin Routes
+import AdminPanelRoutes from './src/routes/adminroutes/AdminPanelRoutes.js';
+import AdminAnalyticsDashboardRoutes from './src/routes/adminroutes/AdminAnalyticsDashboardRoutes.js';
+
+// Chat & Notification Routes
+import ChatRoutes from './src/routes/chatroutes/ChatRoutes.js';
+import UserAdminSupportChatRoutes from './src/routes/chatroutes/UserAdminSupportChatRoutes.js';
+import NotificationRoutes from './src/routes/NotificationRoutes.js';
+
 dotenv.config();
 
 const app = express();
 
-// Middleware
+
+/* =========================
+   Global Middleware
+========================= */
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-app.use(
-  "/src/uploads",
-  express.static(path.join(process.cwd(), "src/uploads"))
-);
-app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
     origin: "http://localhost:5173",
@@ -51,18 +60,31 @@ app.use(
   })
 );
 
-dotenv.config(); // if app in src
+app.use(
+  "/src/uploads",
+  express.static(path.join(process.cwd(), "src/uploads"))
+);
 
+/* =========================
+   Auth & Common Routes
+========================= */
 app.use("/auth", authRoutes);
 app.use("/", CommonRoutes);
+
+/* =========================
+   Influencer Routes
+========================= */
 app.use("/user", InfluencerRoutes);
 app.use("/user", InfluencerProfileDetailRoutes);
 app.use("/user", InfluencerCampaignRoutes);
 app.use("/user", InfluencerMyCampaignRoutes);
 app.use("/user", InfluencerDashboardRoutes);
 app.use("/user", InfluencerContractRoutes);
-app.use("/user",InfluencerAnalyticsDashboardRoutes);
-app.use("/vendor", VendorRoutes);
+app.use("/user", InfluencerAnalyticsDashboardRoutes);
+
+/* =========================
+   Vendor Routes
+========================= */
 app.use("/vendor", VendorProfileDetailRoutes);
 app.use("/vendor", VendorCampaignRoutes);
 app.use("/vendor", VendorBrowseInfluencerRoutes);
@@ -72,17 +94,28 @@ app.use("/vendor", VendorDashboardRoutes);
 app.use("/vendor", VendorContractRoutes);
 app.use("/vendor", VendorFeedbackRoutes);
 app.use("/vendor", VendorAnalyticsDashboardRoutes);
-app.use("/chat", ChatRoutes);
-app.use("/new", NotificationRoutes);
+
+/* =========================
+   Admin Routes
+========================= */
+
 app.use("/admin", AdminPanelRoutes);
 app.use("/admin", AdminAnalyticsDashboardRoutes);
-app.use("/chat/support", UserAdminSupportChatRoutes)
+
+/* =========================
+   Chat & Notifications
+========================= */
+
+app.use("/chat", ChatRoutes);
+app.use("/chat/support", UserAdminSupportChatRoutes);
+app.use("/new", NotificationRoutes);
 
 const PORT = process.env.BACKEND_PORT || 3001;
 
 // --------------------
 // Create HTTP server & attach Socket.IO
 // --------------------
+
 const server = createServer(app);
 const onlineUsers = new Map();
 

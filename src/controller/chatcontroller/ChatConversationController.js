@@ -1,7 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import { client } from '../config/Db.js';
-import { io } from '../../app.js'
-// import authenticateUser from '../middleware/AuthMiddleware.js';
+import { client } from '../../config/Db.js';
+import { io } from '../../../app.js';
 
 // Create Supabase client once at the top
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -120,7 +119,10 @@ export const startConversation = async (req, res) => {
     }
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -279,7 +281,10 @@ export const insertMessage = async (req, res) => {
     }
   } catch (error) {
     console.error("Failed to upsert message:", error);
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -311,7 +316,7 @@ export const getConversationsdetails = async (req, res) => {
   } catch (error) {
     console.error("Error fetching conversations:", error);
     return res.status(500).json({
-      message: "Failed to get conversations",
+      message: "Something went wrong. Please try again later.",
       error: error.message,
     });
   }
@@ -358,8 +363,11 @@ export const getMessages = async (req, res) => {
       source: "db",
     });
   } catch (error) {
-    console.log("Failed to get messages", error);
-    return res.status(500).json({ message: "Internal Server Error" });
+    console.error("Failed to get messages", error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -429,7 +437,10 @@ export const updateUndoMessage = async (req, res) => {
     }
   } catch (error) {
     console.error("Failed to update message:", error);
-    return res.status(500).json({ message: "Internal Server Error" });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -455,6 +466,9 @@ export const unreadMessageList = async (req, res) => {
 
   } catch (error) {
     console.error("Failed to fetch unread messages:", error);
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };

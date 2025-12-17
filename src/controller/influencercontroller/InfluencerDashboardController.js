@@ -18,7 +18,8 @@ export const getInfluencerDashsboardCountList = async (req, res) => {
   } catch (error) {
     console.error("Error in getInfluencerDesboardCountList:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };
@@ -41,7 +42,8 @@ export const getInfluencerProfileCompletionPercentage = async (req, res) => {
   } catch (error) {
     console.error("Error in getInfluencerProfileCompletionPercentage:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };
@@ -62,9 +64,10 @@ export const getToDoList = async (req, res) => {
       source: "db",
     });
   } catch (error) {
-    console.error("Error in getSingleToDo:", error);
+    console.error("Error in getToDoList:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };
@@ -142,7 +145,8 @@ export const insertOrEditOrDeleteToDo = async (req, res) => {
   } catch (error) {
     console.error("Error in insertOrEditToDo:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };
@@ -164,10 +168,6 @@ export const getInfluencerFeedBack = async (req, res) => {
 
     const feedBackResult = influencerFeedback.rows[0].fn_get_influencerfeedbacklist;
 
-    // if (!feedBackResult.length) {
-    //   return res.status(404).json({ Message: "Feedback Not Available" });
-    // }
-
     return res.status(200).json({
       Message: "Vendor Performance Summary Successfully Fetched",
       Data: feedBackResult,
@@ -175,10 +175,10 @@ export const getInfluencerFeedBack = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Error in Get Vendor Performance Summary:", error);
+    console.error("Error in getInfluencerFeedBack:",error);
     return res.status(500).json({
-      Message: "Internal Server Error",
-      Error: error.message
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };

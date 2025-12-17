@@ -27,7 +27,10 @@ export const getClientsList = async (req, res) => {
     });
   } catch (error) {
     console.log("Error While Fetching clientList", error);
-    return res.status(500).json({ message: "Internal server Error" });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 //..................Get All Influencer Campaign..................
@@ -98,7 +101,10 @@ export const getInfluencerMyCampaign = async (req, res) => {
     });
   } catch (error) {
     console.log("Error Getting Influencer My Campaign", error);
-    return res.status(500).json({ message: "Internal server Error" });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 //.............Get SingleInfluencer Campaign.........................
@@ -135,7 +141,10 @@ export const getInfluencerMyCampaignDetails = async (req, res) => {
     });
   } catch (error) {
     console.log("Error Getting Influencer Details", error);
-    return res.status(500).json({ message: "Internal server Error" });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -155,6 +164,9 @@ export const getInfluencerMyCampaignStatus = async (req, res) => {
     )
   } catch (error) {
     console.error("Error Getting Influencer Details", error);
-    return res.status(500).json({ message: "Internal server Error" });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 }

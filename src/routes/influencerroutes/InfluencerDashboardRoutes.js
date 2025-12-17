@@ -32,11 +32,11 @@ routes.post(
   authenticateUser(["Influencer"]),
   insertOrEditOrDeleteToDo
 );
+
 routes.get(
   "/dashboard/getfeedback",
   authenticateUser(["Influencer"]),
   getInfluencerFeedBack
-)
-
+);
 
 export default routes;

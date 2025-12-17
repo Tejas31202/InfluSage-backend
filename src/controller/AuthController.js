@@ -55,7 +55,10 @@ async function createUser({ firstName, lastName, email, passwordhash, roleId }) 
       }
   } catch (error) {
     console.error("Error in createUser:", error);
-    throw error;
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 }
     
@@ -83,7 +86,10 @@ export async function getGoogleLoginPage(req, res) {
     res.redirect(redirectUrl);
   } catch (err) {
     console.error("[ERROR] getGoogleLoginPage:", err);
-    res.status(500).json({ message: "Server error generating Google login" });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: err.message,
+    });
   }
 }
 
@@ -155,7 +161,10 @@ export async function getGoogleLoginCallback(req, res) {
     }
   } catch (err) {
     console.error("[ERROR] Google callback:", err);
-    return res.status(500).json({ message: "Google login failed" });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: err.message,
+    });
   }
 }
 
@@ -226,7 +235,10 @@ export async function setPasswordAfterGoogleSignup(req, res) {
     });
   } catch (err) {
     console.error("[ERROR] setPasswordAfterGoogleSignup:", err);
-    return res.status(500).json({ message: "Server error" });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: err.message,
+    });
   }
 }
 
@@ -252,7 +264,10 @@ export async function getFacebookLoginPage(req, res) {
     res.redirect(redirectUrl);
   } catch (err) {
     console.error("[ERROR] getFacebookLoginPage:", err);
-    res.status(500).json({ message: "Facebook login error" });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: err.message,
+    });
   }
 }
 

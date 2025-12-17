@@ -1,7 +1,4 @@
 import express from 'express';
-
-const routes = express.Router();
-
 import {
   getCampaignDetails,
   applyNowCampaign,
@@ -12,12 +9,18 @@ import {
   getUserCampaignWithDetails,
   withdrawApplication,
   browseCampaigns,
-  deleteApplyNowPortfolioFile
+  deleteApplyNowPortfolioFile,
 } from '../../controller/influencercontroller/InfluencerCampaignController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 import { upload } from '../../middleware/MulterMiddleware.js';
 
-routes.get("/campaign-details/:campaignId",authenticateUser(["Influencer"]) ,getCampaignDetails);
+const routes = express.Router();
+
+routes.get(
+  "/campaign-details/:campaignId",
+  authenticateUser(["Influencer"]),
+  getCampaignDetails
+);
 
 routes.post(
   "/apply-for-campaign/:campaignId",
@@ -71,6 +74,7 @@ routes.get(
 routes.post(
   "/apply-now/portfoliofile-delete",
   authenticateUser(["Influencer"]),
-  deleteApplyNowPortfolioFile)
+  deleteApplyNowPortfolioFile
+);
 
 export default routes;

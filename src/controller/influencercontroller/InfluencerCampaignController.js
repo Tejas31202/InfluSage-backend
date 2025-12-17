@@ -1,18 +1,11 @@
 import { client } from '../../config/Db.js';
 import { createClient } from '@supabase/supabase-js';
 import redis from 'redis';
-import path from 'path';
-import fs from 'fs';
-import fsPromises from 'fs/promises';
 import { io } from '../../../app.js'
-
-
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
-// const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
-// const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY ,SUPABASE_KEY);
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
@@ -39,8 +32,11 @@ export const getCampaignDetails = async (req, res) => {
 
     return res.status(200).json({ data: campaignDetails, source: "db" });
   } catch (error) {
-    console.error("Error fetching campaign details:", error);
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error("Error in getCampignDetails:", error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -73,9 +69,6 @@ export const applyNowCampaign = async (req, res) => {
         username = dbUser.rows[0].firstname.trim();
       }
     }
-
-    // // Clean username to remove any special chars
-    // username = username.replace(/\W+/g, "_");
 
     // Unique folder name pattern
     const userFolder = `${userId}`;
@@ -253,8 +246,11 @@ export const applyNowCampaign = async (req, res) => {
     }
 
   } catch (error) {
-    console.error("Error applying to campaign:", error);
-    return res.status(500).json({ message: error.message });
+    console.error("Error in applyNowCampaign:", error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -308,8 +304,11 @@ export const getUsersAppliedCampaigns = async (req, res) => {
       source: "db",
     });
   } catch (error) {
-    console.error("Error fetching applied campaigns:", error.message);
-    return res.status(500).json({ message: "Internal Server Error" });
+    console.error("Error in getUsersAppliedCampaigns:", error.message);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -387,8 +386,8 @@ export const saveCampaign = async (req, res) => {
   } catch (error) {
     console.error("Error saving campaign:", error);
     return res.status(500).json({
-      status: false,
-      message: "Internal Server Error",
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };
@@ -431,8 +430,11 @@ export const getSaveCampaign = async (req, res) => {
 
     return res.status(200).json({ data: savedcampaign, source: "db" });
   } catch (error) {
-    console.error("Error saving campaign application:", error);
-    return res.status(500).json({ message: "Internal Server Error" });
+    console.error("Error in getSaveCampaign:", error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -468,8 +470,11 @@ export const getSingleApplyCampaign = async (req, res) => {
       source: "db",
     });
   } catch (error) {
-    console.error("Error fetching applied campaigns:", error.message);
-    return res.status(500).json({ message: "Internal Server Error" });
+    console.error("Error in getSingleApplyCampaign:", error.message);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -522,10 +527,11 @@ export const getUserCampaignWithDetails = async (req, res) => {
     // 3 Return combined response
     return res.status(200).json({ data: responseData });
   } catch (error) {
-    console.error("Error fetching campaign with details:", error.message);
-    return res
-      .status(500)
-      .json({ status: false, message: "Internal Server Error" });
+    console.error("Error in getUserCampaignWithDetails:", error.message);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -578,7 +584,10 @@ export const browseCampaigns = async (req, res) => {
     return res.json(result.rows[0].fn_get_campaignbrowse);
   } catch (error) {
     console.error("Error browsing campaigns:", error.message);
-    return res.status(500).json({ error: "Internal Server Error" });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -648,8 +657,11 @@ export const withdrawApplication = async (req, res) => {
       });
     }
   } catch (error) {
-    console.error("Error in withdraw application:", error.message);
-    return res.status(500).json({ message: error.message });
+    console.error("Error in withdrawApplication:", error.message);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -681,7 +693,6 @@ export const deleteApplyNowPortfolioFile = async (req, res) => {
     }
 
     // Step 2: Supabase file path from (public URL se relative path)
-    // Example: https://xyz.supabase.co/storage/v1/object/public/uploads/influencers/1234_Tejas/Applycampains/file.png
     const supabaseBaseURL = `${SUPABASE_URL}/storage/v1/object/public/uploads/`;
     const relativeFilePath = filePath.replace(supabaseBaseURL, "");
 
@@ -704,7 +715,10 @@ export const deleteApplyNowPortfolioFile = async (req, res) => {
       portfolioFiles: campaignData?.applycampaignjson?.filepaths || [],
     });
   } catch (error) {
-    console.error("deleteApplyNowPortfolioFile error:", error);
-    return res.status(500).json({ message: error.message });
+    console.error("error in deleteApplyNowPortfolioFile:", error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };

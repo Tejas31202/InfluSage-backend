@@ -1,10 +1,10 @@
-import { client } from '../../config/Db.js';
-import bcrypt from 'bcrypt';
-import crypto from 'crypto';
-import jwt from 'jsonwebtoken';
-import { sendingMail } from '../../utils/MailUtils.js';
-import redis from 'redis';
-import { htmlContent } from '../../utils/EmailTemplates.js';
+import { client } from "../../config/Db.js";
+import bcrypt from "bcrypt";
+import crypto from "crypto";
+import jwt from "jsonwebtoken";
+import { sendingMail } from "../../utils/MailUtils.js";
+import redis from "redis";
+import { htmlContent } from "../../utils/EmailTemplates.js";
 
 const redisClient = redis.createClient({ url: process.env.REDIS_URL });
 redisClient.connect().catch(console.error);
@@ -62,7 +62,11 @@ export const requestRegistration = async (req, res) => {
     await redisClient.setEx(`otp:${normalizedEmail}`, 300, otpCode);
 
     // Send OTP email
-    await sendingMail(normalizedEmail, "InflueSage OTP Verification", htmlContent({ otp: otpCode }));
+    await sendingMail(
+      normalizedEmail,
+      "InflueSage OTP Verification",
+      htmlContent({ otp: otpCode })
+    );
 
     res.status(200).json({
       message: "OTP sent to email. Complete verification to register.",
@@ -88,7 +92,6 @@ export const verifyOtpAndRegister = async (req, res) => {
   const { otp } = req.body;
 
   try {
-    
     const storedOtp = await redisClient.get(`otp:${email}`);
     // console.log(" OTP stored in Redis:", storedOtp);
 
@@ -114,17 +117,16 @@ export const verifyOtpAndRegister = async (req, res) => {
     const { firstName, lastName, roleId, passwordhash } =
       JSON.parse(userDataStr);
 
-      await client.query("BEGIN");
-    await client.query(
-      "SELECT set_config('app.current_user_id', $1, true)",
-      [String(userId)]
-    );
+    await client.query("BEGIN");
+    await client.query("SELECT set_config('app.current_user_id', $1, true)", [
+      String(userId),
+    ]);
     // Insert user into DB
     const result = await client.query(
       `CALL ins.usp_insert_user($1::VARCHAR, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::BOOLEAN, $6::SMALLINT, NULL, NULL)`,
       [firstName, lastName, email, passwordhash, true, roleId]
     );
-      await client.query("COMMIT");
+    await client.query("COMMIT");
 
     const row = result.rows?.[0] || {};
     const p_status = Number(row.p_status);
@@ -132,7 +134,7 @@ export const verifyOtpAndRegister = async (req, res) => {
     // Clean up Redis
     await redisClient.del(`otp:${email}`);
     await redisClient.del(`pendingUser:${email}`);
-  
+
     if (p_status === 1) {
       return res.status(200).json({ message: p_message, p_status });
     }
@@ -143,7 +145,9 @@ export const verifyOtpAndRegister = async (req, res) => {
 
     if (p_status === -1) {
       console.error("Stored Procedure Failure:", p_message);
-      return res.status(500).json({ message: "something went wrong", p_status });
+      return res
+        .status(500)
+        .json({ message: "something went wrong", p_status });
     }
 
     // Fallback (just in case DB sends something else)
@@ -200,6 +204,12 @@ export const loginUser = async (req, res) => {
           source: "db",
         });
       }
+      
+      // if (user.code === "BLOCKED") {
+      //   return res.status(403).json({
+      //     message: "Your account has been blocked. Please contact support.",
+      //   });
+      // }
 
       // Generate JWT token
       const token = jwt.sign(
@@ -263,7 +273,11 @@ export const resendOtp = async (req, res) => {
     const otpCode = generateOTP();
 
     // Send Email with OTP
-    await sendingMail(email, "InflueSage OTP Verification - Resend", htmlContent({ otp: otpCode }));
+    await sendingMail(
+      email,
+      "InflueSage OTP Verification - Resend",
+      htmlContent({ otp: otpCode })
+    );
 
     // Store OTP in Redis with 5 minsec expiry
     await redisClient.setEx(`otp:${email}`, 300, otpCode);
@@ -336,10 +350,9 @@ export const resetPassword = async (req, res) => {
     const passwordhash = await bcrypt.hash(password, 10);
 
     await client.query("BEGIN");
-    await client.query(
-      "SELECT set_config('app.current_user_id', $1, true)",
-      [String(userId)]
-    );
+    await client.query("SELECT set_config('app.current_user_id', $1, true)", [
+      String(userId),
+    ]);
     // Update password in DB (adjust query as per your DB)
     const updateResult = await client.query(
       `CALL ins.usp_reset_userpassword($1::BIGINT, $2::VARCHAR, NULL, NULL)`,
