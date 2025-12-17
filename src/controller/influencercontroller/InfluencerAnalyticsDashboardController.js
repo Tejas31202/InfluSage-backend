@@ -247,31 +247,34 @@ export const getInfluencerCampaignContribution = async (req, res) => {
 };
 
 export const getInfluencerImpressionInsight = async (req, res) => {
-  const p_userid = req.user?.id;
-  if (!p_userid)
-    return res.status(400).json({ message: "Influencer Id Required" });
-
   try {
+    const p_userid = req.user?.id || req.query.p_userid;
+    const { p_filtertype } = req.query;
+
+    if (!p_userid) {
+      return res.status(400).json({
+        message: "p_userid is Required.",
+      });
+    }
+
     const result = await client.query(
-      `SELECT * FROM ins.getInfluencerImpressionInsight($1::BIGINT)`,
-      [p_userid]
+      ` select * from  ins.fn_get_influencerestimatedimpression($1::bigint,$2::varchar);`,
+      [p_userid, p_filtertype || "year"]
     );
-    return res
-      .status(200)
-      .json({
-        status: true,
-        message: "Impression Insight fetched",
-        data: result.rows,
-      });
+
+    const data = result.rows[0].fn_get_influencerestimatedimpression;
+
+    return res.status(200).json({
+      message: "Influencer Estimated Impression Retrieved Successfully",
+      data: data,
+    });
+
   } catch (error) {
-    console.error("Error in getInfluencerImpressionInsight:", error);
-    return res
-      .status(500)
-      .json({
-        status: false,
-        message: "Internal Server Error",
-        error: error.message,
-      });
+    console.error("Error In getInfluencerImpressionInsight:", error);
+    return res.status(500).json({
+      message: "Something went wrong.",
+      error: error.message,
+    });
   }
 };
 
@@ -459,6 +462,35 @@ export const getInfluencerEngagementScore = async (req, res) => {
     console.error("Error In getInfluencerEngagementScore:", error);
     return res.status(500).json({
       message: "Something went wrong while fetching engagement score.",
+      error: error.message,
+    });
+  }
+};
+
+export const getInfluencerCampaignList = async (req, res) => {
+  try {
+    const p_userid = req.user?.id || req.query.p_userid;
+
+    if (!p_userid) {
+      return res.status(400).json({
+        message: "p_userid is Required.",
+      });
+    }
+
+    const result = await client.query(
+      `select * from ins.fn_get_influencercampaignlist($1::bigint);`,
+      [p_userid]
+    );
+    const data = result.rows[0].fn_get_influencercampaignlist;
+
+    return res.status(200).json({
+      message: "Campaign List Retrieved Successfully",
+      data: data,
+    });
+  } catch (error) {
+    console.error("Error In getInfluencerCampaignList:", error);
+    return res.status(500).json({
+      message: "Something went wrong.",
       error: error.message,
     });
   }

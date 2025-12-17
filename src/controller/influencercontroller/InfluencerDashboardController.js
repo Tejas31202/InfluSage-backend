@@ -162,7 +162,7 @@ export const getInfluencerFeedBack = async (req, res) => {
       [p_userid]
     );
 
-    const feedBackResult = influencerFeedback.rows[0].fn_get_influencerfeedbacklist;
+    const feedBackResult = influencerFeedback.rows[0].fn_get_influencerfeedbacklist || [];
 
     // if (!feedBackResult.length) {
     //   return res.status(404).json({ Message: "Feedback Not Available" });
