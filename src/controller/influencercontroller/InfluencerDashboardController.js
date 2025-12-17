@@ -166,7 +166,7 @@ export const getInfluencerFeedBack = async (req, res) => {
       [p_userid]
     );
 
-    const feedBackResult = influencerFeedback.rows[0].fn_get_influencerfeedbacklist;
+    const feedBackResult = influencerFeedback.rows[0].fn_get_influencerfeedbacklist || [];
 
     return res.status(200).json({
       Message: "Vendor Performance Summary Successfully Fetched",

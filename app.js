@@ -119,6 +119,16 @@ const PORT = process.env.BACKEND_PORT || 3001;
 const server = createServer(app);
 const onlineUsers = new Map();
 
+// 🔥 Track already-sent notifications (socket-memory based)
+const sentNotificationMap = new Map();
+/*
+  Structure:
+  sentNotificationMap = {
+    userId: Set(notificationId)
+  }
+*/
+
+
 export const io = new Server(server, {
   cors: {
     origin: "http://localhost:5173",
@@ -131,7 +141,71 @@ io.on("connection", (socket) => {
   console.log("🔗 User connected:", socket.id);
 
   /* ---------------- REGISTER USER ---------------- */
-  socket.on("register", async (userId) => {
+  // socket.on("register", async (userId) => {
+  //   try {
+  //     socket.userId = userId;
+
+  //     onlineUsers.set(userId, socket.id);
+
+  //     // FRONTEND EXPECTS THIS ROOM
+  //     socket.join(`user_${userId}`);
+  //     socket.join(`notification_${userId}`)
+  //     console.log(`✅ User ${userId} registered`)
+
+  //     socket.broadcast.emit("user-online", { userId });
+  //     socket.emit("online-users", {
+  //       userIds: [...onlineUsers.keys()],
+  //     });
+
+  //     /* ---- FETCH LATEST NOTIFICATION (UNCHANGED) ---- */
+  //     const p_role = "RECEIVER";
+
+  //     const notifs = await client.query(
+  //       `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean, $3::text)`,
+  //       [userId, null, p_role]
+  //     );
+
+
+  //     const notifyData = notifs.rows[0]?.fn_get_notificationlist || [];
+  //     const lastThree = notifyData.slice(-3);
+
+  //     // 🔥 Already sent notification IDs for this user
+  //     const sentIds = sentNotificationMap.get(userId) || new Set();
+
+  //     // 🔥 Filter only unsent notifications
+  //     const unsentNotifications = lastThree.filter(
+  //       (n) => !sentIds.has(n.id)   // ⚠️ id column must exist in notification
+  //     );
+
+  //     if (unsentNotifications.length > 0) {
+  //       io.to(`user_${userId}`).emit(
+  //         "receiveNotification",
+  //         unsentNotifications
+  //       );
+
+  //       // if (notifyData.length > 0) {
+  //       // io.to(`user_${userId}`).emit(
+  //       //   "receiveNotification",
+  //       //   notifyData
+  //       // );
+        
+
+  //       // 🔥 Mark these notifications as sent (in memory)
+  //       const updatedSet = sentNotificationMap.get(userId) || new Set();
+  //       unsentNotifications.forEach(n => updatedSet.add(n.id));
+  //       sentNotificationMap.set(userId, updatedSet);
+  //     }
+
+  //     console.log("📡 Sent unsent notifications:", unsentNotifications.length);
+
+  //     // console.log(`✅ User ${userId} registered`);
+  //   } catch (err) {
+  //     console.error("Register error:", err);
+  //   }
+  // });
+
+
+   socket.on("register", async (userId) => {
     try {
       socket.userId = userId;
 
@@ -140,6 +214,7 @@ io.on("connection", (socket) => {
       // FRONTEND EXPECTS THIS ROOM
       socket.join(`user_${userId}`);
       socket.join(`notification_${userId}`)
+      console.log(`✅ User ${userId} registered`)
 
       socket.broadcast.emit("user-online", { userId });
       socket.emit("online-users", {
@@ -156,20 +231,25 @@ io.on("connection", (socket) => {
 
 
       const notifyData = notifs.rows[0]?.fn_get_notificationlist || [];
-      const lastThree = notifyData.slice(-3);
-      if (notifyData.length > 0) {
+
+        if (notifyData.length > 0) {
         io.to(`user_${userId}`).emit(
           "receiveNotification",
-          lastThree
+          notifyData
         );
-
-
       }
 
-      console.log(`✅ User ${userId} registered`);
+      console.log("📡 Sent unsent notifications:", notifyData.length);
     } catch (err) {
       console.error("Register error:", err);
     }
+  });
+
+  socket.on("clearPopupNotifications", ({ userId }) => {
+    if (!userId) return;
+
+    io.to(`user_${userId}`).emit("removePopupNotifications");
+    console.log(`✅ Popup notifications cleared for user ${userId}`);
   });
 
   /* ---------------- FRONTEND SUPPORT EVENT ---------------- */
@@ -209,9 +289,12 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("deleteMessage", ({ messageId, conversationId }) => {
-    io.to(conversationId).emit("deleteMessage", messageId);
+socket.on("deleteMessage", ({ messageId, conversationId }) => {
+  io.to(String(conversationId)).emit("deleteMessage", {
+    messageId,
+    conversationId,
   });
+});
 
   socket.on("undoDeleteMessage", ({ messageId, conversationId }) => {
     io.to(conversationId).emit("undoDeleteMessage", messageId);
@@ -229,7 +312,7 @@ socket.on("messageRead", ({ messageId, conversationId, role }) => {
       readbyinfluencer: Number(role) === 1,
       readbyvendor: Number(role) === 2,
     };
-  // console.log("📡 EMIT updateMessageStatus", payload);
+  console.log("📡 EMIT updateMessageStatus", payload);
 
     io.to(String(conversationId)).emit("updateMessageStatus", payload);
 });
@@ -264,4 +347,3 @@ socket.on("messageRead", ({ messageId, conversationId, role }) => {
 server.listen(PORT, () => {
   console.log("Server started on port", PORT);
 });
- 
