@@ -77,12 +77,12 @@ export const getInfluencerTopPerformingContent = async (req, res) => {
             [p_userid, p_filtertype]
         );
 
-        const topPerContentRes = topPerformingContent.rows[0].fn_get_influencertopperformingcontent;
+     const topPerContentRes = topPerformingContent.rows[0].fn_get_influencertopperformingcontent;
 
-        return res.status(200).json({
-            Message: "Influencer Top Performing Retrieved Content Successfully.",
-            result: topPerContentRes,
-        });
+    return res.status(200).json({
+      Message: "Influencer Top Performing Retrieved Content Successfully.",
+      data: topPerContentRes,
+    });
     } catch (error) {
         console.error("error in getInfluencerTopPerformingContent:", error);
         return res.status(500).json({
