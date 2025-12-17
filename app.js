@@ -86,6 +86,16 @@ const PORT = process.env.BACKEND_PORT || 3001;
 const server = createServer(app);
 const onlineUsers = new Map();
 
+// 🔥 Track already-sent notifications (socket-memory based)
+const sentNotificationMap = new Map();
+/*
+  Structure:
+  sentNotificationMap = {
+    userId: Set(notificationId)
+  }
+*/
+
+
 export const io = new Server(server, {
   cors: {
     origin: "http://localhost:5173",
@@ -107,6 +117,7 @@ io.on("connection", (socket) => {
       // FRONTEND EXPECTS THIS ROOM
       socket.join(`user_${userId}`);
       socket.join(`notification_${userId}`)
+      console.log(`✅ User ${userId} registered`)
 
       socket.broadcast.emit("user-online", { userId });
       socket.emit("online-users", {
@@ -124,19 +135,46 @@ io.on("connection", (socket) => {
 
       const notifyData = notifs.rows[0]?.fn_get_notificationlist || [];
       const lastThree = notifyData.slice(-3);
-      if (notifyData.length > 0) {
+
+      // 🔥 Already sent notification IDs for this user
+      const sentIds = sentNotificationMap.get(userId) || new Set();
+
+      // 🔥 Filter only unsent notifications
+      const unsentNotifications = lastThree.filter(
+        (n) => !sentIds.has(n.id)   // ⚠️ id column must exist in notification
+      );
+
+      if (unsentNotifications.length > 0) {
         io.to(`user_${userId}`).emit(
           "receiveNotification",
-          lastThree
+          unsentNotifications
         );
 
+        // if (notifyData.length > 0) {
+        // io.to(`user_${userId}`).emit(
+        //   "receiveNotification",
+        //   lastThree
+        // );
 
+        // 🔥 Mark these notifications as sent (in memory)
+        const updatedSet = sentNotificationMap.get(userId) || new Set();
+        unsentNotifications.forEach(n => updatedSet.add(n.id));
+        sentNotificationMap.set(userId, updatedSet);
       }
 
-      console.log(`✅ User ${userId} registered`);
+      console.log("📡 Sent unsent notifications:", unsentNotifications.length);
+
+      // console.log(`✅ User ${userId} registered`);
     } catch (err) {
       console.error("Register error:", err);
     }
+  });
+
+  socket.on("clearPopupNotifications", ({ userId }) => {
+    if (!userId) return;
+
+    io.to(`user_${userId}`).emit("removePopupNotifications");
+    console.log(`✅ Popup notifications cleared for user ${userId}`);
   });
 
   /* ---------------- FRONTEND SUPPORT EVENT ---------------- */
@@ -231,4 +269,3 @@ socket.on("messageRead", ({ messageId, conversationId, role }) => {
 server.listen(PORT, () => {
   console.log("Server started on port", PORT);
 });
- 
