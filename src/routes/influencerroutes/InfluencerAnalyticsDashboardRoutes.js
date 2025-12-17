@@ -1,16 +1,19 @@
 import express from 'express';
 import {
     getInfluencerAnalyticsSummary,
-    getInfluencerEarningSummary,
-    getInfluencerSocialStats,
-    getInfluencerContentTypeStats,
-    getInfluencerContentInsight,
+    getInfluencerImpressionInsight,
     getInfluencerTopPerformingContent,
     getInfluencerPerformanceOvertime,
     getInfluencerAnalyticsPlatformBreakdown,
     getInfluencerEngagementScore,
-    getInfluencerImpressionInsight,
-    getInfluencerCampaignList
+    getInfluencerCampaignList,
+    getInfluencerCampaignInsight,
+    getInfluencerCampaignPerformanceOvertime,
+    getInfluencerCampaignEngagementScore,
+    getInfluencerCampaignTopPerformingContent
+
+
+
 } from '../../controller/influencercontroller/InfluencerAnalyticsDashboardController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 
@@ -21,27 +24,10 @@ routes.get("/analytics/summary",
     getInfluencerAnalyticsSummary
 );
 
-routes.get("/analytics/earningsummary",
-    authenticateUser(["Influencer"]),
-    getInfluencerEarningSummary
-);
-
 routes.get(
-    "/analytics/social",
+    "/analytics/impression",
     authenticateUser(["Influencer"]),
-    getInfluencerSocialStats
-);
-
-routes.get(
-  "/analytics/content-type",
-  authenticateUser(["Influencer"]),
-  getInfluencerContentTypeStats
-);
-
-routes.get(
-    "/analytics/content-insight",
-    authenticateUser(["Influencer"]),
-    getInfluencerContentInsight
+    getInfluencerImpressionInsight
 );
 
 routes.get(
@@ -69,15 +55,34 @@ routes.get(
 );
 
 routes.get(
-    "/analytics/impression",
-    authenticateUser(["Influencer"]),
-    getInfluencerImpressionInsight
-);
-
-routes.get(
     "/analytics/campaign-list",
     authenticateUser(["Influencer"]),
     getInfluencerCampaignList
 );
+
+//new today
+
+routes.get(
+    "/analytics/campaign-insight",
+    authenticateUser(["Influencer"]),
+    getInfluencerCampaignInsight
+)
+
+routes.get("/analytics/campaign-performanceovertime",
+    authenticateUser(["Influencer"]),
+    getInfluencerCampaignPerformanceOvertime
+)
+
+routes.get("/analytics/campaign-engagementscore",
+    authenticateUser(["Influencer"]),
+    getInfluencerCampaignEngagementScore
+)
+
+routes.get("/analytics/campaign-topperformingcontent",
+    authenticateUser(["Influencer"]),
+    getInfluencerCampaignTopPerformingContent
+)
+
+
 
 export default routes;
