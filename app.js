@@ -176,9 +176,12 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("deleteMessage", ({ messageId, conversationId }) => {
-    io.to(conversationId).emit("deleteMessage", messageId);
+socket.on("deleteMessage", ({ messageId, conversationId }) => {
+  io.to(String(conversationId)).emit("deleteMessage", {
+    messageId,
+    conversationId,
   });
+});
 
   socket.on("undoDeleteMessage", ({ messageId, conversationId }) => {
     io.to(conversationId).emit("undoDeleteMessage", messageId);
@@ -196,7 +199,7 @@ socket.on("messageRead", ({ messageId, conversationId, role }) => {
       readbyinfluencer: Number(role) === 1,
       readbyvendor: Number(role) === 2,
     };
-  // console.log("📡 EMIT updateMessageStatus", payload);
+  console.log("📡 EMIT updateMessageStatus", payload);
 
     io.to(String(conversationId)).emit("updateMessageStatus", payload);
 });

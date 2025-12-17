@@ -147,6 +147,7 @@ export const insertMessage = async (req, res) => {
     const userId = req.user?.id;
     const username = req.username || "user";
 
+
     for (const file of req.files) {
       const timestamp = Date.now();
       const newFileName = `${timestamp}_${file.originalname}`;
@@ -227,10 +228,21 @@ export const insertMessage = async (req, res) => {
     const newMessageId = tempId;
 
     if (p_status === 1) {
+    const entityId = userId;
+    const entityType = "user";
+      let entityDetails = null;
+
+      const entityResult = await client.query(
+        `SELECT * FROM ins.get_entity_details($1::bigint, $2::text)`,
+        [entityId, entityType]
+      );
+
+      entityDetails = entityResult.rows[0] || null;
 
     const payload = {
       tempId,
       messageid: tempId,
+      is_deleted: false,
       conversationid: p_conversationid,
       message: p_messages || "",
       filepaths: p_filepaths ? p_filepaths.split(",") : [],
@@ -241,6 +253,8 @@ export const insertMessage = async (req, res) => {
       campaignid,
       influencerId,
       vendorId,
+      name: entityDetails?.name || "",
+      photopath: entityDetails?.photopath || "",
       readbyvendor: false,
       readbyinfluencer: false,
     };
