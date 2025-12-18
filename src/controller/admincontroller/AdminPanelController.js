@@ -250,6 +250,11 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
           `Your Profile Approved`,
           userProfileEmailHTML({ userName: firstName  })
         );
+        res.status(200).json({
+           p_status,
+           message: p_message,
+           source: "db",
+        });
       }
 
       // CAMPAIGN APPROVAL 
@@ -285,6 +290,11 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
             status: "Approved" ,
           })
         );
+        res.status(200).json({
+           p_status,
+           message: p_message,
+           source: "db",
+        });
       }
 
       // -----------------------------------
@@ -509,6 +519,11 @@ export const blockInfluencerAndCampaignApplication = async (req, res) => {
           `Your Profile blocked by influsage admin team`,
           userProfileBlockEmailHTML({ userName: user.firstname })
         );
+       res.status(200).json({
+           p_status,
+           message: p_message,
+           source: "db",
+        });
       }
 
       // -------------------------------
@@ -540,6 +555,11 @@ export const blockInfluencerAndCampaignApplication = async (req, res) => {
             campaignName: data.campaignname
           })
         );
+        res.status(200).json({
+           p_status,
+           message: p_message,
+           source: "db",
+        });
       }
 
       // Safety fallback
@@ -628,10 +648,9 @@ export const adminRejectInfluencerOrCampaign = async (req, res) => {
     }
 
     await client.query("BEGIN");
-    await client.query(
-          "SELECT set_config('app.current_user_id', $1, true)",
-          [String(p_adminid)]
-        );
+    await client.query("SELECT set_config('app.current_user_id', $1, true)", [
+      String(p_adminid),
+    ]);
     // Store rejection info in DB
     const result = await client.query(
       `CALL ins.usp_upsert_rejectentity(
@@ -646,92 +665,108 @@ export const adminRejectInfluencerOrCampaign = async (req, res) => {
     );
     await client.query("COMMIT");
 
-    const actionableMessages = [
-      "User rejected successfully.",
-      "Campaign rejected successfully.",
-    ];
     const { p_status, p_message } = result.rows[0];
 
-    if (!actionableMessages.includes(p_message)) {
-      return res
-        .status(200)
-        .json({ message: p_message, p_status, source: "db" });
-    }
-    //  1️⃣ Influencer Rejection
-    if (p_userid && !p_campaignid) {
-      const userResult = await client.query(
-        "SELECT firstname, email FROM ins.users WHERE id = $1",
-        [p_userid]
-      );
+    if (p_status === 1) {
+      //  1️⃣ Influencer Rejection
+      if (p_userid && !p_campaignid) {
+        const userResult = await client.query(
+          "SELECT firstname, email FROM ins.users WHERE id = $1",
+          [p_userid]
+        );
 
-      const user = userResult.rows[0];
+        const user = userResult.rows[0];
 
-      if (!user) {
-        return res.status(404).json({
-          message: "User not found.",
+        if (!user) {
+          return res.status(404).json({
+            message: "User not found.",
+          });
+        }
+
+        // Send user profile rejection email
+        await sendingMailFormatForAdmin(
+          user.email,
+          `Your profile has been rejected by the InfluSage Admin Team`,
+          userProfileRejectEmailHTML({
+            userName: user.firstname,
+            reason: p_text,
+          })
+        );
+
+        return res.status(200).json({
+          message: p_message,
+          p_status,
+          source: "db",
         });
       }
+      // 2️⃣ CAMPAIGN REJECTION CASE
 
-      // Send user profile rejection email
-      await sendingMailFormatForAdmin(
-        user.email,
-        `Your profile has been rejected by the InfluSage Admin Team`,
-        userProfileRejectEmailHTML({
-          userName: user.firstname,
-          reason: p_text,
-        })
-      );
-
-      return res.status(200).json({
-        message: p_message,
-        p_status,
-        source: "db",
-      });
-    }
-    // 2️⃣ CAMPAIGN REJECTION CASE
-
-    if (p_campaignid && !p_userid) {
-      const campaignOwnerResult = await client.query(
-        `SELECT
+      if (p_campaignid && !p_userid) {
+        const campaignOwnerResult = await client.query(
+          `SELECT
            c.name AS campaignname,
            u.firstname,
            u.email
          FROM ins.campaigns c
          INNER JOIN ins.users u ON u.id = c.ownerid
          WHERE c.id = $1`,
-        [p_campaignid]
-      );
+          [p_campaignid]
+        );
 
-      const campaignData = campaignOwnerResult.rows[0];
+        const campaignData = campaignOwnerResult.rows[0];
 
-      if (!campaignData) {
-        return res.status(404).json({
-          message: "Campaign or owner not found.",
+        if (!campaignData) {
+          return res.status(404).json({
+            message: "Campaign or owner not found.",
+          });
+        }
+
+        // Send campaign rejection email
+        await sendingMailFormatForAdmin(
+          campaignData.email,
+          `Your campaign has been rejected by the InfluSage Admin Team`,
+          campaignRejectEmailHTML({
+            userName: campaignData.firstname,
+            campaignName: campaignData.campaignname,
+            reason: p_text,
+          })
+        );
+
+        return res.status(200).json({
+          message: p_message,
+          p_status,
+          source: "db",
         });
       }
+    } // VALIDATION FAIL → p_status = 0
+    else if (p_status === 0) {
+      return res
+        .status(400)
+        .json({
+          message: p_message || "Validation failed",
+          status: false,
+          p_status,
+        });
+    }
 
-      // Send campaign rejection email
-      await sendingMailFormatForAdmin(
-        campaignData.email,
-        `Your campaign has been rejected by the InfluSage Admin Team`,
-        campaignRejectEmailHTML({
-          userName: campaignData.firstname,
-          campaignName: campaignData.campaignname,
-          reason: p_text,
-        })
-      );
-
-      return res.status(200).json({
-        message: p_message,
+    // SP FAILED → p_status = -1
+    else if (p_status === -1) {
+      console.error("Stored Procedure Failure:", p_message);
+      return res.status(500).json({
+        message: "Something went wrong. Please try again later.",
+        status: false,
         p_status,
-        source: "db",
       });
     }
 
-    return res.status(200).json({
-      message: p_message,
-      p_status,
-    });
+    // Unexpected fallback
+    else {
+      return res.status(500).json({
+        message: "Unexpected database response",
+        status: false,
+        p_status,
+      });
+    }
   } catch (error) {
     console.error("Error in adminRejectInfluencerOrCampaign:", error);
     return res.status(500).json({
