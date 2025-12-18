@@ -181,9 +181,10 @@ export const getVendorCampaignList = async (req, res) => {
 }
 
 export const getVendorCampaignInsight = async (req, res) => {
+  console.log("Function Calling")
   const p_userid = req.user?.id || req.query.p_userid;
   const p_campaignid = req.query.p_campaignid;
-  if (!p_userid || !p_campaignid) return res.status(400).josn({ Message: "User Id And Campaign Id Required For Campaign insight Details" });
+  if (!p_userid || !p_campaignid) return res.status(400).json({ Message: "User Id And Campaign Id Required For Campaign insight Details" });
   try {
     const campaignInsight = await client.query(`
       select * from ins.fn_get_vendorcampaigninsight($1::bigint,$2::bigint)`,
@@ -194,7 +195,7 @@ export const getVendorCampaignInsight = async (req, res) => {
     );
     const campaignInsightRes = campaignInsight.rows[0].fn_get_vendorcampaigninsight || [];
     console.log("Campaign insight Result =>", campaignInsightRes)
-    return res.status(200).josn({
+    return res.status(200).json({
       Message: "Campaign Insight Details Get Successfully",
       data: campaignInsightRes,
       source: "db"
@@ -218,10 +219,9 @@ export const getVendorCampaignPerformanceOvertime = async (req, res) => {
       [
         p_userid,
         p_campaignid,
-        p_filtertype
+        p_filtertype || 'year'
       ]);
-    const performanceOvertimeRes = performanceOverTime.rows[0].fn_get_vendorcampaignperformanceovertime;
-    console.log("Result=>", performanceOvertimeRes);
+    const performanceOvertimeRes = performanceOverTime.rows[0].fn_get_vendorcampaignperformanceovertime || [];
     return res.status(200).json({
       message: "Campaign Performance Sucessfully Get",
       data: performanceOvertimeRes,
@@ -250,33 +250,30 @@ export const getVendorCampaignTopPerformingContent = async (req, res) => {
         p_filtertype || 'year'
       ]
     );
-    const topperformingcontentRes = topPerformingContent.rows[0].fn_get_vendorcampaigntopperformingcontent;
+    const topperformingcontentRes = topPerformingContent.rows[0].fn_get_vendorcampaigntopperformingcontent || [];
     console.log("TopPerformingResult", topperformingcontentRes)
     return res.status(200).json({
       Message: "Top Performing Content Get Sucessfully",
       data: topperformingcontentRes,
+      p_filtertype:p_filtertype,
       source: "db"
     })
   } catch (error) {
 
-     console.error("error in get Campaign Top Performing Content:", error);
+    console.error("error in get Campaign Top Performing Content:", error);
     return res.status(500).json({
       message: error.message,
     });
-    
+
   }
 }
 
 export const getVendorCampaignEngagementScore = async (req, res) => {
   const p_userid = req.user?.id || req.query.p_userid;
   const p_campaignid = req.query.p_campaignid;
-
-  if (!p_userid || !p_campaignid) return res.status(200).json({ Message: "User Id and Campaign Id required For Get Vendor Campaign Engagement Score" });
-
+  if (!p_userid || !p_campaignid) return res.status(400).json({ Message: "User Id and Campaign Id required For Get Vendor Campaign Engagement Score" });
   const { p_filtertype } = req.query;
-
   try {
-
     const campaignEngagementScore = await client.query(`
       select * from ins.fn_get_vendorcampaignengagementscore($1::bigint,$2::bigint,$3::VARCHAR)`,
       [
@@ -285,23 +282,16 @@ export const getVendorCampaignEngagementScore = async (req, res) => {
         p_filtertype || 'year'
       ]
     );
-
-    const campaignEngagementScoreRes = campaignEngagementScore.rows[0].get_vendorcampaignengagementscore || [];
-
-    console.log("Result",campaignEngagementScoreRes);
-
-    return res.status(200).json({Message:"campaign Engagement Score Sucessfully Get",
-      data:campaignEngagementScoreRes,
-      source:"db"
+    const campaignEngagementScoreRes = campaignEngagementScore.rows[0].fn_get_vendorcampaignengagementscore[0] || [];
+    return res.status(200).json({
+      Message: "campaign Engagement Score Sucessfully Get",
+      data: campaignEngagementScoreRes,
+      source: "db"
     })
-
   } catch (error) {
-
-     console.error("error in get Campaign Engagement Score:", error);
+    console.error("error in get Campaign Engagement Score:", error);
     return res.status(500).json({
       message: error.message,
     });
-
   }
-
 }

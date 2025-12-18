@@ -12,7 +12,7 @@ import {
     getInfluencerCampaignEngagementScore,
     getInfluencerCampaignTopPerformingContent,
     getInfluencerCampaignContribution,
-    getRecentContents
+    getInfluencerRecentContents
 } from '../../controller/influencercontroller/InfluencerAnalyticsDashboardController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 
@@ -59,8 +59,6 @@ routes.get(
     getInfluencerCampaignList
 );
 
-//new today
-
 routes.get(
     "/analytics/campaign-insight",
     authenticateUser(["Influencer"]),
@@ -89,9 +87,8 @@ routes.get("/analytics/campaign-Contribution",
 
 routes.get("/analytics/campaign-recents",
     authenticateUser(["Influencer"]),
-    getRecentContents
+    getInfluencerRecentContents
 )
-
 
 
 export default routes;

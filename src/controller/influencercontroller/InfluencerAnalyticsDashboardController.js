@@ -230,10 +230,19 @@ export const getInfluencerTopPerformingContent = async (req, res) => {
     if (!p_userid) {
       return res.status(400).json({ Message: "p_userid is Required." });
     }
+
     const { p_filtertype } = req.query;
     if (!p_filtertype) {
       return res.status(400).json({ Message: "p_filtertype is Required." });
     }
+
+    const allowedFilters = ["week", "month", "year"];
+    if (!p_filtertype || !allowedFilters.includes(p_filtertype)) {
+      return res.status(400).json({
+        message: "Invalid p_filtertype. Allowed values: week, month, year"
+      });
+    }
+
     const topPerformingContent = await client.query(
       `select * from ins.fn_get_influencertopperformingcontent($1::bigint,$2::varchar)`,
       [p_userid, p_filtertype]
@@ -264,6 +273,13 @@ export const getInfluencerPerformanceOvertime = async (req, res) => {
     const { p_filtertype } = req.query;
     if (!p_filtertype) {
       return res.status(400).json({ Message: "p_filtertype is Required." });
+    }
+    // Allow only week / month / year
+    const allowedFilters = ["week", "month", "year"];
+    if (!p_filtertype || !allowedFilters.includes(p_filtertype)) {
+      return res.status(400).json({
+        message: "Invalid p_filtertype. Allowed values: week, month, year"
+      });
     }
     const performanceOverTime = await client.query(
       ` select * from ins.fn_get_influencerperformanceovertime($1::bigint,$2::varchar)`,
@@ -410,7 +426,7 @@ export const getInfluencerCampaignPerformanceOvertime = async (req, res) => {
         p_filtertype || 'year'
       ]
     );
-    const campaignOvertimeRes = performanceOvertime.rows[0].fn_get_influencercampaignperformanceovertime;
+    const campaignOvertimeRes = performanceOvertime.rows[0].fn_get_influencercampaignperformanceovertime || [];
     return res.status(200).json({
       Message: "Campaign Performance Overtime Get Seccuessfully",
       data: campaignOvertimeRes,
@@ -472,7 +488,7 @@ export const getInfluencerCampaignTopPerformingContent = async (req, res) => {
         p_campaignid,
         p_filtertype || 'year'
       ]);
-    const campaignTopPerformingContentRes = campaignTopPerformingContent.rows[0].fn_get_influencercampaigntopperformingcontent;
+    const campaignTopPerformingContentRes = campaignTopPerformingContent.rows[0].fn_get_influencercampaigntopperformingcontent || [];
     return res.status(200).json({
       Message: "Top Performing Content Sucessfully Get",
       data: campaignTopPerformingContentRes,
@@ -499,7 +515,7 @@ export const getInfluencerCampaignContribution = async (req, res) => {
         p_userid,
         p_filtertype || 'year'
       ]);
-    const campaignContributionRes = campaignContribution.rows[0].fn_get_influencercampaigncontribution;
+    const campaignContributionRes = campaignContribution.rows[0].fn_get_influencercampaigncontribution || [];
     return res.status(200).json({
       Message: "Campaign Contribution Get Sucessfully",
       data: campaignContributionRes,
@@ -516,7 +532,7 @@ export const getInfluencerCampaignContribution = async (req, res) => {
 
 }
 
-export const getRecentContents = async (req, res) => {
+export const getInfluencerRecentContents = async (req, res) => {
   const p_userid = req.user?.id || req.query.p_userid;
   if (!p_userid) return res.status(400).json({ Message: "User id Required For Recent Contents" });
   try {
