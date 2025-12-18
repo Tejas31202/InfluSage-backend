@@ -1,8 +1,8 @@
 import { client } from '../../config/Db.js';
-import redis from 'redis';
+import Redis from '../../utils/redisWrapper.js';
 
-const redisClient = redis.createClient({ url: process.env.REDIS_URL });
-redisClient.connect().catch(console.error);
+// const Redis = redis.createClient({ url: process.env.REDIS_URL });
+// Redis.connect().catch(console.error);
 
 //..................GET INFLUENCER BROWSE DETAILS...........
 export const getInfluencerBrowseDetails = async (req, res) => {

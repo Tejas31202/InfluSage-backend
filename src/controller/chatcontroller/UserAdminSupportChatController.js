@@ -1,5 +1,5 @@
 import { client } from '../../config/Db.js';
-import redis from "redis";
+import Redis from "../../utils/redisWrapper.js";
 import { createClient } from '@supabase/supabase-js';
 import {io} from '../../../app.js';
 
@@ -8,8 +8,8 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const redisClient = redis.createClient({ url: process.env.REDIS_URL });
-redisClient.connect().catch(console.error);
+// const Redis = redis.createClient({ url: process.env.REDIS_URL });
+// Redis.connect().catch(console.error);
 
 export const getSubjectListByRole = async (req, res) => {
   try {

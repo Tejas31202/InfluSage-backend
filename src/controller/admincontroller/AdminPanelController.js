@@ -216,7 +216,6 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
       );`,
       [p_adminid,p_userid || null, p_campaignid || null,null, null]
     );
-
     await client.query("COMMIT");
     const row = result.rows?.[0] || {};
     const p_status = Number(row.p_status);
@@ -229,15 +228,6 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
       let email = null;
       let firstName = null;
       let campaignName = null;
-
-      const actionableMessages = [
-        "User Approved.",
-        "Campaign Approved."
-      ];
-
-      if (!actionableMessages.includes(p_message)) {
-        return res.status(200).json({ message: p_message, p_status, source: "db" });
-      }
 
       // ------------------
       // USER APPROVAL 
@@ -494,19 +484,6 @@ export const blockInfluencerAndCampaignApplication = async (req, res) => {
     const row = result.rows[0] || {};
     const p_status = Number(row.p_status);
     const p_message = row.p_message;
-
-    // -------------------------------
-    //      ACTIONABLE MESSAGES CHECK
-    // -------------------------------
-    const actionableMessages = [
-      "User Blocked Successfully.",
-      "Campaign Blocked Successfully."
-    ];
-
-    if (!actionableMessages.includes(p_message)) {
-      // Non-actionable → just return message and p_status
-      return res.status(200).json({ message: p_message, p_status, source: "db" });
-    }
 
     // -------------------------------
     //       STATUS HANDLING

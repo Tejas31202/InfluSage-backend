@@ -1,6 +1,6 @@
 import { client } from '../../config/Db.js';
 import { createClient } from "@supabase/supabase-js";
-import redis from 'redis';
+import Redis from '../../utils/redisWrapper.js';
 import path from 'path';
 import fs from 'fs';
 import fsPromises from "fs/promises";
@@ -10,8 +10,8 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const redisClient = redis.createClient({ url: process.env.REDIS_URL });
-redisClient.connect().catch(console.error);
+// const Redis = redis.createClient({ url: process.env.REDIS_URL });
+// Redis.connect().catch(console.error);
 
 // ---------------- FINALIZE Campaign ----------------
 export const finalizeCampaign = async (req, res) => {
@@ -29,7 +29,7 @@ export const finalizeCampaign = async (req, res) => {
       ? `getCampaign:${userId}:${campaignId}`
       : `getCampaign:${userId}`;
 
-    const cachedData = await redisClient.get(redisKey);
+    const cachedData = await Redis.get(redisKey);
     if (!cachedData) {
       return res.status(404).json({
         message: "No campaign data found in Redis to finalize",
@@ -136,7 +136,7 @@ export const finalizeCampaign = async (req, res) => {
         `${baseTempFolder}/campaign_portfolio`,
       ]);
 
-      await redisClient.del(redisKey);
+      await Redis.del(redisKey);
 
       return res.status(200).json({
         status: true,
@@ -188,7 +188,7 @@ export const getCampaign = async (req, res) => {
         : `getCampaign:${userId}:${campaignId}`;
 
     if (campaignId === "01") {
-      const cachedData = await redisClient.get(redisKey);
+      const cachedData = await Redis.get(redisKey);
       if (cachedData) {
         return res.status(200).json({
           message: "Draft campaign from Redis",
@@ -204,7 +204,7 @@ export const getCampaign = async (req, res) => {
       });
     }
 
-    const cachedEditData = await redisClient.get(redisKey);
+    const cachedEditData = await Redis.get(redisKey);
     if (cachedEditData) {
       return res.status(200).json({
         message: "Campaign data from Redis",
@@ -227,7 +227,7 @@ export const getCampaign = async (req, res) => {
     const fullData = result.rows[0];
 
     // Cache DB data in Redis for next time 1h->3600 sec
-    await redisClient.setEx(redisKey, 3600,JSON.stringify(fullData));
+    await Redis.setEx(redisKey, 3600,JSON.stringify(fullData));
 
     return res.status(200).json({
       message: "Campaign data from DB",
@@ -264,7 +264,7 @@ export const deleteCampaignFile = async (req, res) => {
       : `getCampaign:${userId}`;
 
     // ---------------- 2 Update Redis ----------------
-    let campaignData = await redisClient.get(redisKey);
+    let campaignData = await Redis.get(redisKey);
     let updatedFiles = [];
 
     if (campaignData) {
@@ -284,7 +284,7 @@ export const deleteCampaignFile = async (req, res) => {
 
         updatedFiles = campaignData.p_campaignfilejson;
         //Redis Store data for 1h->3600 sec
-        await redisClient.setEx(redisKey, 3600, JSON.stringify(campaignData));
+        await Redis.setEx(redisKey, 3600, JSON.stringify(campaignData));
       }
     }
 
@@ -469,7 +469,7 @@ export const upsertCampaign = async (req, res) => {
     // ---------------- REDIS DRAFT HANDLING ----------------
     const redisKey = `getCampaign:${p_userid}${campaignId ? `:${campaignId}` : ""}`;
     let existingDraft = {};
-    const cached = await redisClient.get(redisKey);
+    const cached = await Redis.get(redisKey);
     if (cached) existingDraft = JSON.parse(cached);
 
     const draftData = {
@@ -490,7 +490,7 @@ export const upsertCampaign = async (req, res) => {
       updated_at: new Date(),
     };
     //Redis store data for 24h -> 86400 sec
-    await redisClient.setEx(redisKey,86400, JSON.stringify(draftData));
+    await Redis.setEx(redisKey,86400, JSON.stringify(draftData));
 
     // ---------------- DRAFT SAVE ONLY ----------------
     if (!isFinalSubmit) {

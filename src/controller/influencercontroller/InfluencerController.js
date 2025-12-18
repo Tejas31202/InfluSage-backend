@@ -3,11 +3,11 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { sendingMail } from "../../utils/MailUtils.js";
-import redis from "redis";
+import Redis from "../../utils/redisWrapper.js";
 import { htmlContent } from "../../utils/EmailTemplates.js";
 
-const redisClient = redis.createClient({ url: process.env.REDIS_URL });
-redisClient.connect().catch(console.error);
+// const Redis = redis.createClient({ url: process.env.REDIS_URL });
+// Redis.connect().catch(console.error);
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -30,7 +30,7 @@ function generateOTP() {
 export const requestRegistration = async (req, res) => {
   try {
     // console.log("Setting pendingUser in Redis:", normalizedEmail);
-    const keys = await redisClient.keys("*");
+    // const keys = await Redis.keys("*");
     // console.log("Redis keys after registration:", keys);
 
     const { firstName, lastName, email, roleId, password } = req.body;
@@ -47,7 +47,7 @@ export const requestRegistration = async (req, res) => {
     // Generate OTP once only
     const otpCode = generateOTP();
 
-    await redisClient.setEx(
+    await Redis.setEx(
       `pendingUser:${normalizedEmail}`,
       300,
       JSON.stringify({
@@ -59,7 +59,7 @@ export const requestRegistration = async (req, res) => {
       })
     );
 
-    await redisClient.setEx(`otp:${normalizedEmail}`, 300, otpCode);
+    await Redis.setEx(`otp:${normalizedEmail}`, 300, otpCode);
 
     // Send OTP email
     await sendingMail(
@@ -79,33 +79,33 @@ export const requestRegistration = async (req, res) => {
 
 // Step 2: Verify OTP and Register User
 export const verifyOtpAndRegister = async (req, res) => {
-  const userId = req.user?.id || req.body.userId;
+  // const userId = req.user?.id || req.body.userId;
 
-  if (!userId) {
-    return res.status(401).json({
-      status: false,
-      message: "Unauthorized: user not found",
-    });
-  }
+  // if (!userId) {
+  //   return res.status(401).json({
+  //     status: false,
+  //     message: "Unauthorized: user not found",
+  //   });
+  // }
 
   const email = req.body.email.toLowerCase(); // normalize email
   const { otp } = req.body;
 
   try {
-    const storedOtp = await redisClient.get(`otp:${email}`);
+    const storedOtp = await Redis.get(`otp:${email}`);
     // console.log(" OTP stored in Redis:", storedOtp);
 
     if (!storedOtp) {
       return res.status(400).json({ message: "OTP expired or not found." });
     }
-    if (storedOtp !== otp) {
-      console.log(" OTP mismatch!");
-      return res.status(400).json({ message: "Invalid OTP." });
+    if (Number(storedOtp) !== Number(otp)) {
+    console.log("OTP mismatch!");
+    return res.status(400).json({ message: "Invalid OTP." });
     }
     // console.log(" OTP matched successfully!");
 
     // Check pending user
-    const userDataStr = await redisClient.get(`pendingUser:${email}`);
+    const userDataStr = await Redis.get(`pendingUser:${email}`);
     // console.log(" pendingUser data from Redis:", userDataStr);
 
     if (!userDataStr) {
@@ -119,7 +119,7 @@ export const verifyOtpAndRegister = async (req, res) => {
 
     await client.query("BEGIN");
     await client.query("SELECT set_config('app.current_user_id', $1, true)", [
-      String(userId),
+      String(null),
     ]);
     // Insert user into DB
     const result = await client.query(
@@ -132,8 +132,8 @@ export const verifyOtpAndRegister = async (req, res) => {
     const p_status = Number(row.p_status);
     const p_message = row.p_message;
     // Clean up Redis
-    await redisClient.del(`otp:${email}`);
-    await redisClient.del(`pendingUser:${email}`);
+    await Redis.del(`otp:${email}`);
+    await Redis.del(`pendingUser:${email}`);
 
     if (p_status === 1) {
       return res.status(200).json({ message: p_message, p_status });
@@ -268,7 +268,7 @@ export const resendOtp = async (req, res) => {
 
   try {
     //For Previous Otp Expire
-    await redisClient.del(`otp:${email}`);
+    await Redis.del(`otp:${email}`);
     // Generate OTP once only
     const otpCode = generateOTP();
 
@@ -280,12 +280,12 @@ export const resendOtp = async (req, res) => {
     );
 
     // Store OTP in Redis with 5 minsec expiry
-    await redisClient.setEx(`otp:${email}`, 300, otpCode);
+    await Redis.setEx(`otp:${email}`, 300, otpCode);
 
     // Reset pendingUser TTL if user exists
-    const userData = await redisClient.get(`pendingUser:${email}`);
+    const userData = await Redis.get(`pendingUser:${email}`);
     if (userData) {
-      await redisClient.expire(`pendingUser:${email}`, 300);
+      await Redis.expire(`pendingUser:${email}`, 300);
       // console.log("Pending user TTL reset for:", email);
     }
 
@@ -317,7 +317,7 @@ export const forgotPassword = async (req, res) => {
     const resetToken = crypto.randomBytes(32).toString("hex");
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
-    await redisClient.setEx(`reset:${resetToken}`, 600, userId);
+    await Redis.setEx(`reset:${resetToken}`, 600, userId);
 
     // Send Email with reset url
     await sendingMail(
@@ -339,7 +339,7 @@ export const resetPassword = async (req, res) => {
   const { token, password } = req.body;
   try {
     // Get email from Redis using token
-    const userId = await redisClient.get(`reset:${token}`);
+    const userId = await Redis.get(`reset:${token}`);
     if (!userId) {
       return res
         .status(400)
@@ -365,7 +365,7 @@ export const resetPassword = async (req, res) => {
     const p_message = row.p_message;
 
     // ----------------- REMOVE TOKEN FROM REDIS -----------------
-    await redisClient.del(`reset:${token}`);
+    await Redis.del(`reset:${token}`);
 
     // ----------------- HANDLE p_status -----------------
     if (p_status === 1) {

@@ -5,6 +5,7 @@ import path from 'path';
 import cookieParser from 'cookie-parser';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import Redis from './src/utils/redisWrapper.js';
 
 // Routes
 
@@ -128,6 +129,18 @@ const sentNotificationMap = new Map();
   }
 */
 
+const redisType = process.env.REDIS_PROVIDER === "Local" ? "Upstash" : "Local";
+console.log(`🚀 Redis type active: ${redisType}`);
+
+(async () => {
+  try {
+    await Redis.set("connection:test", { status: "ok", Redis: redisType });
+    const test = await Redis.get("connection:test");
+    console.log("✅ Redis connected successfully:", test);
+  } catch (err) {
+    console.error("❌ Redis connection failed:", err);
+  }
+})();
 
 export const io = new Server(server, {
   cors: {
