@@ -5,7 +5,8 @@ import {
   getToDoList,
   insertOrEditOrDeleteToDo,
   getInfluencerFeedBack,
-  getInfluencerActiveCampaignlist
+  getInfluencerActiveCampaignlist,
+  getInfluencerPendingContentList
 } from '../../controller/influencercontroller/InfluencerDashboardController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 
@@ -41,9 +42,15 @@ routes.get(
 );
 
 routes.get(
-  "/dashboard/getactive-campaign-list",
+  "/dashboard/active-campaign-list",
   authenticateUser(["Influencer"]),
   getInfluencerActiveCampaignlist
+)
+
+routes.get(
+  "/dashboard/pending-content-list",
+  authenticateUser(["Influencer"]),
+  getInfluencerPendingContentList
 )
 
 export default routes;

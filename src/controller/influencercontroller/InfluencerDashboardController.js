@@ -206,3 +206,28 @@ export const getInfluencerActiveCampaignlist = async (req, res) => {
     });
   }
 }
+
+export const getInfluencerPendingContentList = async (req, res) => {
+  const p_userid = req.user?.id || req.query.p_userid;
+  if (!p_userid) return res.status(400).json({ Message: "User Id Required For Get Pending Content List" });
+  try {
+    const pendingContetList = await client.query(`
+      select * from ins.fn_get_influencerpendingcontenttypelist($1::bigint)`,
+      [p_userid]
+    );
+    const pendingContentListRes = pendingContetList.rows[0].fn_get_influencerpendingcontenttypelist;
+    console.log("PendingContent List =>", pendingContentListRes)
+    return res.status(200).json({
+      Message: "Pending Content List Get Sucessfully",
+      data: pendingContentListRes,
+      source: "db"
+    })
+
+  } catch (error) {
+    console.error("Error in get Influencer Pending Content List:", error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
+  }
+}
