@@ -46,7 +46,10 @@ export const getCompanySizes = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching company sizes:", error);
-    return res.status(500).json({ message: "Failed to fetch company sizes" });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -75,9 +78,10 @@ export const getInfluencerTiers = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching influencer tiers:", error);
-    return res
-      .status(500)
-      .json({ message: "Failed to fetch influencer tiers" });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -102,7 +106,10 @@ export const getUserNameByEmail = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching user name:", error);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -165,9 +172,12 @@ export const getVendorProfile = async (req, res) => {
       },
       source: "db",
     });
-  } catch (err) {
-    console.error("Error fetching vendor profile:", err);
-    res.status(500).json({ message: "Internal server error" });
+  } catch (error) {
+    console.error("Error fetching vendor profile:", error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -442,7 +452,10 @@ export const completeVendorProfile = async (req, res) => {
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error in completeVendorProfile:", error);
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -469,6 +482,9 @@ export const getObjectives = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching objectives:", error);
-    return res.status(500).json({ message: "Failed to fetch objectives" });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };

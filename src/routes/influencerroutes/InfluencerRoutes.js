@@ -10,7 +10,6 @@ import {
 
 const routes = express.Router();
 
-// Route: POST /api/login
 routes.post("/login", loginUser);
 routes.post("/register", requestRegistration);
 routes.post("/verify-otp", verifyOtpAndRegister);

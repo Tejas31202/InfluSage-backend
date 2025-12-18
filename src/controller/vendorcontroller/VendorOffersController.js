@@ -41,7 +41,10 @@ export const getOffersForCampaign = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching campaigns offers:", error.message);
-    return res.status(500).json({ msg: error.msg });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -73,7 +76,10 @@ export const getViewAllOffersForSingleCampaign = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching view campaigns offers:", error.message);
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -141,7 +147,10 @@ export const updateApplicationStatus = async (req, res) => {
     }
   } catch (error) {
     console.error("Error in update application status :", error.message);
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -170,7 +179,10 @@ export const getOfferDetails = async (req, res) => {
     }); 
   } catch (error) {
     console.error("Error in get offer detail :", error.message);
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -201,6 +213,9 @@ export const getCampaignDetail = async (req, res) => {
     });
   } catch (error) {
     console.error("Error get campaign detail error:", error.message);
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };

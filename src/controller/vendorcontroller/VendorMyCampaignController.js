@@ -17,7 +17,7 @@ export const getMyAllCampaign = async (req, res) => {
       p_sortorder,
       p_pagenumber,
       p_pagesize,
-      p_search
+      p_search,
     } = req.query;
 
     const result = await client.query(
@@ -35,60 +35,65 @@ export const getMyAllCampaign = async (req, res) => {
     $11::integer,
     $12::integer,
     $13::text
-    )`, [
-      p_userid,
-      p_statuslabelid || null,
-      p_providers || null,
-      p_status || null,
-      p_maxbudget || null,
-      p_minbudget || null,
-      p_startdate || null,
-      p_enddate || null,
-      p_sortby || "startdate",
-      p_sortorder || "DESC",
-      p_pagenumber || 1,
-      p_pagesize || 20,
-      p_search || null
-    ]
-    )
+    )`,
+      [
+        p_userid,
+        p_statuslabelid || null,
+        p_providers || null,
+        p_status || null,
+        p_maxbudget || null,
+        p_minbudget || null,
+        p_startdate || null,
+        p_enddate || null,
+        p_sortby || "startdate",
+        p_sortorder || "DESC",
+        p_pagenumber || 1,
+        p_pagesize || 20,
+        p_search || null,
+      ]
+    );
 
     if (!result.rows) {
-      return res.status(404).json({ message: 'campaign not found.' });
+      return res.status(404).json({ message: "campaign not found." });
     }
 
     const Allcampaign = result.rows[0].fn_get_mycampaign;
 
     return res.status(200).json({
       data: Allcampaign,
-      source: 'db',
+      source: "db",
     });
   } catch (error) {
-    console.error('Error fetching campaigns offers:', error);
-    return res.status(500).json({ message: error.message });
-
+    console.error("Error in getMyAllCampaign:", error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
-
 };
 //.............Get Campaign Status....................
 export const getCampaignStatus = async (req, res) => {
   try {
-
-    const result = await client.query(`SELECT * FROM ins.fn_get_mycampaignstatus()`);
+    const result = await client.query(
+      `SELECT * FROM ins.fn_get_mycampaignstatus()`
+    );
 
     if (!result) {
-      return res.status(400).json({ message: 'No Status Available.' })
+      return res.status(400).json({ message: "No Status Available." });
     }
 
     const status = result.rows;
 
     return res.status(200).json({
-      message: 'sucessfuly get status',
-      data: status
+      message: "sucessfuly get status",
+      data: status,
     });
-
   } catch (error) {
-    console.error('Error in get status :', error);
-    return res.status(500).json({ message: error.message });
+    console.error("Error in get status :", error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 //..............Get SingleCampaign.....................
@@ -119,8 +124,11 @@ export const getSingleCampaign = async (req, res) => {
     });
 
   } catch (error) {
-    console.log('Error Getting Campaign', error);
-    return res.status(500).json({ message: 'Internal server error', error });
+    console.error('Error Getting Campaign', error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 }
 
@@ -140,10 +148,12 @@ export const getCancleReasonList = async (req, res) => {
     });
   } catch (error) {
     console.error("Error getCancleReasonList : ", error);
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
-
 
 export const insertCampiginCancleApplication = async (req, res) => {
   const userId = req.user?.id || req.body.userId;
@@ -203,7 +213,10 @@ export const insertCampiginCancleApplication = async (req, res) => {
     }
   } catch (error) {
     console.error("error in cancle campaigin application :", error);
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 
@@ -241,6 +254,9 @@ export const pausedCampaignApplication = async (req, res) => {
     }
   } catch (error) {
     console.error("Error in Paused Campaign Application:", error);
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };

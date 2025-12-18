@@ -14,14 +14,16 @@ const routes = express.Router();
 
 routes.get("/company-sizes", getCompanySizes);
 routes.get("/influencer-tiers", getInfluencerTiers);
+routes.get("/objectives", getObjectives);
+routes.get("/email/:email", getUserNameByEmail);
+
 routes.post(
   "/complete-vendor-profile",
   authenticateUser(["Vendor"]),
   upload.single("photo"),
   completeVendorProfile
 );
+
 routes.get("/profile/:userId", authenticateUser(["Vendor"]), getVendorProfile);
-routes.get("/objectives", getObjectives);
-routes.get("/email/:email", getUserNameByEmail);
 
 export default routes;

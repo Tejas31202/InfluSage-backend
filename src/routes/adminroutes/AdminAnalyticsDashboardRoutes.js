@@ -44,12 +44,12 @@ routes.get(
   "/user-Platform-Analytics",
   authenticateUser(["Admin"]),
   getLastInsertAnlyticsData
-)
+);
 
 routes.get(
   "/getAnalyticList",
   authenticateUser(["Admin"]),
   getUpdatedContentsAnalyticList
-)
+);
 
 export default routes;

@@ -28,8 +28,11 @@ export const getInfluencerBrowseDetails = async (req, res) => {
       source: "db",
     });
   } catch (error) {
-    console.log("getInfluencerBrowseDetails error:", error);
-    return res.status(500).json({ message: "Internal server Error" });
+    console.error("error in getInfluencerBrowseDetails:", error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 //..................BROWSE ALL INFLUENCER...............
@@ -89,8 +92,11 @@ export const browseAllInfluencer = async (req, res) => {
       source: "db",
     });
   } catch (error) {
-    console.log("Failed to Get Influencers sucessfully", error);
-    return res.status(500).json({ message: "Internal Server Error" });
+    console.error("error in browseAllInfluencer:", error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 //................Add Favourite Influencer................
@@ -100,8 +106,7 @@ export const addFavouriteInfluencer = async (req, res) => {
 
   if (!userId) {
     return res.status(400).json({
-      status: false,
-      message: "Missing userId",
+      message: "userId is required",
     });
   }
   
@@ -154,10 +159,10 @@ export const addFavouriteInfluencer = async (req, res) => {
     }
 
   } catch (error) {
-    console.error("Error adding favourite influencer:", error);
+    console.error("Error in addFavouriteInfluencer:", error);
     return res.status(500).json({
-      status: false,
-      message: "Internal server error",
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };
@@ -181,7 +186,10 @@ export const getFavouriteInfluencer = async (req, res) => {
     });
   } catch (error) {
     console.log("Error While Favourite Influencer Get", error);
-    return res.status(500).json({ error: "Internal Server Error" });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 //...............InviteInfluencerCampaign.................
@@ -206,10 +214,11 @@ export const inviteInfluencerToCampaigns = async (req, res) => {
       source: "db",
     });
   } catch (error) {
-    console.error("Error While Fetching Campaign", error);
-    return res
-      .status(500)
-      .json({ message: "internal Server error While Fetching Campaign" });
+    console.error("Error in inviteInfluencerToCampaigns:", error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 //..............InsertCampaignInvites........................
@@ -288,8 +297,11 @@ export const insertCampaignInvites = async (req, res) => {
       });
     }
   } catch (error) {
-    console.log(error);
-    return res.status(500).json({ message: error.message });
+    console.error("error in insertCampaignInvites:",error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };
 //..............Browse Invite Influencer......................
@@ -314,7 +326,10 @@ export const browseInviteInfluencer = async (req, res) => {
       source: "db",
     });
   } catch (error) {
-    console.error("Error fetching influencer invites:", error);
-    return res.status(500).json({ message: error.message });
+    console.error("Error in browseInviteInfluencer:", error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
   }
 };

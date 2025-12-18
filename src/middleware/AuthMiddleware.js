@@ -27,6 +27,12 @@ const authenticateUser = (allowedRoles = []) => {
       // Verify JWT
       const decoded = jwt.verify(token, JWT_SECRET);
 
+      if (decoded.p_code === "BLOCKED") {
+        return res.status(403).json({
+          message: "Blocked user is not allowed to access APIs.",
+        });
+      }
+
       const userRoleName = roleMap[decoded.role];
 
       if (!userRoleName) {
@@ -40,28 +46,28 @@ const authenticateUser = (allowedRoles = []) => {
           .json({ message: "Access denied: insufficient role" });
       }
 
-      // Fetch user from DB
-      const result = await client.query(
-        `SELECT id, userstatusid, isdelete 
-         FROM ins.users 
-         WHERE id = $1`,
-        [decoded.id]
-      );
+      // // Fetch user from DB
+      // const result = await client.query(
+      //   `SELECT id, userstatusid, isdelete 
+      //    FROM ins.users 
+      //    WHERE id = $1`,
+      //   [decoded.id]
+      // );
 
-      if (result.rows.length === 0) {
-        return res.status(403).json({ message: "User not found" });
-      }
+      // if (result.rows.length === 0) {
+      //   return res.status(403).json({ message: "User not found" });
+      // }
 
-      const user = result.rows[0];
+      // const user = result.rows[0];
 
-      // Blocked or Deleted check
-      if (user.userstatusid === 22 || user.isdelete === true) {
-        return res.status(403).json({ message: "User not authorized" });
-      }
+      // // Blocked or Deleted check
+      // if (user.userstatusid === 22 || user.isdelete === true) {
+      //   return res.status(403).json({ message: "User not authorized" });
+      // }
 
       // Attach user info
       req.user = {
-        id: user.id,
+        id: decoded.id,
         role: userRoleName,
         p_code: decoded.p_code
       };

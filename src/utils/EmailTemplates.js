@@ -1,5 +1,4 @@
 
-
 // Profile email (influencer)
 export function userProfileEmailHTML({ userName }) {
     const status = "Approved";
@@ -38,7 +37,6 @@ export function htmlContent({ otp }) {
   `;
 }
  
-
 export const userProfileBlockEmailHTML = ({ userName }) => `
   <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;border-radius:10px;">
     <h2 style="color:#333;">Hello ${userName},</h2>

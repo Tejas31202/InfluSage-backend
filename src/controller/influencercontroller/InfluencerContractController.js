@@ -1,4 +1,3 @@
-import { Console } from 'console';
 import { client } from '../../config/Db.js';
 
 export const influencerApproveOrRejectContract = async (req, res) => {
@@ -74,7 +73,8 @@ export const influencerApproveOrRejectContract = async (req, res) => {
   } catch (error) {
     console.error("error in influencerApproveOrRejectContract:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };
@@ -157,40 +157,11 @@ export const uploadContentLink = async (req, res) => {
   } catch (error) {
     console.error("error in uploadContentLink:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };
-
-// export const getInfluencerContractDetail = async (req, res) => {
-//   try {
-//     const p_influencerid = req.user?.id || req.query.p_influencerid;
-//     const p_campaignid = req.params.p_campaignid;
-//     if (!p_influencerid) {
-//       return res
-//         .status(400)
-//         .json({ message: "p_influencerid is required." });
-//     }
-
-//     const result = await client.query(
-//       `SELECT * FROM ins.fn_get_influencercontractdetails(
-//         $1::bigint,
-//         $2::bigint);`,
-//       [p_influencerid, p_campaignid]
-//     );
-
-//     const data = result.rows[0].fn_get_influencercontractdetails;
-//     return res.status(200).json({
-//       message: "contract detail fetched successfully",
-//       data: data,
-//     });
-//   } catch (error) {
-//     console.error("error in getInfluencerContractDetail:", error);
-//     return res.status(500).json({
-//       message: error.message,
-//     });
-//   }
-// };
 
 export const getInfluencerContractDetail = async (req, res) => {
   try {
@@ -223,7 +194,8 @@ export const getInfluencerContractDetail = async (req, res) => {
   } catch (error) {
     console.error("error in getInfluencerContractDetail:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };
@@ -253,7 +225,8 @@ export const getInfluencerUploadedContentLink = async (req, res) => {
   } catch (error) {
     console.error("error in getInfluencerUploadedContentLink:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 }
@@ -276,8 +249,8 @@ export const getContractContentTypes = async (req, res) => {
   } catch (error) {
     console.error("Error fetching contract content types:", error);
     return res.status(500).json({
-      error: "Internal server error",
-      details: error.message
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };

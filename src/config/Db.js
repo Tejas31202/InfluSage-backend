@@ -1,6 +1,6 @@
-import dotenv from "dotenv";
-import { Client } from "pg";
-import redis from "redis";
+import dotenv from 'dotenv';
+import { Client } from 'pg';
+import redis from 'redis';
  
 dotenv.config();
  

@@ -29,6 +29,7 @@ export const getAllSelectedInfluencer = async (req, res) => {
   } catch (error) {
     console.error("error in getAllSelectedInfluencer", error);
     return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
       error: error.message,
     });
   }
@@ -131,8 +132,7 @@ export const createOrEditContract = async (req, res) => {
   } catch (error) {
     console.error("createOrEditContract error:", error);
     return res.status(500).json({
-      status: false,
-      message: "Internal server error",
+      message: "Something went wrong. Please try again later.",
       error: error.message,
     });
   }
@@ -160,7 +160,8 @@ export const getContractDetailByContractId = async (req,res)=>{
   } catch (error) {
     console.error("error in getSubjectListByRole:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 }
@@ -187,7 +188,8 @@ export const getAllContractList = async (req,res)=>{
   } catch (error) {
     console.error("error in getAllContractList:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 }
@@ -215,7 +217,8 @@ export const getAllContentLinks = async (req, res) => {
   } catch (error) {
     console.error("error in getAllContentLinks:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
     });
   }
 };

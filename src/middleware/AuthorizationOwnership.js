@@ -35,7 +35,10 @@ export const authorizeOwnership = ({ idParam }) => {
 
     } catch (err) {
       console.error("Authorization error:", err);
-      res.status(500).json({ message: "Internal server error" });
+      return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: err.message,
+    });
     }
   };
 };
