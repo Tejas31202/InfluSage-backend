@@ -7,7 +7,8 @@ import {
     getTotalVendorCampaigns,
     getCampaignSummary,
     getVendorRecentCampaigns,
-    getVendorRecentApplications
+    getVendorRecentApplications,
+    getVendorPendingContentList
 } from '../../controller/vendorcontroller/VendorDashboardController.js';
 
 const routes = express.Router();
@@ -46,5 +47,11 @@ routes.get(
   authenticateUser(["Vendor"]),
   getVendorRecentApplications
 );
+
+routes.get(
+  "/dashboard/pending-content-list",
+  authenticateUser(["Vendor"]),
+  getVendorPendingContentList
+)
 
 export default routes;

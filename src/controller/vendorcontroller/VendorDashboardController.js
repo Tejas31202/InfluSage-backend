@@ -180,5 +180,26 @@ export const getVendorPerformanceSummary = async (req, res) => {
   }
 };
 
+export const getVendorPendingContentList = async (req,res) =>{
+  const p_userid = req.user?.id || req.query.p_userid;
+  if(!p_userid) return res.status(400).json({Message:"User If Required For Get Pending Content"});
+  try{
+    const pendingContentList = await client.query(`
+      select * from ins.fn_get_vendorpendingcontenttypelist($1::bigint)`,
+    [p_userid]);
+    const pendingContentListRes = pendingContentList.rows[0].fn_get_vendorpendingcontenttypelist;
+    return res.status(200).json({Message:"Vendor Pending List Get Sucessfully",
+      data:pendingContentListRes,
+      source:"db"
+    })
+  }catch(error){
+    console.error("Error in Get Vendor Pending Content List",error);
+    return res.status(500).json({Message:"Something Went Wrong",
+      error:error.message
+    })
+
+  }
+}
+
 
 
