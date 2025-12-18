@@ -290,7 +290,7 @@ export const getInfluencerPerformanceOvertime = async (req, res) => {
 
     return res.status(200).json({
       Message: "Influencer Performance Over Time Retrieved Successfully.",
-      result: performanceOvertimeRes,
+      data: performanceOvertimeRes,
     });
   } catch (error) {
     console.error("error in getInfluencerPerformanceOvertime:", error);
