@@ -77,8 +77,8 @@ export const getStatusFilterForAnalytics = async (req, res) => {
 export const getAllContentHistories = async (req, res) => {
   try {
     const p_adminid = req.user?.id || req.query.p_adminid;
-    if(!p_adminid){
-      return res.status(400).json({message:"p_adminid is required."})
+    if (!p_adminid) {
+      return res.status(400).json({ message: "p_adminid is required." })
     }
     const {
       p_statusid,
@@ -88,8 +88,8 @@ export const getAllContentHistories = async (req, res) => {
       p_pagenumber,
       p_pagesize,
       p_search
-    }=req.query;
-  
+    } = req.query;
+
     const result = await client.query(
       `select * from ins.fn_get_analytichistory(
       $1::bigint,
@@ -103,16 +103,16 @@ export const getAllContentHistories = async (req, res) => {
       );`,
       [
         p_adminid,
-        p_statusid||null,
-        p_providers||null,
-        p_contenttype||null,
-        p_sortorder||"DESC",
-        p_pagenumber||1,
-        p_pagesize||20,
-        p_search||null
+        p_statusid || null,
+        p_providers || null,
+        p_contenttype || null,
+        p_sortorder || "DESC",
+        p_pagenumber || 1,
+        p_pagesize || 20,
+        p_search || null
       ]
     );
-    
+
     const data = result.rows[0].fn_get_analytichistory;
     return res.status(200).json({
       message: "All content history retrieved successfully.",
@@ -139,16 +139,28 @@ export const getInfluencerContentHistory = async (req, res) => {
       return res.status(400).json({ message: "p_contractcontentlinkid is required." });
     }
 
+    const p_pagenumber = Number(req.query.p_pagenumber) || 1;
+    const p_pagesize = Number(req.query.p_pagesize) || 20;
+
     const result = await client.query(
-      "select * from ins.fn_get_analytichistorydetails($1::bigint,$2::bigint);",
-      [p_adminid, p_contractcontentlinkid]
+      `select * from ins.fn_get_analytichistorydetails($1::bigint,$2::bigint,$3::integer,$4::integer);`,
+      [
+        p_adminid,
+        p_contractcontentlinkid,
+        p_pagenumber,
+        p_pagesize 
+      ]
     );
 
-    const data = result.rows[0].fn_get_analytichistorydetails;
+    const data = result.rows[0].fn_get_analytichistorydetails || [];
 
     return res.status(200).json({
       message: "Content history retrieved successfully.",
-      data
+      data:data,
+      pagination: {
+        p_pagenumber:p_pagenumber,
+        p_pagesize:p_pagesize
+      }
     });
   } catch (error) {
     console.error("Error in getInfluencerContentHistory:", error);
