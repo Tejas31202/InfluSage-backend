@@ -320,10 +320,10 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
         io.to(`user_${toUserId}`).emit("receiveNotification", latest);          
       }
 
-      return res.status(200).json({
-        message: p_message,
-        status: p_status
-      });
+      // return res.status(200).json({
+      //   message: p_message,
+      //   status: p_status
+      // });
     }
 
     // Case 2: p_status = 0 → DB validation fail
