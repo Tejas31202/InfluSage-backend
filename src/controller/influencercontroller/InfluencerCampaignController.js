@@ -1,6 +1,6 @@
 import { client } from '../../config/Db.js';
 import { createClient } from '@supabase/supabase-js';
-import redis from 'redis';
+import Redis from '../../utils/redisWrapper.js';
 import { io } from '../../../app.js'
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -8,8 +8,8 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const redisClient = redis.createClient({ url: process.env.REDIS_URL });
-redisClient.connect().catch(console.error);
+// const Redis = redis.createClient({ url: process.env.REDIS_URL });
+// Redis.connect().catch(console.error);
 
 
 //For Selected Camapign Details
@@ -211,7 +211,7 @@ export const applyNowCampaign = async (req, res) => {
         console.error("Error fetching notifications", err);
       }
 
-      await redisClient.del(redisKey);
+      await Redis.del(redisKey);
 
       return res.status(200).json({
         status: true,
@@ -272,7 +272,7 @@ export const getUsersAppliedCampaigns = async (req, res) => {
     const redisKey = `applyCampaign:${userId}:${p_sortby}:${p_sortorder}:${p_pagenumber}:${p_pagesize}`;
 
     //Try Cache First From Redis
-    const cachedData = await redisClient.get(redisKey);
+    const cachedData = await Redis.get(redisKey);
     if (cachedData) {
       return res.status(200).json({
         data: JSON.parse(cachedData),
@@ -446,7 +446,7 @@ export const getSingleApplyCampaign = async (req, res) => {
     const redisKey = `applyCampaign:${userId}:${campaignId}`;
 
     // 1 Try cache first
-    const cachedData = await redisClient.get(redisKey);
+    const cachedData = await Redis.get(redisKey);
     if (cachedData) {
       return res.status(200).json({
         data: JSON.parse(cachedData),
@@ -508,7 +508,7 @@ export const getUserCampaignWithDetails = async (req, res) => {
 
     // 2 Get applied campaign details (check Redis first)
     const redisKey = `applyCampaign:${userId}:${campaignId}`;
-    const cachedData = await redisClient.get(redisKey);
+    const cachedData = await Redis.get(redisKey);
 
     if (cachedData) {
       responseData.appliedDetails = JSON.parse(cachedData);
@@ -676,7 +676,7 @@ export const deleteApplyNowPortfolioFile = async (req, res) => {
     }
 
     // Step 1: Redis se data fetch karo
-    let campaignData = await redisClient.get(redisKey);
+    let campaignData = await Redis.get(redisKey);
     if (campaignData) {
       campaignData = JSON.parse(campaignData);
 
@@ -688,7 +688,7 @@ export const deleteApplyNowPortfolioFile = async (req, res) => {
           );
 
         // Update Redis data
-        await redisClient.setEx(redisKey, 7200, JSON.stringify(campaignData));
+        await Redis.setEx(redisKey, 7200, JSON.stringify(campaignData));
       }
     }
 

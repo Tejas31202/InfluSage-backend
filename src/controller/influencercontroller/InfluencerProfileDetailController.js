@@ -1,6 +1,6 @@
 import { client } from "../../config/Db.js";
 import { createClient } from "@supabase/supabase-js";
-import redis from "redis";
+import Redis from "../../utils/redisWrapper.js";
 import path from "path";
 import fs from "fs";
 
@@ -9,8 +9,8 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const redisClient = redis.createClient({ url: process.env.REDIS_URL });
-redisClient.connect().catch(console.error);
+// const Redis = redis.createClient({ url: process.env.REDIS_URL });
+// Redis.connect().catch(console.error);
 
 
 //New Code With Changes
@@ -60,7 +60,7 @@ export const completeUserProfile = async (req, res) => {
     };
 
     const saveToRedis = async (data) => {
-      await redisClient.setEx(redisKey, 604800, JSON.stringify(data));
+      await Redis.setEx(redisKey, 604800, JSON.stringify(data));
     };
 
     // Parse JSON fields
@@ -167,7 +167,7 @@ export const completeUserProfile = async (req, res) => {
       ...(paymentjson && { paymentjson: safeParse(paymentjson) }),
     };
 
-    const existingRedis = await redisClient.get(redisKey).catch(() => null);
+    const existingRedis = await Redis.get(redisKey).catch(() => null);
     const redisData = existingRedis ? safeParse(existingRedis) : {};
     const finalData = { ...redisData, ...mergedData };
 
@@ -211,7 +211,7 @@ export const completeUserProfile = async (req, res) => {
           ]
         );
         await client.query("COMMIT");
-        await redisClient.del(redisKey);
+        await Redis.del(redisKey);
         return res
           .status(200)
           .json({ message: "Profile saved successfully (DB)", source: "db" });
@@ -265,7 +265,7 @@ export const completeUserProfile = async (req, res) => {
         await client.query("COMMIT");
         const { p_status, p_message } = result.rows[0];
         if (p_status) {
-          await redisClient.del(redisKey);
+          await Redis.del(redisKey);
           return res.status(200).json({
             message: p_message,
             source: "db",
@@ -332,7 +332,7 @@ export const getUserProfile = async (req, res) => {
 
   try {
     // 1. Redis data (may contain partial edits)
-    const cachedData = await redisClient.get(redisKey);
+    const cachedData = await Redis.get(redisKey);
     const redisParsed = cachedData ? JSON.parse(cachedData) : {};
 
     // 2. DB full data
@@ -439,7 +439,7 @@ export const deletePortfolioFile = async (req, res) => {
     const redisKey = `getInfluencerProfile:${userId}`;
 
     // 1 Redis se data fetch
-    let profileData = await redisClient.get(redisKey);
+    let profileData = await Redis.get(redisKey);
     if (profileData) {
       profileData = JSON.parse(profileData);
 
@@ -448,7 +448,7 @@ export const deletePortfolioFile = async (req, res) => {
           (file) => file.filepath !== filePathToDelete
         );
         //Redis store data for 3h->10800sec
-        await redisClient.setEx(redisKey, 10800, JSON.stringify(profileData));
+        await Redis.setEx(redisKey, 10800, JSON.stringify(profileData));
       }
     }
 
