@@ -6,7 +6,11 @@ import {
   getTopPerformingContent,
   getPlatformBreakdown,
   getVendorCampaignList,
-  getVendorCampaignInsight
+  getVendorCampaignInsight,
+  getVendorCampaignPerformanceOvertime,
+  getVendorCampaignEngagementScore,
+  getVendorCampaignTopPerformingContent
+
 } from '../../controller/vendorcontroller/VendorAnalyticsDashboardController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 
@@ -47,9 +51,27 @@ routes.get("/analytics/campaign-list",
   getVendorCampaignList
 )
 
-routes.get("analytics/campaign-insight",
+routes.get("/analytics/campaign-insight",
   authenticateUser(["Vendor"]),
   getVendorCampaignInsight
 )
+
+routes.get("/analytics/campaign-performance-overtime",
+  authenticateUser(["Vendor"]),
+  getVendorCampaignPerformanceOvertime
+)
+
+routes.get("/analytics/campaign-engagement-score",
+  authenticateUser(["Vendor"]),
+  getVendorCampaignEngagementScore
+)
+
+routes.get("/analytics/campaign-topperformig-contents",
+  authenticateUser(["Vendor"]),
+  getVendorCampaignTopPerformingContent
+)
+
+
+
 
 export default routes;
