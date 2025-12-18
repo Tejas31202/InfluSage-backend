@@ -175,10 +175,34 @@ export const getInfluencerFeedBack = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Error in getInfluencerFeedBack:",error);
+    console.error("Error in getInfluencerFeedBack:", error);
     return res.status(500).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
   }
 };
+
+export const getInfluencerActiveCampaignlist = async (req, res) => {
+  const p_userid = req.user?.id || req.query.p_userid;
+  if (!p_userid) return res.status(400).json({ Message: "User Id Required For Get Active Campaign List" });
+  try {
+    const activeCampaignList = await client.query(`
+      select * from ins.fn_get_influenceractivecampaignlist($1::bigint)`,
+      [p_userid]
+    );
+    const activeCampaignRes = activeCampaignList.rows[0].fn_get_influenceractivecampaignlist || [];
+    console.log("active Campaign Result", activeCampaignRes)
+    return res.status(200).json({
+      Message: "Influencer Active Campaign List sucessfully get",
+      data: activeCampaignRes,
+      source: "db"
+    })
+  } catch (error) {
+    console.error("Error in getInfluencer Active Campaign List :", error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
+  }
+}
