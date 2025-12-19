@@ -1,5 +1,37 @@
 import { client } from '../../config/Db.js';
 
+export const getSelectInfluencerListForFeedback= async (req,res) =>{
+try {
+    const vendor_id = req.user?.id;
+    const { campaign_id } = req.query;
+
+    if (!campaign_id){
+      return res.status(400).json({
+      message: "campaign_id is required.",
+    });
+    }
+
+    const result = await client.query(
+      `select * from ins.fn_get_feedbackinfluencers($1::bigint,$2::bigint)`,
+      [campaign_id, vendor_id]
+    );
+
+    const data = result.rows[0].fn_get_feedbackinfluencers;
+
+    return res.status(200).json({
+      message: "Selected influencers for feedback retrieved successfully.",
+      data: data,
+      source: "db",
+    });
+  } catch (error) {
+    console.error("error in getSelectInfluencerListForFeedback", error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
+  }
+}
+
 export const vendorInsertFeedback = async (req, res) => {
   const userId = req.user?.id || req.body.userId;
 
