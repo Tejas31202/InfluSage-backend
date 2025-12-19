@@ -130,15 +130,15 @@ const sentNotificationMap = new Map();
 */
 
 const redisType = process.env.REDIS_PROVIDER === "Local" ? "Upstash" : "Local";
-console.log(`🚀 Redis type active: ${redisType}`);
+console.log(`Redis type active: ${redisType}`);
 
 (async () => {
   try {
     await Redis.set("connection:test", { status: "ok", Redis: redisType });
     const test = await Redis.get("connection:test");
-    console.log("✅ Redis connected successfully:", test);
+    console.log("Redis connected successfully:", test);
   } catch (err) {
-    console.error("❌ Redis connection failed:", err);
+    console.error("Redis connection failed:", err);
   }
 })();
 
@@ -163,7 +163,7 @@ io.on("connection", (socket) => {
   //     // FRONTEND EXPECTS THIS ROOM
   //     socket.join(`user_${userId}`);
   //     socket.join(`notification_${userId}`)
-  //     console.log(`✅ User ${userId} registered`)
+  //     console.log(`User ${userId} registered`)
 
   //     socket.broadcast.emit("user-online", { userId });
   //     socket.emit("online-users", {
@@ -209,9 +209,9 @@ io.on("connection", (socket) => {
   //       sentNotificationMap.set(userId, updatedSet);
   //     }
 
-  //     console.log("📡 Sent unsent notifications:", unsentNotifications.length);
+  //     console.log("Sent unsent notifications:", unsentNotifications.length);
 
-  //     // console.log(`✅ User ${userId} registered`);
+  //     // console.log(`User ${userId} registered`);
   //   } catch (err) {
   //     console.error("Register error:", err);
   //   }
@@ -227,7 +227,7 @@ io.on("connection", (socket) => {
       // FRONTEND EXPECTS THIS ROOM
       socket.join(`user_${userId}`);
       socket.join(`notification_${userId}`)
-      console.log(`✅ User ${userId} registered`)
+      console.log(`User ${userId} registered`)
 
       socket.broadcast.emit("user-online", { userId });
       socket.emit("online-users", {
@@ -252,18 +252,18 @@ io.on("connection", (socket) => {
         );
       }
 
-      console.log("📡 Sent unsent notifications:", notifyData.length);
+      // console.log("Sent unsent notifications:", notifyData.length);
     } catch (err) {
       console.error("Register error:", err);
     }
   });
 
-  socket.on("clearPopupNotifications", ({ userId }) => {
-    if (!userId) return;
+  // socket.on("clearPopupNotifications", ({ userId }) => {
+  //   if (!userId) return;
 
-    io.to(`user_${userId}`).emit("removePopupNotifications");
-    console.log(`✅ Popup notifications cleared for user ${userId}`);
-  });
+  //   io.to(`user_${userId}`).emit("removePopupNotifications");
+  //   console.log(`✅ Popup notifications cleared for user ${userId}`);
+  // });
 
   /* ---------------- FRONTEND SUPPORT EVENT ---------------- */
   // socket.on("registerUser", ({ userId }) => {
@@ -273,13 +273,13 @@ io.on("connection", (socket) => {
   /* ---------------- NOTIFICATIONS ---------------- */
   socket.on("sendNotification", ({ toUserId, message }) => {
     io.to(`notification_${toUserId}`).emit("receiveNotification", { message });
-    console.log(`🔔 Notification sent to ${toUserId}`);
+    // console.log(`🔔 Notification sent to ${toUserId}`);
   });
 
   /* ---------------- CHAT ROOMS ---------------- */
   socket.on("joinRoom", (conversationId) => {
     socket.join(conversationId); // DO NOT CHANGE
-    console.log(`💬 Joined room ${conversationId}`);
+    console.log(`Joined room ${conversationId}`);
   });
 
   socket.on("leaveRoom", (conversationId) => {
@@ -315,7 +315,7 @@ socket.on("deleteMessage", ({ messageId, conversationId }) => {
 
 socket.on("messageRead", ({ messageId, conversationId, role }) => {
     if (!messageId || !conversationId) {
-      console.log("❌ INVALID READ EVENT", { messageId, conversationId, role });
+      // console.log("❌ INVALID READ EVENT", { messageId, conversationId, role });
       return;
     }
 
@@ -325,7 +325,7 @@ socket.on("messageRead", ({ messageId, conversationId, role }) => {
       readbyinfluencer: Number(role) === 1,
       readbyvendor: Number(role) === 2,
     };
-  console.log("📡 EMIT updateMessageStatus", payload);
+  // console.log("📡 EMIT updateMessageStatus", payload);
 
     io.to(String(conversationId)).emit("updateMessageStatus", payload);
 });
@@ -333,7 +333,7 @@ socket.on("messageRead", ({ messageId, conversationId, role }) => {
   /* ---------------- TICKET ROOMS ---------------- */
   socket.on("joinTicketRoom", (ticketId) => {
     socket.join(`ticket_${ticketId}`);
-    console.log(`🎫 Joined ticket_${ticketId}`);
+    console.log(`Joined ticket_${ticketId}`);
   });
 
   socket.on("leaveTicketRoom", (ticketId) => {
@@ -350,7 +350,7 @@ socket.on("messageRead", ({ messageId, conversationId, role }) => {
         lastSeen: new Date(),
       });
 
-      console.log(`❌ User ${socket.userId} disconnected`);
+      console.log(`User ${socket.userId} disconnected`);
     }
   });
 });

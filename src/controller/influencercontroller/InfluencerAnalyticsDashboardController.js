@@ -475,7 +475,6 @@ export const getInfluencerCampaignEngagementScore = async (req, res) => {
 
 
 export const getInfluencerCampaignTopPerformingContent = async (req, res) => {
-  console.log("Function calling")
   const p_userid = req.user?.id || req.query.p_userid;
   const p_campaignid = req.query.p_campaignid;
   if (!p_userid || !p_campaignid) { return res.status(400).json({ Message: "User Id And Campaign Id Required For Get Campaign Top Performing Content" }) };

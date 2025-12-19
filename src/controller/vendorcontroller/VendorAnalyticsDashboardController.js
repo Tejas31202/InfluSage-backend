@@ -181,7 +181,6 @@ export const getVendorCampaignList = async (req, res) => {
 }
 
 export const getVendorCampaignInsight = async (req, res) => {
-  console.log("Function Calling")
   const p_userid = req.user?.id || req.query.p_userid;
   const p_campaignid = req.query.p_campaignid;
   if (!p_userid || !p_campaignid) return res.status(400).json({ Message: "User Id And Campaign Id Required For Campaign insight Details" });
@@ -194,7 +193,7 @@ export const getVendorCampaignInsight = async (req, res) => {
       ]
     );
     const campaignInsightRes = campaignInsight.rows[0].fn_get_vendorcampaigninsight || [];
-    console.log("Campaign insight Result =>", campaignInsightRes)
+   
     return res.status(200).json({
       Message: "Campaign Insight Details Get Successfully",
       data: campaignInsightRes,
@@ -251,7 +250,7 @@ export const getVendorCampaignTopPerformingContent = async (req, res) => {
       ]
     );
     const topperformingcontentRes = topPerformingContent.rows[0].fn_get_vendorcampaigntopperformingcontent || [];
-    console.log("TopPerformingResult", topperformingcontentRes)
+    
     return res.status(200).json({
       Message: "Top Performing Content Get Sucessfully",
       data: topperformingcontentRes,

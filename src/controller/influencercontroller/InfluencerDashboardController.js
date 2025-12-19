@@ -192,7 +192,7 @@ export const getInfluencerActiveCampaignlist = async (req, res) => {
       [p_userid]
     );
     const activeCampaignRes = activeCampaignList.rows[0].fn_get_influenceractivecampaignlist || [];
-    console.log("active Campaign Result", activeCampaignRes)
+  
     return res.status(200).json({
       Message: "Influencer Active Campaign List sucessfully get",
       data: activeCampaignRes,
@@ -216,7 +216,7 @@ export const getInfluencerPendingContentList = async (req, res) => {
       [p_userid]
     );
     const pendingContentListRes = pendingContetList.rows[0].fn_get_influencerpendingcontenttypelist;
-    console.log("PendingContent List =>", pendingContentListRes)
+  
     return res.status(200).json({
       Message: "Pending Content List Get Sucessfully",
       data: pendingContentListRes,

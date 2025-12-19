@@ -194,10 +194,10 @@ export const applyNowCampaign = async (req, res) => {
         );
 
         const notifyData = notification.rows[0]?.fn_get_notificationlist || [];
-        console.log("new data:", notifyData);
+        // console.log("new data:", notifyData);
 
         if (notifyData.length === 0) {
-          console.log("No notifications found.");
+          // console.log("No notifications found.");
           return;
         }
 

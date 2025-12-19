@@ -185,7 +185,7 @@ export const completeUserProfile = async (req, res) => {
 
     // Check if all parts are complete
     const isFullyCompleted = completedParts.length === requiredParts.length;
-
+    let result;
     // Handle different p_code states
     switch (userpcode) {
       case "APPROVED":
@@ -195,7 +195,7 @@ export const completeUserProfile = async (req, res) => {
           "SELECT set_config('app.current_user_id', $1, true)",
           [String(userId)]
         );
-        await client.query(
+         result = await client.query(
           `CALL ins.usp_upsert_userprofile(
               $1::bigint, $2::json, $3::json, $4::json, $5::json, $6::json, $7::smallint, $8::text
             )`,
@@ -212,9 +212,8 @@ export const completeUserProfile = async (req, res) => {
         );
         await client.query("COMMIT");
         await Redis.del(redisKey);
-        return res
-          .status(200)
-          .json({ message: "Profile saved successfully (DB)", source: "db" });
+
+        return res.status(200).json(result.rows[0]);
 
       case "BLOCKED":
       case "APPROVALPENDING":
@@ -227,7 +226,7 @@ export const completeUserProfile = async (req, res) => {
 
       case "REJECTED":
       case "PENDINGPROFILE":
-        console.log(userpcode);
+        // console.log(userpcode);
 
         if (!isFullyCompleted) {
           // Incomplete → save in Redis and respond
@@ -247,7 +246,8 @@ export const completeUserProfile = async (req, res) => {
           "SELECT set_config('app.current_user_id', $1, true)",
           [String(userId)]
         );
-        const result = await client.query(
+
+        result = await client.query(
           `CALL ins.usp_upsert_userprofile(
         $1::bigint, $2::json, $3::json, $4::json, $5::json, $6::json, $7::smallint, $8::text
       )`,
@@ -269,26 +269,23 @@ export const completeUserProfile = async (req, res) => {
           return res.status(200).json({
             message: p_message,
             source: "db",
-            data: result.rows[0]
-          })
-          
+            data: result.rows[0],
+          });
         }
 
         return res.status(400).json({
           message: p_message,
-          source: "db"
+          source: "db",
         });
 
       default:
         // Unknown p_code → Save only in Redis
         // return await saveToRedis(finalData, "Unknown p_code — saved in Redis.");
         await saveToRedis(finalData);
-        return res
-          .status(200)
-          .json({
-            message: "Unknown p_code — saved in Redis",
-            source: "redis",
-          });
+        return res.status(200).json({
+          message: "Unknown p_code — saved in Redis",
+          source: "redis",
+        });
     }
   } catch (error) {
     console.error("error in complateUserProfile:", error);
@@ -459,7 +456,7 @@ export const deletePortfolioFile = async (req, res) => {
 
     if (fs.existsSync(fullPath)) {
       fs.unlinkSync(fullPath);
-      console.log(" File deleted from local folder:", fullPath);
+      // console.log(" File deleted from local folder:", fullPath);
     }
 
     // 3 Supabase se delete (actual storage path nikalo)
