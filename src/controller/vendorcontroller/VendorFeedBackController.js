@@ -36,7 +36,7 @@ export const vendorInsertFeedback = async (req, res) => {
     );
     await client.query("COMMIT");
 
-    const feedbackRow = insertFeedback.rows?.[0] || {};
+    const feedbackRow = insertFeedback.rows[0] || {};
     const p_status = Number(feedbackRow.p_status);
     const p_message = feedbackRow.p_message;
 
@@ -47,30 +47,28 @@ export const vendorInsertFeedback = async (req, res) => {
       // SUCCESS
       return res.status(200).json({
         status: true,
-        message: p_message || "Feedback submitted successfully",
-        data: feedbackRow,
+        message: p_message,
+        source:"db"
       });
     } else if (p_status === 0) {
       // VALIDATION FAIL
       return res.status(400).json({
         status: false,
-        message: p_message || "Validation failed",
-        data: feedbackRow,
+        message: p_message,
+        source:"db",
       });
     } else if (p_status === -1) {
       console.error("Stored Procedure Failure:", p_message);
       // PROCEDURE FAILED
       return res.status(500).json({
-        status: false,
+        status: p_status,
         message: "Something went wrong. Please try again later.",
-        data: feedbackRow,
       });
     } else {
       // UNEXPECTED
       return res.status(500).json({
         status: false,
         message: "Unexpected database response",
-        data: feedbackRow,
       });
     }
   } catch (error) {
