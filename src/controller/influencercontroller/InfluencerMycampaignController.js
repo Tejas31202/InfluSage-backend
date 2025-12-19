@@ -26,7 +26,7 @@ export const getClientsList = async (req, res) => {
       source: "db",
     });
   } catch (error) {
-    console.log("Error While Fetching clientList", error);
+    console.error("Error While Fetching clientList", error);
     return res.status(500).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
@@ -100,7 +100,7 @@ export const getInfluencerMyCampaign = async (req, res) => {
       source: "db",
     });
   } catch (error) {
-    console.log("Error Getting Influencer My Campaign", error);
+    console.error("Error Getting Influencer My Campaign", error);
     return res.status(500).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
@@ -140,7 +140,7 @@ export const getInfluencerMyCampaignDetails = async (req, res) => {
       source: "db",
     });
   } catch (error) {
-    console.log("Error Getting Influencer Details", error);
+    console.error("Error Getting Influencer Details:", error);
     return res.status(500).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
@@ -154,7 +154,7 @@ export const getInfluencerMyCampaignStatus = async (req, res) => {
       `SELECT * FROM ins.fn_get_influencermycampaignstatus()`
     )
     const result = status.rows;
-    console.log(result)
+
     return res.status(200).json(
       {
         Message: "Influencer MyCampaign status Fetched Successfully",
