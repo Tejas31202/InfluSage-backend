@@ -90,10 +90,20 @@ const PORT = process.env.BACKEND_PORT || 3001;
 // --------------------
 // Create HTTP server & attach Socket.IO
 // --------------------
+
 const server = createServer(app);
 const onlineUsers = new Map();
 
-const redisType = process.env.REDIS_PROVIDER === "upstash" ? "Upstash" : "Local";
+// 🔥 Track already-sent notifications (socket-memory based)
+const sentNotificationMap = new Map();
+/*
+  Structure:
+  sentNotificationMap = {
+    userId: Set(notificationId)
+  }
+*/
+
+const redisType = process.env.REDIS_PROVIDER === "Local" ? "Upstash" : "Local";
 console.log(`🚀 Redis type active: ${redisType}`);
 
 (async () => {
@@ -116,208 +126,165 @@ export const io = new Server(server, {
 });
 
 io.on("connection", (socket) => {
-  // console.log("🔗 User connected:", socket.id);
+  console.log("🔗 User connected:", socket.id);
 
-  // User registers
-  socket.on("register", async (userId) => {
-    onlineUsers.set(userId, socket.id);
-    socket.userId = userId;
-
-    socket.join(`user_${userId}`);   // NOTIFICATION ROOM
-    console.log(`User ${userId} registered, room: user_${userId}`);
-
-    // Notify all other users
-    socket.broadcast.emit("user-online", { userId });
-
-    // Send current online users to this socket
-    socket.emit("online-users", { userIds: [...onlineUsers.keys()] });
-
+// new changes on to once 
+  socket.once("register", async (userId) => {
     try {
-      // const limitedFlag = req.query?.limitedData;
-      // let limitedFlag = true;
-      const p_role = 'RECEIVER';
+
+      //if user id missing thn return here
+      if (!userId) {
+        console.warn("❌ UserId missing during register");
+        return;
+      }
+      socket.userId = userId;
+      onlineUsers.set(userId, socket.id);
+
+      // FRONTEND EXPECTS THIS ROOM Connects Only Once
+      socket.join(`user_${userId}`);
+      socket.join(`notification_${userId}`)
+      console.log(`✅ User ${userId} registered`)
+
+      socket.broadcast.emit("user-online", { userId });
+      socket.emit("online-users", {
+        userIds: [...onlineUsers.keys()],
+      });
+
+      /* ---- FETCH LATEST NOTIFICATION (UNCHANGED) ---- */
+      const p_role = "RECEIVER";
 
       const notifs = await client.query(
         `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean, $3::text)`,
         [userId, null, p_role]
       );
 
+
       const notifyData = notifs.rows[0]?.fn_get_notificationlist || [];
 
-     if (notifyData.length === 0) {
-          console.log("No notifications found.");
-        } else {
-          const latest = notifyData[0];
-          const toUserId = latest.receiverid;
+      if (notifyData.length > 0) {
+        io.to(`user_${userId}`).emit(
+          "receiveNotification",
+          notifyData
+        );
+      }
 
-          if (toUserId) {
-            io.to(`user_${toUserId}`).emit("receiveNotification", latest);
-            console.log("📩 Sent to:", toUserId);
-          }
-        }
-
+      console.log("📡 Sent unsent notifications:", notifyData.length);
     } catch (err) {
-      console.error("Notification fetch error", err);
+      console.error("Register error:", err);
     }
-
-    console.log(`User ${userId} registered`);
-    io.on("connection", (socket) => {
-      console.log("🔌 User connected", socket.id);
-
-      socket.on("joinUserRoom", (userId) => {
-        socket.join(`user_${userId}`);
-        console.log("✅ User joined notification room:", `user_${userId}`);
-      });
-    });
- 
-
-    // FETCH ALL NOTIFICATIONS FROM DB
-    // try {
-    //   const notifs = await client.query(
-    //     `select * from ins.fn_get_notificationlist($1::bigint, $2::boolean)`,
-    //     [userId, null]
-    //   );
-
-    //   const result = notifs.rows[0]?.fn_get_notificationlist || [];
-
-    //   socket.emit("receiveAllNotifications", result);
-
-    //   console.log(`Sent ${result.length} notifications to user ${userId}`);
-    // } catch (err) {
-    //   console.log("Notification fetch error", err);
-    // }
-  });
-  
-   //send Notification
-  socket.on("sendNotification", ({ toUserId, message }) => {
-    io.to(`user_${toUserId}`).emit("receiveNotification", { message });
-    console.log(`Notification sent to user ${toUserId}: ${message}`);
   });
 
-  
-  // Join room (conversation)
+  socket.on("clearPopupNotifications", ({ userId }) => {
+    if (!userId) return;
+
+    io.to(`user_${userId}`).emit("removePopupNotifications");
+    console.log(`✅ Popup notifications cleared for user ${userId}`);
+  });
+
+  /* ---------------- FRONTEND SUPPORT EVENT ---------------- */
+  // socket.on("registerUser", ({ userId }) => {
+  //   socket.join(`user_${userId}`);
+  // });
+
+  /* ---------------- NOTIFICATIONS ---------------- */
+// newcode Working But MaxListenersExceededWarning error solving change
+  socket.on("sendNotification", async ({ toUserId, message }) => {
+  try {
+    if (!toUserId) return;
+    io.to(`notification_${toUserId}`).emit("receiveNotification", { message });
+    console.log(`🔔 Notification sent to ${toUserId}`);
+  } catch(err) {
+    console.error("sendNotification error:", err);
+  }
+});
+
+
+//old code Working But MaxListenersExceededWarning error solving change
+  // socket.on("sendNotification", ({ toUserId, message }) => {
+  //   io.to(`notification_${toUserId}`).emit("receiveNotification", { message });
+  //   console.log(`🔔 Notification sent to ${toUserId}`);
+  // });
+
+  /* ---------------- CHAT ROOMS ---------------- */
   socket.on("joinRoom", (conversationId) => {
-    socket.join(conversationId);
-    console.log(`Socket ${socket.id} joined room ${conversationId}`);
+    socket.join(conversationId); // DO NOT CHANGE
+    console.log(`💬 Joined room ${conversationId}`);
   });
 
   socket.on("leaveRoom", (conversationId) => {
     socket.leave(conversationId);
-    console.log(`Socket ${socket.id} left room ${conversationId}`);
   });
 
-  // ------------------- SUPPORT TICKET ROOMS -------------------
+  socket.on("sendMessage", (message) => {
+    socket.to(message.conversationId).emit(
+      "receiveMessage",
+      message
+    );
+  });
+
+  socket.on("editMessage", ({ id, content, file, conversationId, replyId }) => {
+    io.to(conversationId).emit("editMessage", {
+      id,
+      content,
+      file,
+      replyId,
+    });
+  });
+
+  socket.on("deleteMessage", ({ messageId, conversationId }) => {
+    io.to(String(conversationId)).emit("deleteMessage", {
+      messageId,
+      conversationId,
+    });
+  });
+
+  socket.on("undoDeleteMessage", ({ messageId, conversationId }) => {
+    io.to(conversationId).emit("undoDeleteMessage", messageId);
+  });
+
+  socket.on("messageRead", ({ messageId, conversationId, role }) => {
+    if (!messageId || !conversationId) {
+      console.log("❌ INVALID READ EVENT", { messageId, conversationId, role });
+      return;
+    }
+
+    const payload = {
+      messageId,
+      conversationId,
+      readbyinfluencer: Number(role) === 1,
+      readbyvendor: Number(role) === 2,
+    };
+    console.log("📡 EMIT updateMessageStatus", payload);
+
+    io.to(String(conversationId)).emit("updateMessageStatus", payload);
+  });
+
+  /* ---------------- TICKET ROOMS ---------------- */
   socket.on("joinTicketRoom", (ticketId) => {
     socket.join(`ticket_${ticketId}`);
-    console.log(`User joined ticket room ticket_${ticketId}`);
+    console.log(`🎫 Joined ticket_${ticketId}`);
   });
 
   socket.on("leaveTicketRoom", (ticketId) => {
     socket.leave(`ticket_${ticketId}`);
-    console.log(`User left ticket room ticket_${ticketId}`);
   });
 
-  socket.on("registerUser", ({ userId }) => {
-    socket.join(`user_${userId}`);
-  });
-
-  socket.on("deleteMessage", ({ messageId, conversationId }) => {
-    io.to(conversationId).emit("deleteMessage", messageId);
-    console.log(`Message ${messageId} marked as deleted in room ${conversationId}`);
-  });
-
-  // Undo delete broadcast
-  socket.on("undoDeleteMessage", ({ messageId, conversationId }) => {
-    io.to(conversationId).emit("undoDeleteMessage", messageId);
-    console.log(`Message ${messageId} restored in room ${conversationId}`);
-  });
-
-  // Message sent
-  socket.on("sendMessage", (message) => {
-    const { conversationId } = message;
-    console.log(`Message received for room ${conversationId}`);
-    socket.to(conversationId).emit("receiveMessage", message);
-  });
-
-
-
-  // // SOCKET.IO NOTIFICATION HANDLER
-  // socket.on("sendNotification", async ({ receiverId, type, extra }) => {
-  //   try {
-  //     // FETCH notification type info from DB
-  //     const typeRes = await client.query(
-  //       `SELECT id, title FROM ins.notifications WHERE type = $1 AND is_active = true`,
-  //       [type]
-  //     );
-
-  //     const notifType = typeRes.rows[0];
-  //     if (!notifType) {
-  //       console.log("Invalid notification type:", type);
-  //       return;
-  //     }
-
-  //     // SAVE to user notification table
-  //     await client.query(
-  //       `INSERT INTO ins.user_notifications(user_id, notification_id, extra_data, created_at)
-  //        VALUES($1, $2, $3, NOW())`,
-  //       [receiverId, notifType.id, JSON.stringify(extra)]
-  //     );
-
-  //     // Prepare notif object
-  //     const notifObj = {
-  //       id: notifType.id,
-  //       type,
-  //       title: notifType.title,
-  //       extra: extra || {},
-  //       createdAt: new Date(),
-  //     };
-
-  //     // Send live notification if user is online
-  //     const receiverSocket = onlineUsers.get(receiverId);
-  //     if (receiverSocket) {
-  //       io.to(receiverSocket).emit("receiveNotification", notifObj);
-  //       console.log(`LIVE Notification sent to user ${receiverId}`);
-  //     } else {
-  //       console.log(`User ${receiverId} OFFLINE — saved only`);
-  //     }
-  //   } catch (err) {
-  //     console.error("Error sending notification:", err);
-  //   }
-  // });
-
-  // Disconnect
+  /* ---------------- DISCONNECT ---------------- */
   socket.on("disconnect", () => {
-    const userId = socket.userId;
-    if (userId) {
-      onlineUsers.delete(userId);
+    if (socket.userId) {
+      onlineUsers.delete(socket.userId);
+      sentNotificationMap.delete(socket.userId);
+
       socket.broadcast.emit("user-offline", {
-        userId,
+        userId: socket.userId,
         lastSeen: new Date(),
       });
-      console.log(`User ${userId} disconnected`);
+
+      console.log(`❌ User ${socket.userId} disconnected`);
     }
   });
-
-  socket.on("messageRead", async ({ messageId, conversationId, role }) => {
-
-    io.to(`conversation_${conversationId}`).emit("updateMessageStatus", {
-      messageId,
-      readbyvendor: role === 1 ? true : undefined,
-      readbyinfluencer: role === 2 ? true : undefined,
-    });
-  });
-
-  // Edit message
-  socket.on("editMessage", ({ id, content, file, conversationId, replyId }) => {
-    if (!id || !conversationId) {
-      console.log("Missing id or conversationId in editMessage", { id, conversationId });
-      return;
-    }
-    io.to(conversationId).emit("editMessage", { id, content, file, replyId });
-    console.log(`Message ${id} edited in room ${conversationId}`);
-  });
-
 });
+
 
 // Start server using HTTP server
 server.listen(PORT, () => {
