@@ -10,7 +10,6 @@ dotenv.config();
 const JWT_SECRET = process.env.JWT_SECRET;
 
 // ================== Helper Functions ==================
-
 async function getUserByEmail(email) {
   const result = await client.query(
     "CALL ins.usp_login_user($1::VARCHAR, $2::JSON, $3::BOOLEAN, $4::TEXT);",
@@ -42,7 +41,6 @@ async function getUserByEmail(email) {
 
   return user;
 }
-
 
 async function createUser(data) {
   const { firstname, lastname, email, passwordhash, roleId } = data;
@@ -144,6 +142,34 @@ export const loginUser = async (req, res) => {
 
 // ================== Google OAuth ==================
 
+// export async function getGoogleLoginPage(req, res) {
+//   try {
+//     const { roleid } = req.query;
+
+//     const redirectUrl =
+//       `https://accounts.google.com/o/oauth2/v2/auth?` +
+//       `client_id=${process.env.GOOGLE_CLIENT_ID}` +
+//       `&redirect_uri=${process.env.BACKEND_URL}/auth/google/callback` +
+//       `&response_type=code` +
+//       `&scope=openid email profile`;
+
+//     res.cookie("selected_role", roleid || 1, {
+//       maxAge: 10 * 60 * 1000,
+//       httpOnly: true,
+//       secure: false,
+//       sameSite: "lax",
+//     });
+
+//     res.redirect(redirectUrl);
+//   } catch (err) {
+//     console.error("[ERROR] getGoogleLoginPage:", err);
+//     res.status(500).json({ message: "Server error generating Google login" });
+//   }
+// }
+
+
+
+//New Updated 
 export async function getGoogleLoginPage(req, res) {
   try {
     const { roleid } = req.query;
@@ -165,56 +191,152 @@ export async function getGoogleLoginPage(req, res) {
     res.redirect(redirectUrl);
   } catch (err) {
     console.error("[ERROR] getGoogleLoginPage:", err);
-    res.status(500).json({ message: "Server error generating Google login" });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: err.message,
+    });
   }
 }
 
+//old 
+// export async function getGoogleLoginCallback(req, res) {
+//   const { code } = req.query;
+//   const selectedRole = req.cookies["selected_role"];
+
+//   if (!code) {
+//     console.error("[ERROR] Invalid Google login attempt");
+//     return res.status(401).json({ message: "Invalid Google login attempt" });
+//   }
+
+//   try {
+//     // ✅ FIX: initialize oauth2Client
+//     const oauth2Client = new google.auth.OAuth2(
+//       process.env.GOOGLE_CLIENT_ID,
+//       process.env.GOOGLE_CLIENT_SECRET,
+//       `${process.env.BACKEND_URL}/auth/google/callback`
+//     );
+
+//     // 🔹 Exchange code for tokens
+//     const { tokens } = await oauth2Client.getToken(code);
+//     oauth2Client.setCredentials(tokens);
+
+//     // 🔹 Get user info from Google
+//     const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
+//     const { data } = await oauth2.userinfo.get();
+//     // console.log("🔹 Google user info:", data);
+
+//     if (!data.email) {
+//       console.error("❌ No email in Google profile");
+//       return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_email`);
+//     }
+
+//     // 🔹 Call your new login SP instead of fn_get_loginpassword
+//     // console.log("🔹 Checking user login in DB:", data.email);
+//     const result = await client.query(
+//       "CALL ins.usp_login_user($1::VARCHAR, $2::JSON, $3::BOOLEAN, $4::TEXT);",
+//       [data.email, null, null, null]
+//     );
+
+//     // console.log("🔹 SP result:", result.rows);
+
+//     const dbResponse = result.rows[0];
+//     const user = dbResponse?.p_loginuser;
+//     const p_status = dbResponse?.p_status;
+//     const p_message = dbResponse?.p_message;
+
+//     // 🔸 If user not found — redirect to role selection page
+//     if (!user || user.code === "NOTREGISTERED") {
+//       const redirectUrl = `${process.env.FRONTEND_URL}/roledefault?email=${encodeURIComponent(
+//         data.email
+//       )}&firstName=${encodeURIComponent(data.given_name || "")}&lastName=${encodeURIComponent(
+//         data.family_name || ""
+//       )}&roleId=${selectedRole || ""}`;
+//       return res.redirect(redirectUrl);
+//     }
+
+//     if (!p_status) {
+//       console.error("❌ Login SP failed:", p_message);
+//       return res.redirect(
+//         `${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(p_message)}`
+//       );
+//     }
+
+//     // 🔹 Generate JWT token
+//     // ✅ Ensure fullname
+// if (user) {
+//   user.fullname =
+//     user.fullname ||
+//     `${user.firstname || ""} ${user.lastname || ""}`.trim() ||
+//     `${data.given_name || ""} ${data.family_name || ""}`.trim() ||
+//     data.name ||
+//     "User";
+// }
+
+// // ✅ Generate JWT with proper fullname
+// const token = generateToken({
+//   id: user.userid,
+//   role: user.roleid,
+//   firstName: user.firstname || data.given_name || "",
+//   lastName: user.lastname || data.family_name || "",
+//   email: user.email,
+//   name: user.fullname,
+// });
+
+// // ✅ Include fullname in redirect
+// const redirectUrl = `${process.env.FRONTEND_URL}/login?token=${token}&userId=${user.userid}&roleId=${user.roleid}&firstName=${encodeURIComponent(
+//   user.firstname || data.given_name || ""
+// )}&lastName=${encodeURIComponent(
+//   user.lastname || data.family_name || ""
+// )}&email=${encodeURIComponent(user.email)}&name=${encodeURIComponent(
+//   user.fullname
+// )}&p_code=${encodeURIComponent(user.code)}&p_message=${encodeURIComponent(
+//   user.message
+// )}`;
+
+
+//     // console.log("✅ Redirecting to:", redirectUrl);
+//     return res.redirect(redirectUrl);
+//   } catch (error) {
+//     console.error("❌ Google Login Error:", error.message);
+//     return res.redirect(`${process.env.FRONTEND_URL}/login?error=google_login_failed`);
+//   }
+// }
+
+// ================== Google Signup Set Password ==================
+
+//New Updated
 export async function getGoogleLoginCallback(req, res) {
   const { code } = req.query;
   const selectedRole = req.cookies["selected_role"];
 
   if (!code) {
-    console.error("[ERROR] Invalid Google login attempt");
     return res.status(401).json({ message: "Invalid Google login attempt" });
   }
 
   try {
-    // ✅ FIX: initialize oauth2Client
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
       `${process.env.BACKEND_URL}/auth/google/callback`
     );
 
-    // 🔹 Exchange code for tokens
     const { tokens } = await oauth2Client.getToken(code);
     oauth2Client.setCredentials(tokens);
 
-    // 🔹 Get user info from Google
     const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
     const { data } = await oauth2.userinfo.get();
-    // console.log("🔹 Google user info:", data);
 
-    if (!data.email) {
-      console.error("❌ No email in Google profile");
-      return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_email`);
-    }
-
-    // 🔹 Call your new login SP instead of fn_get_loginpassword
-    // console.log("🔹 Checking user login in DB:", data.email);
+    // Call DB procedure to check user
     const result = await client.query(
       "CALL ins.usp_login_user($1::VARCHAR, $2::JSON, $3::BOOLEAN, $4::TEXT);",
       [data.email, null, null, null]
     );
-
-    // console.log("🔹 SP result:", result.rows);
 
     const dbResponse = result.rows[0];
     const user = dbResponse?.p_loginuser;
     const p_status = dbResponse?.p_status;
     const p_message = dbResponse?.p_message;
 
-    // 🔸 If user not found — redirect to role selection page
     if (!user || user.code === "NOTREGISTERED") {
       const redirectUrl = `${process.env.FRONTEND_URL}/roledefault?email=${encodeURIComponent(
         data.email
@@ -231,51 +353,100 @@ export async function getGoogleLoginCallback(req, res) {
       );
     }
 
-    // 🔹 Generate JWT token
-    // ✅ Ensure fullname
-if (user) {
-  user.fullname =
-    user.fullname ||
-    `${user.firstname || ""} ${user.lastname || ""}`.trim() ||
-    `${data.given_name || ""} ${data.family_name || ""}`.trim() ||
-    data.name ||
-    "User";
-}
+    // Normalize fullname
+  if(user){  
+    user.fullname =
+      user.fullname ||
+      `${user.firstname || ""} ${user.lastname || ""}`.trim() ||
+      `${data.given_name || ""} ${data.family_name || ""}`.trim() ||
+      data.name ||
+      "User";
+  }
+    // Generate JWT
+    const token = generateToken({
+      id: user.userid,
+      role: user.roleid,
+      firstName: user.firstname || data.given_name || "",
+      lastName: user.lastname || data.family_name || "",
+      email: user.email,
+      name: user.fullname,
+    });
 
-// ✅ Generate JWT with proper fullname
-const token = generateToken({
-  id: user.userid,
-  role: user.roleid,
-  firstName: user.firstname || data.given_name || "",
-  lastName: user.lastname || data.family_name || "",
-  email: user.email,
-  name: user.fullname,
-});
+    const redirectUrl = `${process.env.FRONTEND_URL}/login?token=${token}&userId=${user.userid}&roleId=${user.roleid}&firstName=${encodeURIComponent(
+      user.firstname || data.given_name || ""
+    )}&lastName=${encodeURIComponent(
+      user.lastname || data.family_name || ""
+    )}&email=${encodeURIComponent(user.email)}&name=${encodeURIComponent(
+      user.fullname
+    )}&p_code=${encodeURIComponent(user.code)}&p_message=${encodeURIComponent(
+      user.message
+    )}`;
 
-// ✅ Include fullname in redirect
-const redirectUrl = `${process.env.FRONTEND_URL}/login?token=${token}&userId=${user.userid}&roleId=${user.roleid}&firstName=${encodeURIComponent(
-  user.firstname || data.given_name || ""
-)}&lastName=${encodeURIComponent(
-  user.lastname || data.family_name || ""
-)}&email=${encodeURIComponent(user.email)}&name=${encodeURIComponent(
-  user.fullname
-)}&p_code=${encodeURIComponent(user.code)}&p_message=${encodeURIComponent(
-  user.message
-)}`;
-
-
-    // console.log("✅ Redirecting to:", redirectUrl);
     return res.redirect(redirectUrl);
-  } catch (error) {
-    console.error("❌ Google Login Error:", error.message);
-    return res.redirect(`${process.env.FRONTEND_URL}/login?error=google_login_failed`);
+  } catch (err) {
+    console.error("[ERROR] Google callback:", err);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: err.message,
+    });
   }
 }
 
+//old
+// export async function setPasswordAfterGoogleSignup(req, res) {
+//   try {
+//     const { email, firstName, lastName, roleId, password } = req.body;
+
+//     if (!email || !password || !roleId) {
+//       return res.status(400).json({ message: "Missing required fields" });
+//     }
+
+//     const existingUser = await getUserByEmail(email);
+//     // console.log("existingUser:", existingUser);
+//     if (existingUser) {
+//       return res
+//         .status(400)
+//         .json({ message: "User already exists, please login" });
+//     }
+
+//     const hashedPassword = await bcrypt.hash(password, 10);
+//     await createUser({
+//       firstname: firstName || "",
+//       lastname: lastName || "",
+//       email,
+//       passwordhash: hashedPassword,
+//       roleId,
+//     });
+
+//     const user = await getUserByEmail(email);
+//     const token = generateToken({
+//       id: user.userid,
+//       role: user.roleid,
+//       firstName: user.firstname,
+//       lastName: user.lastname,
+//       email: user.email,
+//     });
+
+//     return res.status(201).json({
+//       success: true,
+//       message: "Signup completed successfully",
+//       token,
+//       user: {
+//         id: user.userid,
+//         role: user.roleid,
+//         firstName: user.firstname,
+//         lastName: user.lastname,
+//         email: user.email,
+//       },
+//     });
+//   } catch (err) {
+//     console.error("[ERROR] setPasswordAfterGoogleSignup failed:", err);
+//     return res.status(500).json({ message: "Server error while creating user" });
+//   }
+// }
 
 
-// ================== Google Signup Set Password ==================
-
+//New Updated
 export async function setPasswordAfterGoogleSignup(req, res) {
   try {
     const { email, firstName, lastName, roleId, password } = req.body;
@@ -284,15 +455,19 @@ export async function setPasswordAfterGoogleSignup(req, res) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    const existingUser = await getUserByEmail(email);
-    // console.log("existingUser:", existingUser);
-    if (existingUser) {
+    // Check if user exists
+    const existingUserRes = await getUserByEmail(email);
+    const existingUser = existingUserRes?.user;
+
+    if (existingUser && existingUser.code !== "NOTREGISTERED") {
       return res
         .status(400)
         .json({ message: "User already exists, please login" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user via procedure
     await createUser({
       firstname: firstName || "",
       lastname: lastName || "",
@@ -301,35 +476,45 @@ export async function setPasswordAfterGoogleSignup(req, res) {
       roleId,
     });
 
-    const user = await getUserByEmail(email);
-    const token = generateToken({
+    // Fetch newly created user
+    const loginRes = await getUserByEmail(email);
+    const user = loginRes?.user;
+
+    const normalizedUser = {
       id: user.userid,
       role: user.roleid,
-      firstName: user.firstname,
-      lastName: user.lastname,
+      name: user.name || `${firstName} ${lastName}`,
       email: user.email,
-    });
+      p_code: user.code,
+    };
+
+    const token = jwt.sign(
+      {
+        id: normalizedUser.id,
+        role: normalizedUser.role,
+        name: normalizedUser.name,
+        email: normalizedUser.email,
+        p_code: normalizedUser.p_code,
+      },
+      JWT_SECRET,
+      { expiresIn: "1h" }
+    );
 
     return res.status(201).json({
       success: true,
       message: "Signup completed successfully",
       token,
-      user: {
-        id: user.userid,
-        role: user.roleid,
-        firstName: user.firstname,
-        lastName: user.lastname,
-        email: user.email,
-      },
+      user: normalizedUser,
     });
   } catch (err) {
-    console.error("[ERROR] setPasswordAfterGoogleSignup failed:", err);
-    return res.status(500).json({ message: "Server error while creating user" });
+    console.error("[ERROR] setPasswordAfterGoogleSignup:", err);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: err.message,
+    });
   }
 }
-
 // ================== Facebook OAuth ==================
-
 export async function getFacebookLoginPage(req, res) {
   try {
     const { roleid } = req.query;
