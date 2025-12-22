@@ -132,6 +132,11 @@ export async function getGoogleLoginCallback(req, res) {
         return res.redirect(redirectUrl);
       }
 
+      if (user?.code === "BLOCKED") {
+        const redirectUrl = `${process.env.FRONTEND_URL}/User?status=${encodeURIComponent}`;
+        return res.redirect(redirectUrl);
+      }
+
       const token = jwt.sign(
         {
           id: user.userid,
@@ -149,7 +154,9 @@ export async function getGoogleLoginCallback(req, res) {
       )}`;
 
       return res.redirect(redirectUrl);
+
     }
+
 
     if (p_status === 0) {
       return res.status(400).json({ status: false, message: p_message });
@@ -252,7 +259,7 @@ export async function getFacebookLoginPage(req, res) {
     const redirectUrl =
       `https://www.facebook.com/v17.0/dialog/oauth?` +
       `client_id=${process.env.FACEBOOK_APP_ID}` +
-      `&redirect_uri=http://localhost:3001/auth/facebook/callback` +
+      `&redirect_uri=${process.env.BACKEND_URL}/auth/facebook/callback` +
       `&scope=email,public_profile`;
 
     res.cookie("selected_role", roleid, {
@@ -279,7 +286,7 @@ export async function getFacebookLoginCallback(req, res) {
   const selectedRole = req.cookies["selected_role"];
 
   if (!code) {
-    return res.redirect("http://localhost:5173/login");
+    return res.redirect(`${process.env.FRONTEND_URL}/login`);
   }
 
   try {
@@ -299,7 +306,7 @@ export async function getFacebookLoginCallback(req, res) {
 
     if (p_status === 1) {
       if (!user || user.code === "NOTREGISTERED") {
-        const redirectUrl = `http://localhost:5173/roledefault?email=${encodeURIComponent(
+        const redirectUrl = `${process.env.FRONTEND_URL}/roledefault?email=${encodeURIComponent(
           fbUser.email
         )}&firstName=${encodeURIComponent(
           fbUser.first_name || ""
@@ -309,6 +316,12 @@ export async function getFacebookLoginCallback(req, res) {
 
         return res.redirect(redirectUrl);
       }
+
+       if (user?.code === "BLOCKED") {
+        const redirectUrl = `${process.env.FRONTEND_URL}/User?status=${encodeURIComponent}`;
+        return res.redirect(redirectUrl);
+      }
+
 
       const token = jwt.sign(
         {
@@ -321,7 +334,7 @@ export async function getFacebookLoginCallback(req, res) {
         { expiresIn: "1h" }
       );
 
-      const redirectUrl = `http://localhost:5173/login?token=${token}&userId=${user.userid}&roleId=${user.roleid}&email=${encodeURIComponent(
+      const redirectUrl = `${process.env.FRONTEND_URL}/login?token=${token}&userId=${user.userid}&roleId=${user.roleid}&email=${encodeURIComponent(
         fbUser.email
       )}`;
 
@@ -338,6 +351,6 @@ export async function getFacebookLoginCallback(req, res) {
     }
   } catch (err) {
     console.error("[ERROR] Facebook callback:", err);
-    return res.redirect("http://localhost:5173/login");
+    return res.redirect(`${process.env.FRONTEND_URL}/login`);
   }
 }
