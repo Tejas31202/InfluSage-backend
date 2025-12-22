@@ -183,28 +183,6 @@ export const getVendorProfile = async (req, res) => {
 
 export const completeVendorProfile = async (req, res) => {
   const userId = req.user?.id || req.body.userid;
-  let username = "user";
-
-  if (req.user?.name) {
-    // Split by space and take first word
-    username = req.user.name.split(" ")[0].trim();
-  }
-
-  //  Fallback: from request body
-  else if (req.body?.firstName) {
-    username = req.body.firstName.trim();
-  }
-
-  // Final fallback: from DB
-  else {
-    const dbUser = await client.query(
-      "SELECT firstname FROM ins.users WHERE id=$1",
-      [userId]
-    );
-    if (dbUser.rows[0]?.firstname) {
-      username = dbUser.rows[0].firstname.trim();
-    }
-  }
 
   const redisKey = `vendorprofile:${userId}`;
 
@@ -235,25 +213,24 @@ export const completeVendorProfile = async (req, res) => {
       }
 
       const fileName = file.originalname;
-      // const newFileName = `${userId}_${username}_photo_${fileName}`;
       const profileFolderPath = `Vendor/${userId}/Profile`;
       const supabasePath = `${profileFolderPath}/${fileName}`;
 
       // List & remove old profile photos (optional cleanup)
       const { data: existingFiles, error: listError } = await supabase.storage
-        .from("uploads")
+        .from(process.env.SUPABASE_BUCKET)
         .list(profileFolderPath, { limit: 100 });
 
       if (!listError && existingFiles?.length > 0) {
         const oldFilePaths = existingFiles.map(
           (f) => `${profileFolderPath}/${f.name}`
         );
-        await supabase.storage.from("uploads").remove(oldFilePaths);
+        await supabase.storage.from(process.env.SUPABASE_BUCKET).remove(oldFilePaths);
       }
 
       // Upload new photo
       const { error: uploadError } = await supabase.storage
-        .from("uploads")
+        .from(process.env.SUPABASE_BUCKET)
         .upload(supabasePath, file.buffer, {
           contentType: file.mimetype,
           upsert: true,
@@ -267,7 +244,7 @@ export const completeVendorProfile = async (req, res) => {
 
       // Get public URL for uploaded image
       const { data: publicUrlData } = supabase.storage
-        .from("uploads")
+        .from(process.env.SUPABASE_BUCKET)
         .getPublicUrl(supabasePath);
 
       if (!publicUrlData?.publicUrl) {

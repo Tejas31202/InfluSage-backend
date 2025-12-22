@@ -47,29 +47,6 @@ export const applyNowCampaign = async (req, res) => {
     const campaignId = req.params.campaignId;
     const redisKey = `applyCampaign:${userId}`;
 
-    let username = "user";
-
-    if (req.user?.name) {
-      // Split by space and take first word
-      username = req.user.name.split(" ")[0].trim();
-    }
-
-    //  Fallback: from request body
-    else if (req.body?.firstName) {
-      username = req.body.firstName.trim();
-    }
-
-    // Final fallback: from DB
-    else {
-      const dbUser = await client.query(
-        "SELECT firstname FROM ins.users WHERE id=$1",
-        [userId]
-      );
-      if (dbUser.rows[0]?.firstname) {
-        username = dbUser.rows[0].firstname.trim();
-      }
-    }
-
     // Unique folder name pattern
     const userFolder = `${userId}`;
 
@@ -96,7 +73,7 @@ export const applyNowCampaign = async (req, res) => {
         try {
           // Step 1: Check if file already exists in Supabase bucket
           const { data: existingFiles, error: listError } = await supabase.storage
-            .from("uploads")
+            .from(process.env.SUPABASE_BUCKET)
             .list(`Influencer/${userFolder}/Campaigns/${campaignId}/ApplyCampaigns/`, {
               search: newFileName,
             });
@@ -113,7 +90,7 @@ export const applyNowCampaign = async (req, res) => {
 
             //add existing file URL to uploadedFiles
             const { data: publicData } = supabase.storage
-              .from("uploads")
+              .from(process.env.SUPABASE_BUCKET)
               .getPublicUrl(uniqueFileName);
             uploadedFiles.push({ filepath: publicData.publicUrl });
 
@@ -123,7 +100,7 @@ export const applyNowCampaign = async (req, res) => {
 
           // Step 2: Upload if file doesn’t exist
           const { error: uploadError } = await supabase.storage
-            .from("uploads")
+            .from(process.env.SUPABASE_BUCKET)
             .upload(uniqueFileName, fileBuffer, {
               contentType: file.mimetype,
               upsert: false,
@@ -138,7 +115,7 @@ export const applyNowCampaign = async (req, res) => {
 
           // Step 3: Get public URL for the uploaded file
           const { data: publicUrlData } = supabase.storage
-            .from("uploads")
+            .from(process.env.SUPABASE_BUCKET)
             .getPublicUrl(uniqueFileName);
 
           uploadedFiles.push({ filepath: publicUrlData.publicUrl });
@@ -698,7 +675,7 @@ export const deleteApplyNowPortfolioFile = async (req, res) => {
 
     // Step 3: Supabase se file delete karo
     const { error: deleteError } = await supabase.storage
-      .from("uploads")
+      .from(process.env.SUPABASE_BUCKET)
       .remove([relativeFilePath]);
 
     if (deleteError) {

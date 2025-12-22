@@ -317,7 +317,7 @@ export async function getFacebookLoginCallback(req, res) {
         return res.redirect(redirectUrl);
       }
 
-       if (user?.code === "BLOCKED") {
+      if (user?.code === "BLOCKED") {
         const redirectUrl = `${process.env.FRONTEND_URL}/User?status=${encodeURIComponent}`;
         return res.redirect(redirectUrl);
       }

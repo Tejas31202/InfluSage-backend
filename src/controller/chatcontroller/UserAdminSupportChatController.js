@@ -276,7 +276,7 @@ export const sendSupportMessage = async (req, res) => {
       }`;
 
       const { error } = await supabase.storage
-        .from("uploads")
+        .from(process.env.SUPABASE_BUCKET)
         .upload(`${ticketFolder}${fileName}`, f.buffer, {
           contentType: f.mimetype,
           upsert: false,
@@ -285,7 +285,7 @@ export const sendSupportMessage = async (req, res) => {
       if (error) return res.status(500).json({ message: "File upload failed" });
 
       const { data: publicUrlData } = supabase.storage
-        .from("uploads")
+        .from(process.env.SUPABASE_BUCKET)
         .getPublicUrl(`${ticketFolder}${fileName}`);
 
       filePaths.push(publicUrlData.publicUrl);

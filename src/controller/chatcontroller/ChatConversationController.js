@@ -7,40 +7,6 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-export const resolveUsername = async (req, res, next) => {
-  const userId = req.user?.id || req.body?.userId;
-  let username = "user";
-
-  try {
-    if (req.user?.name) {
-      // Split by space and take first word
-      username = req.user.name.split(" ")[0].trim();
-    }
-
-    //  Fallback: from request body
-    else if (req.body?.firstName) {
-      username = req.body.firstName.trim();
-    }
-
-    // Final fallback: from DB
-    else {
-      const dbUser = await client.query(
-        "SELECT firstname FROM ins.users WHERE id=$1",
-        [userId]
-      );
-      if (dbUser.rows[0]?.firstname) {
-        username = dbUser.rows[0].firstname.trim();
-      }
-    }
-    req.username = username || "user";
-    next();
-  } catch (err) {
-    console.error("Error resolving username:", err);
-    req.username = "user";
-    next();
-  }
-};
-
 export const startConversation = async (req, res) => {
   const { p_campaignapplicationid } = req.body;
   const p_userid = req.user?.id;
@@ -137,9 +103,7 @@ export const insertMessage = async (req, res) => {
   }
 
   const { p_conversationid, p_roleid, p_messages, p_replyid, p_messageid, campaignid, campaignName, influencerId, influencerName, vendorId, vendorName, tempId  } = req.body || {};
-  const roleId = req.user?.roleId || p_roleid; // sender's role
-  // const userId = req.user?.id; // sender's id
-
+  
   let p_filepaths = null;
   if (req.files && req.files.length > 0) {
     const uploadedUrls = [];
@@ -147,8 +111,6 @@ export const insertMessage = async (req, res) => {
     // Get role and user info
     const roleId = req.user?.roleId || p_roleid;
     const userId = req.user?.id;
-    const username = req.username || "user";
-
 
     for (const file of req.files) {
       const timestamp = Date.now();
@@ -166,7 +128,7 @@ export const insertMessage = async (req, res) => {
 
       // Upload file to Supabase
       const { data, error } = await supabase.storage
-        .from("uploads") // bucket name
+        .from(process.env.SUPABASE_BUCKET) // bucket name
         .upload(uniqueFileName, file.buffer, {
           contentType: file.mimetype,
           upsert: false,
@@ -176,7 +138,7 @@ export const insertMessage = async (req, res) => {
 
       // Get public URL
       const { data: publicData } = supabase.storage
-        .from("uploads")
+        .from(process.env.SUPABASE_BUCKET)
         .getPublicUrl(uniqueFileName);
 
       uploadedUrls.push(publicData.publicUrl);

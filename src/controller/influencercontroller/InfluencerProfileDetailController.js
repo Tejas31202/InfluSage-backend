@@ -36,18 +36,6 @@ export const completeUserProfile = async (req, res) => {
     return res.status(400).json({ message: "User not authenticated" });
   }
   const redisKey = `profile:${userId}`;
-  let username = "user";
-
-  // Username fallback logic
-  if (req.user?.name) username = req.user.name.split(" ")[0].trim();
-  else if (req.body?.firstName) username = req.body.firstName.trim();
-  else {
-    const dbUser = await client.query(
-      "SELECT firstname FROM ins.users WHERE id=$1",
-      [userId]
-    );
-    if (dbUser.rows[0]?.firstname) username = dbUser.rows[0].firstname.trim();
-  }
 
   try {
     // Helper functions
@@ -80,17 +68,17 @@ export const completeUserProfile = async (req, res) => {
       const supabasePath = `${profileFolderPath}/${fileName}`;
 
       const { data: existingFiles } = await supabase.storage
-        .from("uploads")
+        .from(process.env.SUPABASE_BUCKET)
         .list(profileFolderPath);
       if (existingFiles?.length > 0) {
         const oldPaths = existingFiles.map(
           (f) => `${profileFolderPath}/${f.name}`
         );
-        await supabase.storage.from("uploads").remove(oldPaths);
+        await supabase.storage.from(process.env.SUPABASE_BUCKET).remove(oldPaths);
       }
 
       const { error: uploadError } = await supabase.storage
-        .from("uploads")
+        .from(process.env.SUPABASE_BUCKET)
         .upload(supabasePath, file.buffer, {
           contentType: file.mimetype,
           upsert: true,
@@ -101,7 +89,7 @@ export const completeUserProfile = async (req, res) => {
           .json({ message: "Failed to upload profile photo" });
 
       const { data: publicUrlData } = supabase.storage
-        .from("uploads")
+        .from(process.env.SUPABASE_BUCKET)
         .getPublicUrl(supabasePath);
       const photoUrl = publicUrlData?.publicUrl;
 
@@ -121,13 +109,13 @@ export const completeUserProfile = async (req, res) => {
         const supabasePath = `Influencer/${userId}/Portfolio/${fileName}`;
 
         const { data: existingFiles } = await supabase.storage
-          .from("uploads")
+          .from(process.env.SUPABASE_BUCKET)
           .list(`Influencer/${userId}/Portfolio`);
 
         const alreadyExists = existingFiles?.some((f) => f.name === fileName);
         if (!alreadyExists) {
           const { error: uploadError } = await supabase.storage
-            .from("uploads")
+            .from(process.env.SUPABASE_BUCKET)
             .upload(supabasePath, file.buffer, {
               contentType: file.mimetype,
               upsert: false,
@@ -139,7 +127,7 @@ export const completeUserProfile = async (req, res) => {
         }
 
         const { data: publicUrlData } = supabase.storage
-          .from("uploads")
+          .from(process.env.SUPABASE_BUCKET)
           .getPublicUrl(supabasePath);
         uploadedFiles.push({ filepath: publicUrlData.publicUrl });
       }
@@ -460,7 +448,7 @@ export const deletePortfolioFile = async (req, res) => {
     }
 
     // 3 Supabase se delete (actual storage path nikalo)
-    const bucketName = "uploads";
+    const bucketName =process.env.SUPABASE_BUCKET
 
     // Public URL ko relative storage path me convert karo
     const supabaseFilePath = filePathToDelete

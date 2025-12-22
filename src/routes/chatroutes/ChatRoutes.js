@@ -1,6 +1,5 @@
 import express from 'express';
 import {
-  resolveUsername,
   startConversation,
   insertMessage,
   getConversationsdetails,
@@ -24,7 +23,6 @@ routes.post(
 routes.post(
   "/insertmessage",
   authenticateUser(["Influencer", "Vendor"]),
-  resolveUsername,
   upload.array("file", 5),
   insertMessage
 );

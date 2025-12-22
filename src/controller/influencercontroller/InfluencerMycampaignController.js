@@ -140,7 +140,7 @@ export const getInfluencerMyCampaignDetails = async (req, res) => {
       source: "db",
     });
   } catch (error) {
-    console.error("Error Getting Influencer Details:", error);
+    console.error("Error in getInfluencerMyCampaignDetails:", error);
     return res.status(500).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
@@ -163,7 +163,7 @@ export const getInfluencerMyCampaignStatus = async (req, res) => {
       }
     )
   } catch (error) {
-    console.error("Error Getting Influencer Details", error);
+    console.error("Error in getInfluencerMyCampaignStatus:", error);
     return res.status(500).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
