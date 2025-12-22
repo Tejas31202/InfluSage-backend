@@ -40,14 +40,14 @@ export default {
   if (!data) return null;
 
   try {
-    // Upstash already object, local Redis stringified
+    
     if (typeof data === "string") {
-      // Agar string me array/object hai, parse karo
+      
       return JSON.parse(data);
     }
-    return data; // Upstash object
+    return data; 
   } catch (err) {
-    return data; // Agar parse fail ho jaaye, original return
+    return data; 
   }
 },
 

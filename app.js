@@ -129,7 +129,7 @@ const sentNotificationMap = new Map();
   }
 */
 
-const redisType = process.env.REDIS_PROVIDER === "Local" ? "Upstash" : "Local";
+const redisType = process.env.REDIS_PROVIDER === "Upstash" ? "Upstash" : "Local";
 console.log(`Redis type active: ${redisType}`);
 
 (async () => {
