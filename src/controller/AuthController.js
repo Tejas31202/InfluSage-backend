@@ -12,7 +12,7 @@ const JWT_SECRET = process.env.JWT_SECRET;
 // ================== Helper Functions ==================
 async function getUserByEmail(email) {
   const result = await client.query(
-    "CALL ins.usp_login_user($1::VARCHAR, $2::JSON, $3::BOOLEAN, $4::TEXT);",
+    "CALL ins.usp_login_user($1::VARCHAR, $2::JSON, $3::SMALLINT, $4::TEXT);",
     [email, null, null, null]
   );
 
@@ -96,7 +96,7 @@ export const loginUser = async (req, res) => {
 
   try {
     const result = await client.query(
-      "CALL ins.usp_login_user($1::VARCHAR, $2::JSON, $3::BOOLEAN, $4::TEXT);",
+      `CALL ins.usp_login_user($1::VARCHAR, $2::JSON, $3::SMALLINT, $4::TEXT);`,
       [email, null, null, null]
     );
 
@@ -540,10 +540,10 @@ export async function getFacebookLoginCallback(req, res) {
     // 🔹 Exchange code for access token
     const tokenRes = await axios.get(
       `https://graph.facebook.com/v23.0/oauth/access_token?` +
-        `client_id=${process.env.FACEBOOK_APP_ID}` +
-        `&redirect_uri=${process.env.BACKEND_URL}/auth/facebook/callback` +
-        `&client_secret=${process.env.FACEBOOK_APP_SECRET}` +
-        `&code=${code}`
+      `client_id=${process.env.FACEBOOK_APP_ID}` +
+      `&redirect_uri=${process.env.BACKEND_URL}/auth/facebook/callback` +
+      `&client_secret=${process.env.FACEBOOK_APP_SECRET}` +
+      `&code=${code}`
     );
 
     const accessToken = tokenRes.data.access_token;
@@ -571,13 +571,13 @@ export async function getFacebookLoginCallback(req, res) {
     const dbResponse = result.rows[0];
     const user = dbResponse?.p_loginuser;
     // ✅ Ensure fullname is always set
-if (user) {
-  user.fullname =
-    user.fullname || 
-    `${user.firstname || ""} ${user.lastname || ""}`.trim() || 
-    `${fbUser.first_name || ""} ${fbUser.last_name || ""}`.trim() || 
-    "User";
-}
+    if (user) {
+      user.fullname =
+        user.fullname ||
+        `${user.firstname || ""} ${user.lastname || ""}`.trim() ||
+        `${fbUser.first_name || ""} ${fbUser.last_name || ""}`.trim() ||
+        "User";
+    }
 
     const p_status = dbResponse?.p_status;
     const p_message = dbResponse?.p_message;
@@ -602,25 +602,25 @@ if (user) {
 
     // 🔹 Generate JWT token
     const token = generateToken({
-  id: user.userid,
-  role: user.roleid,
-  firstName: user.firstname || fbUser.first_name || "",
-  lastName: user.lastname || fbUser.last_name || "",
-  email: user.email,
-  name: user.fullname, // ✅ Include fullname
-});
+      id: user.userid,
+      role: user.roleid,
+      firstName: user.firstname || fbUser.first_name || "",
+      lastName: user.lastname || fbUser.last_name || "",
+      email: user.email,
+      name: user.fullname, // ✅ Include fullname
+    });
 
 
     const redirectUrl = `${process.env.FRONTEND_URL}/login?` +
-  `token=${token}` +
-  `&userId=${user.userid}` +
-  `&roleId=${user.roleid}` +
-  `&firstName=${encodeURIComponent(user.firstname || fbUser.first_name || "")}` +
-  `&lastName=${encodeURIComponent(user.lastname || fbUser.last_name || "")}` +
-  `&email=${encodeURIComponent(user.email)}` +
-  `&name=${encodeURIComponent(user.fullname)}` + // ✅ send fullname
-  `&p_code=${encodeURIComponent(user.code)}` +
-  `&p_message=${encodeURIComponent(user.message)}`;
+      `token=${token}` +
+      `&userId=${user.userid}` +
+      `&roleId=${user.roleid}` +
+      `&firstName=${encodeURIComponent(user.firstname || fbUser.first_name || "")}` +
+      `&lastName=${encodeURIComponent(user.lastname || fbUser.last_name || "")}` +
+      `&email=${encodeURIComponent(user.email)}` +
+      `&name=${encodeURIComponent(user.fullname)}` + // ✅ send fullname
+      `&p_code=${encodeURIComponent(user.code)}` +
+      `&p_message=${encodeURIComponent(user.message)}`;
 
 
     // console.log("✅ Redirecting to frontend:", redirectUrl);
@@ -654,15 +654,15 @@ if (user) {
 
 //   const result = await client.query(
 //     `CALL ins.usp_insert_user(
-//       $1::VARCHAR,  
-//       $2::VARCHAR,  
-//       $3::VARCHAR,  
-//       $4::VARCHAR,  
-//       $5::BOOLEAN,  
-//       $6::SMALLINT, 
-//       NULL,         
-//       NULL,         
-//       NULL          
+//       $1::VARCHAR,
+//       $2::VARCHAR,
+//       $3::VARCHAR,
+//       $4::VARCHAR,
+//       $5::BOOLEAN,
+//       $6::SMALLINT,
+//       NULL,
+//       NULL,
+//       NULL
 //     )`,
 //     [firstname, lastname, email, passwordhash, true, roleId]
 //   );
