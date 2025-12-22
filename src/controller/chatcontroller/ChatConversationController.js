@@ -89,7 +89,7 @@ export const startConversation = async (req, res) => {
 
       // Emit notifications via socket
       if (notifyData.length === 0) {
-          console.log("No notifications found.");
+          // console.log("No notifications found.");
          return;
       }
         const latest = notifyData[0];
@@ -118,7 +118,7 @@ export const startConversation = async (req, res) => {
       });
     }
   } catch (error) {
-    console.log(error);
+    console.error("error in startConversation:",error);
     return res.status(500).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
@@ -224,7 +224,6 @@ export const insertMessage = async (req, res) => {
     await client.query("COMMIT");
 
     const row = result.rows[0] || {};
-    console.log("RAW RESULT ROWS:", result.rows);
     const p_status = Number(row.p_status);
     const p_message = row.p_message;
     const newMessageId = tempId;
@@ -261,7 +260,7 @@ export const insertMessage = async (req, res) => {
       readbyinfluencer: false,
     };
 
-    console.log("Emitting receiveMessage:", payload);
+    // console.log("Emitting receiveMessage:", payload);
 
     io.to(String(p_conversationid)).emit("receiveMessage", payload);
 

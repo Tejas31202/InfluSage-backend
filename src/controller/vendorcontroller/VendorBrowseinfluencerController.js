@@ -185,7 +185,7 @@ export const getFavouriteInfluencer = async (req, res) => {
       data: influencers,
     });
   } catch (error) {
-    console.log("Error While Favourite Influencer Get", error);
+    console.error("Error While Favourite Influencer Get", error);
     return res.status(500).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,

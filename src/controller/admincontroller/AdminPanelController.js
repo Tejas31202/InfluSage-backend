@@ -310,7 +310,7 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
         const notifyData =
           notificationRes.rows[0]?.fn_get_notificationlist || [];
         if (notifyData.length === 0) {
-          console.log("No notifications found.");
+          // console.log("No notifications found.");
           return;
         } 
           const latest = notifyData[0];
@@ -582,7 +582,7 @@ export const blockInfluencerAndCampaignApplication = async (req, res) => {
 
         const notifyData = notificationRes.rows[0]?.fn_get_notificationlist || [];
         if (notifyData.length === 0) {
-          console.log("No notifications found.");
+          // console.log("No notifications found.");
           return;
         } 
           const latest = notifyData[0];
