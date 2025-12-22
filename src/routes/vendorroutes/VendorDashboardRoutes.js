@@ -4,10 +4,6 @@ import authenticateUser from '../../middleware/AuthMiddleware.js';
 import {
     getVendorCompleteProfilePercentage,
     getVendorPerformanceSummary,
-    // getTotalVendorCampaigns,
-    // getCampaignSummary,
-    // getVendorRecentCampaigns,
-    // getVendorRecentApplications,
     getVendorPendingContentList,
     getVendorCampaignStatusOverview
 } from '../../controller/vendorcontroller/VendorDashboardController.js';
@@ -25,30 +21,6 @@ routes.get(
   authenticateUser(["Vendor"]),
   getVendorPerformanceSummary
 );
-
-// routes.get(
-//   "/dashboard/total-campaigns",
-//   authenticateUser(["Vendor"]),
-//   getTotalVendorCampaigns
-// );
-
-// routes.get(
-//   "/dashboard/campaign-summary",
-//   authenticateUser(["Vendor"]),
-//   getCampaignSummary
-// );
-
-// routes.get(
-//   "/dashboard/recent-campaigns",
-//   authenticateUser(["Vendor"]),
-//   getVendorRecentCampaigns
-// );
-
-// routes.get(
-//   "/dashboard/recent-applications",
-//   authenticateUser(["Vendor"]),
-//   getVendorRecentApplications
-// );
 
 routes.get(
   "/dashboard/pending-content-list",
