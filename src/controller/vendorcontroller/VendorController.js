@@ -8,7 +8,7 @@ import Redis from '../../utils/RedisWrapper.js';
 // const Redis = redis.createClient({ url: process.env.REDIS_URL });
 // Redis.connect().catch(console.error);
 
-import { redisClient } from "../../config/redis.js";
+// import { redisClient } from "../../config/redis.js";
 const JWT_SECRET = process.env.JWT_SECRET;
 
 // Utility: Check if email exists using stored procedure
