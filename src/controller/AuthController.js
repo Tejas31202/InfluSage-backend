@@ -184,7 +184,7 @@ export async function getGoogleLoginPage(req, res) {
     res.cookie("selected_role", roleid || 1, {
       maxAge: 10 * 60 * 1000,
       httpOnly: true,
-      secure: false,
+      secure: true,
       sameSite: "lax",
     });
 
