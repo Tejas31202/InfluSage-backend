@@ -217,19 +217,14 @@ io.on("connection", (socket) => {
   //   }
   // });
 
-// new changes on to once 
-  socket.once("register", async (userId) => {
-    try {
 
-      //if user id missing thn return here
-      if (!userId) {
-        console.warn("❌ UserId missing during register");
-        return;
-      }
+   socket.on("register", async (userId) => {
+    try {
       socket.userId = userId;
+
       onlineUsers.set(userId, socket.id);
 
-      // FRONTEND EXPECTS THIS ROOM Connects Only Once
+      // FRONTEND EXPECTS THIS ROOM
       socket.join(`user_${userId}`);
       socket.join(`notification_${userId}`)
       console.log(`User ${userId} registered`)
@@ -250,7 +245,7 @@ io.on("connection", (socket) => {
 
       const notifyData = notifs.rows[0]?.fn_get_notificationlist || [];
 
-      if (notifyData.length > 0) {
+        if (notifyData.length > 0) {
         io.to(`user_${userId}`).emit(
           "receiveNotification",
           notifyData
@@ -276,25 +271,8 @@ io.on("connection", (socket) => {
   // });
 
   /* ---------------- NOTIFICATIONS ---------------- */
-// newcode Working But MaxListenersExceededWarning error solving change
-  socket.on("sendNotification", async ({ toUserId, message }) => {
-  try {
-    if (!toUserId) return;
+  socket.on("sendNotification", ({ toUserId, message }) => {
     io.to(`notification_${toUserId}`).emit("receiveNotification", { message });
-
-    console.log(`🔔 Notification sent to ${toUserId}`);
-  } catch(err) {
-    console.error("sendNotification error:", err);
-  }
-});
-
-
-//old code Working But MaxListenersExceededWarning error solving change
-  // socket.on("sendNotification", ({ toUserId, message }) => {
-  //   io.to(`notification_${toUserId}`).emit("receiveNotification", { message });
-  //   console.log(`🔔 Notification sent to ${toUserId}`);
-  // });
-
     // console.log(`🔔 Notification sent to ${toUserId}`);
   });
 
@@ -324,18 +302,18 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("deleteMessage", ({ messageId, conversationId }) => {
-    io.to(String(conversationId)).emit("deleteMessage", {
-      messageId,
-      conversationId,
-    });
+socket.on("deleteMessage", ({ messageId, conversationId }) => {
+  io.to(String(conversationId)).emit("deleteMessage", {
+    messageId,
+    conversationId,
   });
+});
 
   socket.on("undoDeleteMessage", ({ messageId, conversationId }) => {
     io.to(conversationId).emit("undoDeleteMessage", messageId);
   });
 
-  socket.on("messageRead", ({ messageId, conversationId, role }) => {
+socket.on("messageRead", ({ messageId, conversationId, role }) => {
     if (!messageId || !conversationId) {
       // console.log("❌ INVALID READ EVENT", { messageId, conversationId, role });
       return;
@@ -347,8 +325,10 @@ io.on("connection", (socket) => {
       readbyinfluencer: Number(role) === 1,
       readbyvendor: Number(role) === 2,
     };
+  // console.log("📡 EMIT updateMessageStatus", payload);
+
     io.to(String(conversationId)).emit("updateMessageStatus", payload);
-  });
+});
 
   /* ---------------- TICKET ROOMS ---------------- */
   socket.on("joinTicketRoom", (ticketId) => {
@@ -364,7 +344,6 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     if (socket.userId) {
       onlineUsers.delete(socket.userId);
-      sentNotificationMap.delete(socket.userId);
 
       socket.broadcast.emit("user-offline", {
         userId: socket.userId,
@@ -374,10 +353,11 @@ io.on("connection", (socket) => {
       console.log(`User ${socket.userId} disconnected`);
     }
   });
-
+});
 
 
 // Start server using HTTP server
 server.listen(PORT, () => {
   console.log("Server started on port", PORT);
 });
+ 
