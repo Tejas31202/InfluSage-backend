@@ -10,19 +10,49 @@ dotenv.config();
 const JWT_SECRET = process.env.JWT_SECRET;
 
 // ================== Helper Functions ==================
+// async function getUserByEmail(email) {
+//   const result = await client.query(
+//     "CALL ins.usp_login_user($1::VARCHAR, $2::JSON, $3::SMALLINT, $4::TEXT);",
+//     [email, null, null, null]
+//   );
+
+//   const dbResponse = result.rows?.[0];
+//   if (!dbResponse) return null;
+
+//   const { p_loginuser, p_status, p_message } = dbResponse;
+//   let user = p_loginuser;
+
+//   // ✅ Parse JSON if returned as string
+//   if (typeof user === "string") {
+//     try {
+//       user = JSON.parse(user);
+//     } catch {
+//       user = null;
+//     }
+//   }
+
+//   if (!user || user.code === "NOTREGISTERED" || !user.userid) {
+//     console.warn(`[INFO] No user found for ${email}: ${user?.message || p_message}`);
+//     return null;
+//   }
+
+//   // ✅ Add fullname fallback
+//   user.fullname = user.fullname || `${user.firstname || ""} ${user.lastname || ""}`.trim();
+
+//   return user;
+// }
+
+//new updated
 async function getUserByEmail(email) {
   const result = await client.query(
     "CALL ins.usp_login_user($1::VARCHAR, $2::JSON, $3::SMALLINT, $4::TEXT);",
     [email, null, null, null]
   );
 
-  const dbResponse = result.rows?.[0];
-  if (!dbResponse) return null;
+  const row = result.rows?.[0] || {};
 
-  const { p_loginuser, p_status, p_message } = dbResponse;
-  let user = p_loginuser;
+  let user = row.p_loginuser || null;
 
-  // ✅ Parse JSON if returned as string
   if (typeof user === "string") {
     try {
       user = JSON.parse(user);
@@ -31,16 +61,13 @@ async function getUserByEmail(email) {
     }
   }
 
-  if (!user || user.code === "NOTREGISTERED" || !user.userid) {
-    console.warn(`[INFO] No user found for ${email}: ${user?.message || p_message}`);
-    return null;
-  }
-
-  // ✅ Add fullname fallback
-  user.fullname = user.fullname || `${user.firstname || ""} ${user.lastname || ""}`.trim();
-
-  return user;
+  return {
+    p_status: Number(row.p_status ?? 0),
+    p_message: row.p_message || "Unknown DB response",
+    user,
+  };
 }
+
 
 async function createUser(data) {
   const { firstname, lastname, email, passwordhash, roleId } = data;
