@@ -81,8 +81,7 @@ async function createUser(data) {
       $5::BOOLEAN,  
       $6::SMALLINT, 
       NULL,         
-      NULL,         
-      NULL          
+      NULL         
     )`,
     [firstname, lastname, email, passwordhash, true, roleId]
   );
