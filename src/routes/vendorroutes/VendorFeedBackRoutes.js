@@ -13,6 +13,6 @@ routes.get(
   getSelectInfluencerListForFeedback
 );
 
-routes.post("/feedback", authenticateUser(["Vendor"]), vendorInsertFeedback);
+routes.post("/feedback", vendorInsertFeedback);
 
 export default routes;

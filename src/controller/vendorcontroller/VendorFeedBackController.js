@@ -1,14 +1,14 @@
 import { client } from '../../config/Db.js';
 
-export const getSelectInfluencerListForFeedback= async (req,res) =>{
-try {
+export const getSelectInfluencerListForFeedback = async (req, res) => {
+  try {
     const vendor_id = req.user?.id;
     const { campaign_id } = req.query;
 
-    if (!campaign_id){
+    if (!campaign_id) {
       return res.status(400).json({
-      message: "campaign_id is required.",
-    });
+        message: "campaign_id is required.",
+      });
     }
 
     const result = await client.query(
@@ -33,71 +33,54 @@ try {
 }
 
 export const vendorInsertFeedback = async (req, res) => {
-  const userId = req.user?.id || req.body.userId;
+  const { p_contractid, p_rating, p_text } = req.body;
 
-  if (!userId) {
-    return res.status(401).json({
-      status: false,
-      message: "Unauthorized: user not found",
-    });
-  }
-
-  const { p_campaignid, influencerid, p_rating, p_text } = req.body;
-  if (!p_campaignid || !influencerid) {
-    return res.status(400).json({
-      status: false,
-      message: "campaignId and influencerId are required.",
-    });
+  if (!p_contractid) {
+    return res.status(400).json({ status: false, message: "Contract Id Required For Feedback" });
   }
 
   try {
-    await client.query("BEGIN");
-    await client.query("SELECT set_config('app.current_user_id', $1, true)", [
-      String(userId),
-    ]);
-    const insertFeedback = await client.query(
-      `CALL ins.usp_insert_feedback (
-            $1::BIGINT,
-            $2::BIGINT,
-            $3::SMALLINT,
-            $4::TEXT,
-            $5::smallint,
-            $6::TEXT
-            )`,
-      [p_campaignid, influencerid, p_rating, p_text, null, null]
-    );
-    await client.query("COMMIT");
+    const insertFeedback = await client.query(`
+      CALL ins.usp_upsert_feedback(
+        $1::bigint,
+        $2::smallint,
+        $3::text,
+        $4::smallint,
+        $5::text
+      )
+    `,
+      [
+        p_contractid,
+        p_rating || null,
+        p_text || null,
+        null,
+        null
+      ]);
 
-    const feedbackRow = insertFeedback.rows[0] || {};
+    const feedbackRow = insertFeedback.rows?.[0] || {};
     const p_status = Number(feedbackRow.p_status);
     const p_message = feedbackRow.p_message;
 
-    // -------------------------------
-    //  HANDLE p_status
-    // -------------------------------
     if (p_status === 1) {
       // SUCCESS
       return res.status(200).json({
         status: true,
         message: p_message,
-        source:"db"
+        source: "db"
       });
     } else if (p_status === 0) {
-      // VALIDATION FAIL
       return res.status(400).json({
         status: false,
         message: p_message,
-        source:"db",
+        source: "db",
       });
     } else if (p_status === -1) {
       console.error("Stored Procedure Failure:", p_message);
-      // PROCEDURE FAILED
       return res.status(500).json({
         status: p_status,
         message: "Something went wrong. Please try again later.",
       });
     } else {
-      // UNEXPECTED
       return res.status(500).json({
         status: false,
         message: "Unexpected database response",
@@ -111,4 +94,3 @@ export const vendorInsertFeedback = async (req, res) => {
     });
   }
 };
-
