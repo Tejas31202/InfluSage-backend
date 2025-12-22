@@ -281,7 +281,7 @@ io.on("connection", (socket) => {
   try {
     if (!toUserId) return;
     io.to(`notification_${toUserId}`).emit("receiveNotification", { message });
-<<<<<<< HEAD
+
     console.log(`🔔 Notification sent to ${toUserId}`);
   } catch(err) {
     console.error("sendNotification error:", err);
@@ -294,10 +294,9 @@ io.on("connection", (socket) => {
   //   io.to(`notification_${toUserId}`).emit("receiveNotification", { message });
   //   console.log(`🔔 Notification sent to ${toUserId}`);
   // });
-=======
+
     // console.log(`🔔 Notification sent to ${toUserId}`);
   });
->>>>>>> 3bf9d2e7dbb9325d9d0ab9f12c3ba018494a48f0
 
   /* ---------------- CHAT ROOMS ---------------- */
   socket.on("joinRoom", (conversationId) => {
@@ -348,12 +347,6 @@ io.on("connection", (socket) => {
       readbyinfluencer: Number(role) === 1,
       readbyvendor: Number(role) === 2,
     };
-<<<<<<< HEAD
-    console.log("📡 EMIT updateMessageStatus", payload);
-=======
-  // console.log("📡 EMIT updateMessageStatus", payload);
->>>>>>> 3bf9d2e7dbb9325d9d0ab9f12c3ba018494a48f0
-
     io.to(String(conversationId)).emit("updateMessageStatus", payload);
   });
 
@@ -381,7 +374,7 @@ io.on("connection", (socket) => {
       console.log(`User ${socket.userId} disconnected`);
     }
   });
-});
+
 
 
 // Start server using HTTP server
