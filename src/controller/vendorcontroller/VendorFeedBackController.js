@@ -34,12 +34,25 @@ export const getSelectInfluencerListForFeedback = async (req, res) => {
 
 export const vendorInsertFeedback = async (req, res) => {
   const { p_contractid, p_rating, p_text } = req.body;
+  const userId = req.user?.id || req.body.userId;
+
+  if (!userId) {
+    return res.status(401).json({
+      status: false,
+      message: "Unauthorized: user not found",
+    });
+  }
 
   if (!p_contractid) {
     return res.status(400).json({ status: false, message: "Contract Id Required For Feedback" });
   }
 
   try {
+    await client.query("BEGIN");
+    await client.query(
+      "SELECT set_config('app.current_user_id', $1, true)",
+      [String(userId)]
+    );
     const insertFeedback = await client.query(`
       CALL ins.usp_upsert_feedback(
         $1::bigint,
@@ -56,6 +69,8 @@ export const vendorInsertFeedback = async (req, res) => {
         null,
         null
       ]);
+
+      await client.query("COMMIT");
 
     const feedbackRow = insertFeedback.rows?.[0] || {};
     const p_status = Number(feedbackRow.p_status);
