@@ -72,14 +72,14 @@ export async function getGoogleLoginPage(req, res) {
     const redirectUrl =
       `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${process.env.GOOGLE_CLIENT_ID}` +
-      `&redirect_uri=http://localhost:3001/auth/google/callback` +
+      `&redirect_uri=${process.env.BACKEND_URL}/auth/google/callback` +
       `&response_type=code` +
       `&scope=openid email profile`;
 
     res.cookie("selected_role", roleid || 1, {
       maxAge: 10 * 60 * 1000,
       httpOnly: true,
-      secure: false,
+      secure: true, //false to true new updated
       sameSite: "lax",
     });
 
@@ -108,7 +108,7 @@ export async function getGoogleLoginCallback(req, res) {
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      "http://localhost:3001/auth/google/callback"
+      `${process.env.BACKEND_URL}/auth/google/callback`
     );
 
     const { tokens } = await oauth2Client.getToken(code);
@@ -121,7 +121,7 @@ export async function getGoogleLoginCallback(req, res) {
 
     if (p_status === 1) {
       if (!user || user.code === "NOTREGISTERED") {
-        const redirectUrl = `http://localhost:5173/roledefault?email=${encodeURIComponent(
+        const redirectUrl = `${process.env.FRONTEND_URL}/roledefault?email=${encodeURIComponent(
           data.email
         )}&firstName=${encodeURIComponent(
           data.given_name || ""
@@ -144,7 +144,7 @@ export async function getGoogleLoginCallback(req, res) {
         { expiresIn: "1h" }
       );
 
-      const redirectUrl = `http://localhost:5173/login?token=${token}&userId=${user.userid}&roleId=${user.roleid}&email=${encodeURIComponent(
+      const redirectUrl = `${process.env.FRONTEND_URL}/login?token=${token}&userId=${user.userid}&roleId=${user.roleid}&email=${encodeURIComponent(
         data.email
       )}`;
 
