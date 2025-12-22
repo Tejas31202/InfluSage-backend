@@ -538,125 +538,134 @@ export async function getFacebookLoginPage(req, res) {
       `https://www.facebook.com/v23.0/dialog/oauth?` +
       `client_id=${process.env.FACEBOOK_APP_ID}` +
       `&redirect_uri=${process.env.BACKEND_URL}/auth/facebook/callback` +
+      `&response_type=code` +
       `&scope=email,public_profile`;
 
-    res.cookie("selected_role", roleid, {
-      maxAge: 10 * 60 * 1000,
+    // ✅ SAME AS GOOGLE
+    res.cookie("selected_role", roleid || 1, {
+      maxAge: 10 * 60 * 1000, // 10 minutes
       httpOnly: true,
       secure: true,
-      sameSite: "none",
+      sameSite: "lax",
     });
 
-    res.redirect(redirectUrl);
+    return res.redirect(redirectUrl);
   } catch (err) {
     console.error("[ERROR] getFacebookLoginPage:", err);
-    res.status(500).json({ message: "Server error generating Facebook login" });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: err.message,
+    });
   }
 }
 
+
 export async function getFacebookLoginCallback(req, res) {
-  const { code, err } = req.query;
+  const { code, error } = req.query;
   const selectedRole = req.cookies["selected_role"];
 
-  if (err || !code) {
-    console.warn("[INFO] Facebook login canceled or invalid attempt");
-    return res.redirect(`${process.env.FRONTEND_URL}/login?error=facebook_login_canceled`);
+  if (error || !code) {
+    return res.redirect(
+      `${process.env.FRONTEND_URL}/login?error=facebook_login_canceled`
+    );
   }
 
   try {
     // 🔹 Exchange code for access token
     const tokenRes = await axios.get(
-      `https://graph.facebook.com/v23.0/oauth/access_token?` +
-      `client_id=${process.env.FACEBOOK_APP_ID}` +
-      `&redirect_uri=${process.env.BACKEND_URL}/auth/facebook/callback` +
-      `&client_secret=${process.env.FACEBOOK_APP_SECRET}` +
-      `&code=${code}`
+      `https://graph.facebook.com/v23.0/oauth/access_token`,
+      {
+        params: {
+          client_id: process.env.FACEBOOK_APP_ID,
+          redirect_uri: `${process.env.BACKEND_URL}/auth/facebook/callback`,
+          client_secret: process.env.FACEBOOK_APP_SECRET,
+          code,
+        },
+      }
     );
 
     const accessToken = tokenRes.data.access_token;
 
-    // 🔹 Fetch user info from Facebook
-    const userRes = await axios.get(
-      `https://graph.facebook.com/me?fields=first_name,last_name,email&access_token=${accessToken}`
+    // 🔹 Fetch Facebook user info
+    const { data } = await axios.get(
+      `https://graph.facebook.com/me`,
+      {
+        params: {
+          fields: "first_name,last_name,email",
+          access_token: accessToken,
+        },
+      }
     );
 
-    const fbUser = userRes.data;
-    // console.log("🔹 Facebook user info:", fbUser);
-
-    if (!fbUser.email) {
-      console.error("❌ No email found in Facebook response");
-      return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_email`);
-    }
-
-    // 🔹 Call login stored procedure
-    // console.log("🔹 Checking user in DB:", fbUser.email);
-    const result = await client.query(
-      "CALL ins.usp_login_user($1::VARCHAR, $2::JSON, $3::BOOLEAN, $4::TEXT);",
-      [fbUser.email, null, null, null]
-    );
-
-    const dbResponse = result.rows[0];
-    const user = dbResponse?.p_loginuser;
-    // ✅ Ensure fullname is always set
-    if (user) {
-      user.fullname =
-        user.fullname ||
-        `${user.firstname || ""} ${user.lastname || ""}`.trim() ||
-        `${fbUser.first_name || ""} ${fbUser.last_name || ""}`.trim() ||
-        "User";
-    }
-
-    const p_status = dbResponse?.p_status;
-    const p_message = dbResponse?.p_message;
-
-    // 🔸 If user is not registered — redirect to role selection
-    if (!user || user.code === "NOTREGISTERED") {
-      const redirectUrl = `${process.env.FRONTEND_URL}/roledefault?email=${encodeURIComponent(
-        fbUser.email
-      )}&firstName=${encodeURIComponent(fbUser.first_name || "")}&lastName=${encodeURIComponent(
-        fbUser.last_name || ""
-      )}&roleId=${selectedRole || ""}`;
-      // console.log("🔸 Redirecting to signup role page:", redirectUrl);
-      return res.redirect(redirectUrl);
-    }
-
-    if (!p_status) {
-      console.error("❌ Facebook login SP failed:", p_message);
+    if (!data.email) {
       return res.redirect(
-        `${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(p_message)}`
+        `${process.env.FRONTEND_URL}/login?error=no_email`
       );
     }
 
-    // 🔹 Generate JWT token
-    const token = generateToken({
-      id: user.userid,
-      role: user.roleid,
-      firstName: user.firstname || fbUser.first_name || "",
-      lastName: user.lastname || fbUser.last_name || "",
-      email: user.email,
-      name: user.fullname, // ✅ Include fullname
+    // 🔹 SAME AS GOOGLE → Check user by email
+    const { p_status, p_message, user } = await getUserByEmail(data.email);
+
+    if (p_status === 1) {
+      // 🔸 Not registered → role selection
+      if (!user || user.code === "NOTREGISTERED") {
+        const redirectUrl =
+          `${process.env.FRONTEND_URL}/roledefault` +
+          `?email=${encodeURIComponent(data.email)}` +
+          `&firstName=${encodeURIComponent(data.first_name || "")}` +
+          `&lastName=${encodeURIComponent(data.last_name || "")}` +
+          `&roleId=${selectedRole || ""}`;
+
+        return res.redirect(redirectUrl);
+      }
+
+      // 🔹 Generate JWT (same structure as Google)
+      const token = jwt.sign(
+        {
+          id: user.userid,
+          role: user.roleid,
+          email: data.email,
+          name:
+            user.name ||
+            `${data.first_name || ""} ${data.last_name || ""}`.trim(),
+          p_code: user.code,
+        },
+        JWT_SECRET,
+        { expiresIn: "1h" }
+      );
+
+      const redirectUrl =
+        `${process.env.FRONTEND_URL}/login` +
+        `?token=${token}` +
+        `&userId=${user.userid}` +
+        `&roleId=${user.roleid}` +
+        `&email=${encodeURIComponent(data.email)}`;
+
+      return res.redirect(redirectUrl);
+    }
+
+    if (p_status === 0) {
+      return res.status(400).json({
+        status: false,
+        message: p_message,
+      });
+    }
+
+    if (p_status === -1) {
+      console.error("USP Error:", p_message);
+      return res.status(500).json({
+        message: "Database error during login",
+      });
+    }
+  } catch (err) {
+    console.error("[ERROR] Facebook callback:", err);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: err.message,
     });
-
-
-    const redirectUrl = `${process.env.FRONTEND_URL}/login?` +
-      `token=${token}` +
-      `&userId=${user.userid}` +
-      `&roleId=${user.roleid}` +
-      `&firstName=${encodeURIComponent(user.firstname || fbUser.first_name || "")}` +
-      `&lastName=${encodeURIComponent(user.lastname || fbUser.last_name || "")}` +
-      `&email=${encodeURIComponent(user.email)}` +
-      `&name=${encodeURIComponent(user.fullname)}` + // ✅ send fullname
-      `&p_code=${encodeURIComponent(user.code)}` +
-      `&p_message=${encodeURIComponent(user.message)}`;
-
-
-    // console.log("✅ Redirecting to frontend:", redirectUrl);
-    return res.redirect(redirectUrl);
-  } catch (error) {
-    console.error("❌ Facebook Login Error:", error.message);
-    return res.redirect(`${process.env.FRONTEND_URL}/login?error=facebook_login_failed`);
   }
 }
+
 
 
 
