@@ -305,6 +305,7 @@ export async function getGoogleLoginPage(req, res) {
 // ================== Google Signup Set Password ==================
 
 //New Updated
+
 export async function getGoogleLoginCallback(req, res) {
   const { code } = req.query;
   const selectedRole = req.cookies["selected_role"];
@@ -326,63 +327,48 @@ export async function getGoogleLoginCallback(req, res) {
     const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
     const { data } = await oauth2.userinfo.get();
 
-    // Call DB procedure to check user
-    const result = await client.query(
-      "CALL ins.usp_login_user($1::VARCHAR, $2::JSON, $3::BOOLEAN, $4::TEXT);",
-      [data.email, null, null, null]
-    );
+    const { p_status, p_message, user } = await getUserByEmail(data.email);
 
-    const dbResponse = result.rows[0];
-    const user = dbResponse?.p_loginuser;
-    const p_status = dbResponse?.p_status;
-    const p_message = dbResponse?.p_message;
+    if (p_status === 1) {
+      if (!user || user.code === "NOTREGISTERED") {
+        const redirectUrl = `${process.env.FRONTEND_URL}/roledefault?email=${encodeURIComponent(
+          data.email
+        )}&firstName=${encodeURIComponent(
+          data.given_name || ""
+        )}&lastName=${encodeURIComponent(
+          data.family_name || ""
+        )}&roleId=${selectedRole || ""}`;
 
-    if (!user || user.code === "NOTREGISTERED") {
-      const redirectUrl = `${process.env.FRONTEND_URL}/roledefault?email=${encodeURIComponent(
+        return res.redirect(redirectUrl);
+      }
+
+      const token = jwt.sign(
+        {
+          id: user.userid,
+          role: user.roleid,
+          email: data.email,
+          name: user.name,
+          p_code: user.code,
+        },
+        JWT_SECRET,
+        { expiresIn: "1h" }
+      );
+
+      const redirectUrl = `${process.env.FRONTEND_URL}/login?token=${token}&userId=${user.userid}&roleId=${user.roleid}&email=${encodeURIComponent(
         data.email
-      )}&firstName=${encodeURIComponent(data.given_name || "")}&lastName=${encodeURIComponent(
-        data.family_name || ""
-      )}&roleId=${selectedRole || ""}`;
+      )}`;
+
       return res.redirect(redirectUrl);
     }
 
-    if (!p_status) {
-      console.error("❌ Login SP failed:", p_message);
-      return res.redirect(
-        `${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(p_message)}`
-      );
+    if (p_status === 0) {
+      return res.status(400).json({ status: false, message: p_message });
     }
 
-    // Normalize fullname
-  if(user){  
-    user.fullname =
-      user.fullname ||
-      `${user.firstname || ""} ${user.lastname || ""}`.trim() ||
-      `${data.given_name || ""} ${data.family_name || ""}`.trim() ||
-      data.name ||
-      "User";
-  }
-    // Generate JWT
-    const token = generateToken({
-      id: user.userid,
-      role: user.roleid,
-      firstName: user.firstname || data.given_name || "",
-      lastName: user.lastname || data.family_name || "",
-      email: user.email,
-      name: user.fullname,
-    });
-
-    const redirectUrl = `${process.env.FRONTEND_URL}/login?token=${token}&userId=${user.userid}&roleId=${user.roleid}&firstName=${encodeURIComponent(
-      user.firstname || data.given_name || ""
-    )}&lastName=${encodeURIComponent(
-      user.lastname || data.family_name || ""
-    )}&email=${encodeURIComponent(user.email)}&name=${encodeURIComponent(
-      user.fullname
-    )}&p_code=${encodeURIComponent(user.code)}&p_message=${encodeURIComponent(
-      user.message
-    )}`;
-
-    return res.redirect(redirectUrl);
+    if (p_status === -1) {
+      console.error("USP Error:", p_message);
+      return res.status(500).json({ message: "Database error during login" });
+    }
   } catch (err) {
     console.error("[ERROR] Google callback:", err);
     return res.status(500).json({
@@ -391,7 +377,6 @@ export async function getGoogleLoginCallback(req, res) {
     });
   }
 }
-
 //old
 // export async function setPasswordAfterGoogleSignup(req, res) {
 //   try {
@@ -455,22 +440,22 @@ export async function setPasswordAfterGoogleSignup(req, res) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    // Check if user exists
-    const existingUserRes = await getUserByEmail(email);
-    const existingUser = existingUserRes?.user;
+    // Check if user already exists
+    const { p_status, user } = await getUserByEmail(email);
 
-    if (existingUser && existingUser.code !== "NOTREGISTERED") {
+    if (p_status === 1 && user && user.code !== "NOTREGISTERED") {
       return res
         .status(400)
         .json({ message: "User already exists, please login" });
     }
 
+    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create user via procedure
     await createUser({
-      firstname: firstName || "",
-      lastname: lastName || "",
+      firstName: firstName || "",
+      lastName: lastName || "",
       email,
       passwordhash: hashedPassword,
       roleId,
@@ -478,27 +463,30 @@ export async function setPasswordAfterGoogleSignup(req, res) {
 
     // Fetch newly created user
     const loginRes = await getUserByEmail(email);
-    const user = loginRes?.user;
+
 
     const normalizedUser = {
-      id: user.userid,
-      role: user.roleid,
-      name: user.name || `${firstName} ${lastName}`,
-      email: user.email,
-      p_code: user.code,
+      id: loginRes.user.userid,
+      role: loginRes.user.roleid,
+      name: loginRes.user.name || `${firstName} ${lastName}`,
+      email: loginRes.user.email,
+      p_code: loginRes.user.code,
     };
 
+    // Generate JWT
     const token = jwt.sign(
       {
         id: normalizedUser.id,
         role: normalizedUser.role,
         name: normalizedUser.name,
         email: normalizedUser.email,
-        p_code: normalizedUser.p_code,
+        p_code: normalizedUser.code,
       },
       JWT_SECRET,
       { expiresIn: "1h" }
     );
+
+    // console.log("User after set password:", user);
 
     return res.status(201).json({
       success: true,
