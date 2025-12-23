@@ -8,7 +8,6 @@ export const getOffersForCampaign = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
     const { sortby, sortorder, pagenumber, pagesize, p_search } = req.query;
-
     const result = await client.query(
       `SELECT * from ins.fn_get_campaignoffer(
       $1:: bigint,
@@ -32,7 +31,6 @@ export const getOffersForCampaign = async (req, res) => {
     if (!result.rows) {
       return res.status(404).json({ message: "campaign offer not found." });
     }
-
     const offers = result.rows[0].fn_get_campaignoffer;
     //Return Data From Db
     return res.status(200).json({
@@ -62,12 +60,10 @@ export const getViewAllOffersForSingleCampaign = async (req, res) => {
         )`,
       [campaignId, pagenumber || 1, pagesize || 20, p_search || null]
     );
-
     //Check Db Return Data OR Not
     if (!result.rows) {
       return res.status(404).json({ message: "campaign offer not found." });
     }
-
     const offers = result.rows[0].fn_get_appliedcampaignapplications;
     //Return Data From Db
     return res.status(200).json({

@@ -11,20 +11,18 @@ export const startConversation = async (req, res) => {
   const { p_campaignapplicationid } = req.body;
   const p_userid = req.user?.id;
 
-
   if (!p_campaignapplicationid) {
     return res.status(400).json({
       message: "campaignapplicationid  Id Require",
     });
   }
 
-
   try {
     await client.query("BEGIN");
     await client.query(
-          "SELECT set_config('app.current_user_id', $1, true)",
-          [String(p_userid)]
-        );
+      "SELECT set_config('app.current_user_id', $1, true)",
+      [String(p_userid)]
+    );
     const result = await client.query(
       `call ins.usp_upsert_conversation(
         $1::bigint,
@@ -55,14 +53,13 @@ export const startConversation = async (req, res) => {
 
       // Emit notifications via socket
       if (notifyData.length === 0) {
-          // console.log("No notifications found.");
-         return;
+        return;
       }
-        const latest = notifyData[0];
-        const toUserId = latest.receiverid;
-        if (!toUserId) return;
+      const latest = notifyData[0];
+      const toUserId = latest.receiverid;
+      if (!toUserId) return;
 
-        io.to(`user_${toUserId}`).emit("receiveNotification", notifyData);     
+      io.to(`user_${toUserId}`).emit("receiveNotification", notifyData);
 
       return res.status(200).json({
         status: true,
@@ -76,15 +73,15 @@ export const startConversation = async (req, res) => {
         source: "db",
       });
     }
-    
-     else {
+
+    else {
       return res.status(500).json({
         status: false,
         message: p_message || "Unexpected database response",
       });
     }
   } catch (error) {
-    console.error("error in startConversation:",error);
+    console.error("error in startConversation:", error);
     return res.status(500).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
@@ -93,7 +90,7 @@ export const startConversation = async (req, res) => {
 };
 
 export const insertMessage = async (req, res) => {
-   const userId = req.user?.id || req.body.userId;
+  const userId = req.user?.id || req.body.userId;
 
   if (!userId) {
     return res.status(401).json({
@@ -102,8 +99,8 @@ export const insertMessage = async (req, res) => {
     });
   }
 
-  const { p_conversationid, p_roleid, p_messages, p_replyid, p_messageid, campaignid, campaignName, influencerId, influencerName, vendorId, vendorName, tempId  } = req.body || {};
-  
+  const { p_conversationid, p_roleid, p_messages, p_replyid, p_messageid, campaignid, campaignName, influencerId, influencerName, vendorId, vendorName, tempId } = req.body || {};
+
   let p_filepaths = null;
   if (req.files && req.files.length > 0) {
     const uploadedUrls = [];
@@ -158,9 +155,9 @@ export const insertMessage = async (req, res) => {
   try {
     await client.query("BEGIN");
     await client.query(
-          "SELECT set_config('app.current_user_id', $1, true)",
-          [String(userId)]
-        );
+      "SELECT set_config('app.current_user_id', $1, true)",
+      [String(userId)]
+    );
     const result = await client.query(
       `CALL ins.usp_upsert_message(
         $1::bigint, 
@@ -191,8 +188,8 @@ export const insertMessage = async (req, res) => {
     const newMessageId = tempId;
 
     if (p_status === 1) {
-    const entityId = userId;
-    const entityType = "user";
+      const entityId = userId;
+      const entityType = "user";
       let entityDetails = null;
 
       const entityResult = await client.query(
@@ -202,39 +199,37 @@ export const insertMessage = async (req, res) => {
 
       entityDetails = entityResult.rows[0] || null;
 
-    const payload = {
-      tempId,
-      messageid: tempId,
-      is_deleted: false,
-      conversationid: p_conversationid,
-      message: p_messages || "",
-      filepaths: p_filepaths ? p_filepaths.split(",") : [],
-      roleid: p_roleid,
-      replyid: p_replyid || null,
-      createddate: new Date().toISOString(),
-      userid: req.user?.id,
-      campaignid,
-      influencerId,
-      vendorId,
-      name: entityDetails?.name || "",
-      photopath: entityDetails?.photopath || "",
-      readbyvendor: false,
-      readbyinfluencer: false,
-    };
+      const payload = {
+        tempId,
+        messageid: tempId,
+        is_deleted: false,
+        conversationid: p_conversationid,
+        message: p_messages || "",
+        filepaths: p_filepaths ? p_filepaths.split(",") : [],
+        roleid: p_roleid,
+        replyid: p_replyid || null,
+        createddate: new Date().toISOString(),
+        userid: req.user?.id,
+        campaignid,
+        influencerId,
+        vendorId,
+        name: entityDetails?.name || "",
+        photopath: entityDetails?.photopath || "",
+        readbyvendor: false,
+        readbyinfluencer: false,
+      };
 
-    // console.log("Emitting receiveMessage:", payload);
+      io.to(String(p_conversationid)).emit("receiveMessage", payload);
 
-    io.to(String(p_conversationid)).emit("receiveMessage", payload);
-
-    return res.status(200).json({
-      status: p_status,
-      message: p_message,
-      tempId,
-      messageid: newMessageId,
-      filePaths: p_filepaths ? p_filepaths.split(",") : [],
-      source: "db",
-    });
-  } else if (p_status === 0) {
+      return res.status(200).json({
+        status: p_status,
+        message: p_message,
+        tempId,
+        messageid: newMessageId,
+        filePaths: p_filepaths ? p_filepaths.split(",") : [],
+        source: "db",
+      });
+    } else if (p_status === 0) {
       return res.status(400).json({
         status: false,
         message: p_message,
@@ -262,7 +257,6 @@ export const insertMessage = async (req, res) => {
     });
   }
 };
-
 //Get Conversations (Full)
 export const getConversationsdetails = async (req, res) => {
   try {
@@ -300,7 +294,6 @@ export const getConversationsdetails = async (req, res) => {
 export const getMessages = async (req, res) => {
   try {
     const { p_conversationid, p_roleid, p_limit, p_offset } = req.query;
-
     if (!p_conversationid) {
       return res.status(400).json({ message: "Conversation ID is required." });
     }
@@ -346,7 +339,6 @@ export const getMessages = async (req, res) => {
   }
 };
 
-
 export const updateUndoMessage = async (req, res) => {
   const userId = req.user?.id || req.body.userId;
 
@@ -366,9 +358,9 @@ export const updateUndoMessage = async (req, res) => {
 
     await client.query("BEGIN");
     await client.query(
-          "SELECT set_config('app.current_user_id', $1, true)",
-          [String(userId)]
-        );
+      "SELECT set_config('app.current_user_id', $1, true)",
+      [String(userId)]
+    );
     const result = await client.query(
       `CALL ins.usp_update_undomessage(
         $1::BIGINT,
@@ -390,20 +382,20 @@ export const updateUndoMessage = async (req, res) => {
         message: p_message || "Message updated successfully",
         p_status,
       });
-    } 
+    }
     else if (p_status === 0) {
       return res.status(400).json({
         message: p_message || "Validation failed",
         p_status,
       });
-    } 
+    }
     else if (p_status === -1) {
       console.error("Stored Procedure Failure:", p_message);
       return res.status(500).json({
         message: "Something went wrong. Please try again later.",
         p_status: false,
       });
-    } 
+    }
     else {
       return res.status(500).json({
         message: "Unexpected database response",

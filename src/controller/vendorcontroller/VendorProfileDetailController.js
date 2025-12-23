@@ -37,8 +37,8 @@ export const getCompanySizes = async (req, res) => {
     }
 
     const result = await client.query("SELECT * FROM ins.fn_get_companysize()");
-    //Redis Store data for 1h -> 3600 sec
-    await Redis.setEx(redisKey, 3600, JSON.stringify(result.rows)); // TTL 10 mins
+    
+    await Redis.setEx(redisKey, 3600, JSON.stringify(result.rows)); // TTL 3600 sec (1h)
 
     return res.status(200).json({
       companySizes: result.rows,
@@ -55,7 +55,6 @@ export const getCompanySizes = async (req, res) => {
 
 export const getInfluencerTiers = async (req, res) => {
   const redisKey = "influencer_tiers";
-
   try {
     const cachedData = await Redis.get(redisKey);
 
@@ -86,7 +85,7 @@ export const getInfluencerTiers = async (req, res) => {
 };
 
 export const getUserNameByEmail = async (req, res) => {
-  const { email } = req.params; // or use req.body.email if POST
+  const { email } = req.params;
 
   try {
     const result = await client.query(
@@ -116,13 +115,10 @@ export const getUserNameByEmail = async (req, res) => {
 export const getVendorProfile = async (req, res) => {
   const vendorId = req.params.userId;
   const redisKey = `vendorprofile:${vendorId}`;
-
   try {
     const cachedData = await Redis.get(redisKey);
-
     if (cachedData) {
       const parsed = JSON.parse(cachedData);
-
       const profileParts = {
         p_profile: parsed.profilejson || {},
         p_categories: parsed.categoriesjson || {},
@@ -130,11 +126,9 @@ export const getVendorProfile = async (req, res) => {
         p_objectives: parsed.objectivesjson || {},
         p_paymentaccounts: parsed.paymentjson || {},
       };
-
       const profileCompletion = calculateProfileCompletion(
         Object.values(profileParts)
       );
-
       return res.status(200).json({
         message: "Partial profile from Redis",
         profileParts,
@@ -142,17 +136,14 @@ export const getVendorProfile = async (req, res) => {
         source: "redis",
       });
     }
-
     // If not in Redis → fetch from DB
     const result = await client.query(
       `SELECT * FROM ins.fn_get_vendorprofile($1::BIGINT)`,
       [vendorId]
     );
-
     if (result.rows.length === 0) {
       return res.status(404).json({ message: "Vendor not found." });
     }
-
     const {
       p_profile,
       p_categories,
@@ -160,7 +151,6 @@ export const getVendorProfile = async (req, res) => {
       p_objectives,
       p_paymentaccounts,
     } = result.rows[0];
-
     return res.status(200).json({
       message: "get vendor profile from db",
       profileParts: {
@@ -187,9 +177,7 @@ export const completeVendorProfile = async (req, res) => {
   const redisKey = `vendorprofile:${userId}`;
 
   try {
-    // ---------------------------
-    // 1 Parse JSON fields from req.body (safe)
-    // ---------------------------
+    // 1 Parse JSON fields from req.body (safe) 
     const {
       profilejson = null,
       categoriesjson = null,
@@ -201,9 +189,7 @@ export const completeVendorProfile = async (req, res) => {
     // Step 1: Handle uploaded photo
     let updatedProfileJson = profilejson ? JSON.parse(profilejson) : {};
 
-    // ---------------------------
     // 2 Handle Profile Photo Upload (Debug + Safe Upload)
-    // ---------------------------
     if (req.file) {
       const file = req.file;
 
@@ -211,7 +197,6 @@ export const completeVendorProfile = async (req, res) => {
       if (!file.buffer || file.buffer.length === 0) {
         return res.status(400).json({ message: "No valid file buffer found" });
       }
-
       const fileName = file.originalname;
       const profileFolderPath = `Vendor/${userId}/Profile`;
       const supabasePath = `${profileFolderPath}/${fileName}`;
@@ -271,24 +256,22 @@ export const completeVendorProfile = async (req, res) => {
       ...(paymentjson && { paymentjson: safeParse(paymentjson) }),
     };
 
-    // ---------------------------
     // 5 Check existing profile from DB
-    // ---------------------------
     const dbCheck = await client.query(
       `SELECT * FROM ins.fn_get_vendorprofile($1::BIGINT)`,
       [userId]
     );
     const existingUser = dbCheck.rows[0];
 
-    // ---------------------------
     // 6 Logic based on existing profile
-    // ---------------------------
     if (
       existingUser?.p_categories !== null &&
       existingUser?.p_objectives !== null
     ) {
       // CASE A: User already has provider  + objectives → update in DB
       try {
+        //for db how much time taken for execute query
+        const dbStart = Date.now();
         await client.query("BEGIN");
         await client.query(
           "SELECT set_config('app.current_user_id', $1, true)",
@@ -309,23 +292,18 @@ export const completeVendorProfile = async (req, res) => {
             null,
           ]
         );
+        //for db how much time taken for execute
+        console.log("DB query:", Date.now() - dbStart, "ms");
 
         await client.query("COMMIT");
-
         const { p_status, p_message } = result.rows[0] || {};
 
-        // ----------------------
         //  NEW p_status logic
-        // ----------------------
-        if (p_status === 1)
-          return res.status(200).json({ message: p_message, p_status });
+        if (p_status === 1) return res.status(200).json({ message: p_message, p_status });
 
-        if (p_status === 0)
-          return res.status(400).json({ message: p_message, p_status });
+        if (p_status === 0) return res.status(400).json({ message: p_message, p_status });
 
-        if (p_status === -1)
-          // console.error("Stored Procedure Failure:", p_message);
-          return res.status(500).json({ message: "something went wrong" });
+        if (p_status === -1) return res.status(500).json({ message: "something went wrong" });
 
         return res.status(500).json({
           message: "Unknown database response",
@@ -346,13 +324,11 @@ export const completeVendorProfile = async (req, res) => {
           console.warn("Redis data corrupted:", e);
         }
       }
-
       // 2 Merge Redis + current request body (request takes priority)
       const finalData = {
         ...redisData,
         ...mergedData,
       };
-
       // 3 Check completeness AFTER merging
       const allPartsPresent =
         finalData.profilejson &&
@@ -360,14 +336,12 @@ export const completeVendorProfile = async (req, res) => {
         finalData.providersjson &&
         finalData.objectivesjson &&
         finalData.paymentjson;
-
       // 4 Now update mergedData to be finalData going forward
       mergedData.profilejson = finalData.profilejson;
       mergedData.categoriesjson = finalData.categoriesjson;
       mergedData.providersjson = finalData.providersjson;
       mergedData.objectivesjson = finalData.objectivesjson;
       mergedData.paymentjson = finalData.paymentjson;
-
       //  CASE B: User new or incomplete → check Redis
       if (!allPartsPresent) {
         const existingRedis = await Redis.get(redisKey);
@@ -438,21 +412,16 @@ export const completeVendorProfile = async (req, res) => {
 
 export const getObjectives = async (req, res) => {
   const redisKey = "vendor_objectives";
-
   try {
     const cachedData = await Redis.get(redisKey);
-
     if (cachedData) {
       return res.status(200).json({
         objectives: JSON.parse(cachedData),
         source: "redis",
       });
     }
-
     const result = await client.query("SELECT * FROM ins.fn_get_objectives();");
-
     await Redis.setEx(redisKey, 86400, JSON.stringify(result.rows)); // TTL: 24h
-
     return res.status(200).json({
       objectives: result.rows,
       source: "db",

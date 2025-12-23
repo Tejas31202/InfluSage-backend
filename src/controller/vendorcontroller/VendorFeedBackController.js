@@ -35,7 +35,6 @@ export const getSelectInfluencerListForFeedback = async (req, res) => {
 export const vendorInsertFeedback = async (req, res) => {
   const { p_contractid, p_rating, p_text } = req.body;
   const userId = req.user?.id || req.body.userId;
-
   if (!userId) {
     return res.status(401).json({
       status: false,

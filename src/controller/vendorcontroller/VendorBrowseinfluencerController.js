@@ -7,7 +7,7 @@ import Redis from '../../utils/redisWrapper.js';
 //..................GET INFLUENCER BROWSE DETAILS...........
 export const getInfluencerBrowseDetails = async (req, res) => {
   try {
-    const userId=req.user?.id||req.body.userId
+    const userId = req.user?.id || req.body.userId
     const influencerId = req.params.influencerId;
 
     if (!influencerId) {
@@ -17,14 +17,14 @@ export const getInfluencerBrowseDetails = async (req, res) => {
     //Data Given Form DB
     const result = await client.query(
       `SELECT * FROM ins.fn_get_influencerbrowsedetails($1::bigint,$2::bigint);`,
-      [userId,influencerId]
+      [userId, influencerId]
     );
 
     const influencer = result.rows[0]?.fn_get_influencerbrowsedetails[0];
 
     return res.status(200).json({
       message: "Influencers Browse Details Form DB",
-      result:influencer,
+      result: influencer,
       source: "db",
     });
   } catch (error) {
@@ -38,20 +38,20 @@ export const getInfluencerBrowseDetails = async (req, res) => {
 //..................BROWSE ALL INFLUENCER...............
 export const browseAllInfluencer = async (req, res) => {
   try {
-    const userId = req.user?.id || req.body.p_userid ;
+    const userId = req.user?.id || req.body.p_userid;
 
     const {
       p_location,
       p_providers,
       p_influencertiers,
-      p_ratings ,
+      p_ratings,
       p_genders,
       p_languages,
       p_pagenumber,
       p_pagesize,
       p_search
     } = req.query;
-  
+
     const result = await client.query(
       `SELECT * FROM ins.fn_get_influencerbrowse(
     $1::BIGINT,
@@ -67,19 +67,17 @@ export const browseAllInfluencer = async (req, res) => {
   )`,
       [
         userId,
-        p_location||null,
-        p_providers||null,
-        p_influencertiers||null,
-        p_ratings||null ,
-        p_genders||null ,
-        p_languages||null,
+        p_location || null,
+        p_providers || null,
+        p_influencertiers || null,
+        p_ratings || null,
+        p_genders || null,
+        p_languages || null,
         p_pagenumber || 1,
         p_pagesize || 20,
-        p_search||null,
+        p_search || null,
       ]
     );
-
-    
     const influencers = result.rows[0].fn_get_influencerbrowse;
 
     if (influencers.length === 0) {
@@ -101,22 +99,19 @@ export const browseAllInfluencer = async (req, res) => {
 };
 //................Add Favourite Influencer................
 export const addFavouriteInfluencer = async (req, res) => {
-   const userId = req.user?.id;  // ||  req.body.userId;
+  const userId = req.user?.id;
   const { p_influencerId } = req.body;
-
   if (!userId) {
     return res.status(400).json({
       message: "userId is required",
     });
   }
-  
   if (!p_influencerId) {
     return res.status(400).json({
       status: false,
       message: "Missing InfluencerId",
     });
   }
-
   try {
     const result = await client.query(
       `CALL ins.usp_insert_influencersave(
@@ -132,9 +127,7 @@ export const addFavouriteInfluencer = async (req, res) => {
     const p_status = Number(row.p_status);
     const p_message = row.p_message;
 
-    // -------------------------------
     //  HANDLE p_status
-    // -------------------------------
     if (p_status === 1) {
       return res.status(200).json({
         status: true,
@@ -157,7 +150,6 @@ export const addFavouriteInfluencer = async (req, res) => {
         message: "Unexpected database response",
       });
     }
-
   } catch (error) {
     console.error("Error in addFavouriteInfluencer:", error);
     return res.status(500).json({
@@ -169,17 +161,13 @@ export const addFavouriteInfluencer = async (req, res) => {
 //...............Get Favourite Influencer.................
 export const getFavouriteInfluencer = async (req, res) => {
   const { userId, p_pagenumber, p_pagesize, p_search } = req.query;
-
   if (!userId) return res.status(400).json({ message: "Userid Require" });
-
   try {
     const result = await client.query(
       `SELECT * FROM ins.fn_get_influencersave($1::BIGINT,$2,$3,$4)`,
       [userId, p_pagenumber || 1, p_pagesize || 20, p_search]
     );
-
     const influencers = result.rows[0]?.fn_get_influencersave;
-
     return res.json({
       status: true,
       data: influencers,
@@ -297,7 +285,7 @@ export const insertCampaignInvites = async (req, res) => {
       });
     }
   } catch (error) {
-    console.error("error in insertCampaignInvites:",error);
+    console.error("error in insertCampaignInvites:", error);
     return res.status(500).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,

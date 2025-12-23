@@ -138,21 +138,19 @@ export const createOrEditContract = async (req, res) => {
   }
 };
 
-export const getContractDetailByContractId = async (req,res)=>{
-     try {
+export const getContractDetailByContractId = async (req, res) => {
+  try {
     const p_userid = req.user?.id || req.query.p_userid;
-    const p_contractid =req.params.p_contractid ;
+    const p_contractid = req.params.p_contractid;
 
-    if (!p_userid||!p_contractid) {
+    if (!p_userid || !p_contractid) {
       return res.status(400).json({ message: "p_userid and p_contractid are required." });
     }
-
     const result = await client.query(
       `SELECT * FROM ins.fn_get_contractdetails($1::bigint,$2::bigint);`,
-      [p_contractid,p_userid]
+      [p_contractid, p_userid]
     );
     const data = result.rows[0].fn_get_contractdetails;
-
     return res.status(200).json({
       message: "contract detail fetched successfully",
       data: data,
@@ -166,18 +164,17 @@ export const getContractDetailByContractId = async (req,res)=>{
   }
 }
 
-export const getAllContractList = async (req,res)=>{
-     try {
+export const getAllContractList = async (req, res) => {
+  try {
     const p_userid = req.user?.id || req.query.p_userid;
-    const p_campaignid =req.params.p_campaignid;
+    const p_campaignid = req.params.p_campaignid;
 
     if (!p_userid) {
       return res.status(400).json({ message: "p_userid is required." });
     }
-
     const result = await client.query(
       `SELECT * FROM ins.fn_get_contractlist($1::bigint,$2::bigint);`,
-      [p_userid,p_campaignid]
+      [p_userid, p_campaignid]
     );
     const data = result.rows[0].fn_get_contractlist;
 
@@ -201,14 +198,12 @@ export const getAllContentLinks = async (req, res) => {
     if (!p_userid) {
       return res.status(400).json({ message: "p_userid is required." });
     }
-
     const result = await client.query(
       `SELECT * FROM ins.fn_get_contentlink(
         $1::bigint,
         $2::bigint);`,
       [p_userid, p_campaignid]
     );
-    
     const data = result.rows[0].fn_get_contentlink;
     return res.status(200).json({
       message: "All content links fetched successfully",

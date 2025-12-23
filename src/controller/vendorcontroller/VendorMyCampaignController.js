@@ -131,8 +131,7 @@ export const getSingleCampaign = async (req, res) => {
     });
   }
 }
-
-
+//..............Get Cancle Reason List..................
 export const getCancleReasonList = async (req, res) => {
   try {
     const result = await client.query(
@@ -154,7 +153,7 @@ export const getCancleReasonList = async (req, res) => {
     });
   }
 };
-
+//..............Insert Campaign a
 export const insertCampiginCancleApplication = async (req, res) => {
   const userId = req.user?.id || req.body.userId;
   const { p_campaignid, p_objectiveid } = req.body||{};

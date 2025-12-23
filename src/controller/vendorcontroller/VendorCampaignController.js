@@ -41,7 +41,6 @@ export const finalizeCampaign = async (req, res) => {
 
     // --------------- BEGIN DB TRANSACTION ---------------
     await client.query("BEGIN");
-
     await client.query(
       "SELECT set_config('app.current_user_id', $1, true)",
       [String(userId)]
@@ -137,7 +136,6 @@ export const finalizeCampaign = async (req, res) => {
       ]);
 
       await Redis.del(redisKey);
-
       return res.status(200).json({
         status: true,
         message: p_message || "Campaign finalized successfully",
@@ -212,9 +210,6 @@ export const getCampaign = async (req, res) => {
         source: "redis",
       });
     }
-
-    // console.log("Redis miss → fetching from DB");
-
     const result = await client.query(
       `SELECT * FROM ins.fn_get_campaigndetailsjson($1::BIGINT, $2::BIGINT)`,
       [userId, campaignId]
@@ -234,7 +229,6 @@ export const getCampaign = async (req, res) => {
       campaignParts: fullData,
       source: "db",
     });
-
   } catch (error) {
     console.error("error in getCampaign:", error);
     return res.status(500).json({
@@ -347,7 +341,6 @@ export const getCampaignObjectives = async (req, res) => {
     });
   }
 };
-
 
 export const getProvidorContentTypes = async (req, res) => {
   try {

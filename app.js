@@ -46,6 +46,18 @@ dotenv.config();
 
 const app = express();
 
+// Temporary middleware to measure API request execution time
+// app.use((req, res, next) => {
+//   const start = Date.now();
+
+//   res.on("finish", () => {
+//     const duration = Date.now() - start;
+//     console.log(`[${req.method}] ${req.originalUrl} - ${duration}ms`);
+//   });
+
+//   next();
+// });
+
 
 /* =========================
    Global Middleware
@@ -218,16 +230,22 @@ io.on("connection", (socket) => {
   // });
 
 
-   socket.on("register", async (userId) => {
+  socket.once("register", async (userId) => {
     try {
-      socket.userId = userId;
+      //IF USER ID MISSING THAN RETURN 
+      if (!userId) {
+        console.warn("❌ UserId missing during register");
+        return;
+      }
 
+      socket.userId = userId;
       onlineUsers.set(userId, socket.id);
 
       // FRONTEND EXPECTS THIS ROOM
       socket.join(`user_${userId}`);
       socket.join(`notification_${userId}`)
       console.log(`User ${userId} registered`)
+      console.log(`notification_${userId} registered`)
 
       socket.broadcast.emit("user-online", { userId });
       socket.emit("online-users", {
@@ -245,13 +263,12 @@ io.on("connection", (socket) => {
 
       const notifyData = notifs.rows[0]?.fn_get_notificationlist || [];
 
-        if (notifyData.length > 0) {
+      if (notifyData.length > 0) {
         io.to(`user_${userId}`).emit(
           "receiveNotification",
           notifyData
         );
       }
-
       // console.log("Sent unsent notifications:", notifyData.length);
     } catch (err) {
       console.error("Register error:", err);
@@ -270,10 +287,20 @@ io.on("connection", (socket) => {
   //   socket.join(`user_${userId}`);
   // });
 
-  /* ---------------- NOTIFICATIONS ---------------- */
-  socket.on("sendNotification", ({ toUserId, message }) => {
-    io.to(`notification_${toUserId}`).emit("receiveNotification", { message });
-    // console.log(`🔔 Notification sent to ${toUserId}`);
+  /* ---------------- NOTIFICATIONS OLD CODE WORKING -ISSUE WITH THIS COD - ERROR MAX LISTNER--------------- */
+  // socket.on("sendNotification", ({ toUserId, message }) => {
+  //   io.to(`notification_${toUserId}`).emit("receiveNotification", { message });
+  //   // console.log(`🔔 Notification sent to ${toUserId}`);
+  // });
+/*------------------- NOTIFICATION NEW WRROR HANDLE MAX LISNER ---------*/
+  socket.on("sendNotification", async ({ toUserId, message }) => {
+    try {
+      if (!toUserId) return;
+      io.to(`notification_${toUserId}`).emit("receiveNotification", { message });
+      console.log(`🔔 Notification sent to ${toUserId}`);
+    } catch (err) {
+      console.error("sendNotification error:", err);
+    }
   });
 
   /* ---------------- CHAT ROOMS ---------------- */
@@ -302,18 +329,18 @@ io.on("connection", (socket) => {
     });
   });
 
-socket.on("deleteMessage", ({ messageId, conversationId }) => {
-  io.to(String(conversationId)).emit("deleteMessage", {
-    messageId,
-    conversationId,
+  socket.on("deleteMessage", ({ messageId, conversationId }) => {
+    io.to(String(conversationId)).emit("deleteMessage", {
+      messageId,
+      conversationId,
+    });
   });
-});
 
   socket.on("undoDeleteMessage", ({ messageId, conversationId }) => {
     io.to(conversationId).emit("undoDeleteMessage", messageId);
   });
 
-socket.on("messageRead", ({ messageId, conversationId, role }) => {
+  socket.on("messageRead", ({ messageId, conversationId, role }) => {
     if (!messageId || !conversationId) {
       // console.log("❌ INVALID READ EVENT", { messageId, conversationId, role });
       return;
@@ -325,10 +352,10 @@ socket.on("messageRead", ({ messageId, conversationId, role }) => {
       readbyinfluencer: Number(role) === 1,
       readbyvendor: Number(role) === 2,
     };
-  // console.log("📡 EMIT updateMessageStatus", payload);
+    // console.log("📡 EMIT updateMessageStatus", payload);
 
     io.to(String(conversationId)).emit("updateMessageStatus", payload);
-});
+  });
 
   /* ---------------- TICKET ROOMS ---------------- */
   socket.on("joinTicketRoom", (ticketId) => {
@@ -360,4 +387,3 @@ socket.on("messageRead", ({ messageId, conversationId, role }) => {
 server.listen(PORT, () => {
   console.log("Server started on port", PORT);
 });
- 

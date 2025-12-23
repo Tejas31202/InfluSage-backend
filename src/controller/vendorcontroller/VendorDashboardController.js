@@ -81,7 +81,6 @@ export const getVendorPendingContentList = async (req, res) => {
       Message: "Something Went Wrong",
       error: error.message
     })
-
   }
 }
 
