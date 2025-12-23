@@ -201,7 +201,10 @@ export const completeUserProfile = async (req, res) => {
         await client.query("COMMIT");
         await Redis.del(redisKey);
 
-        return res.status(200).json(result.rows[0]);
+        return res.status(200).json({
+          message:result.rows[0].p_message,
+          status:result.rows[0].p_status
+        });
 
       case "BLOCKED":
       case "APPROVALPENDING":
