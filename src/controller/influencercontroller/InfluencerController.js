@@ -131,51 +131,103 @@ export const verifyOtpAndRegister = async (req, res) => {
 /* ====================== LOGIN ====================== */
 
 export const loginUser = async (req, res) => {
-  try {
-    const { email, password } = req.body;
+  const { email, password } = req.body;
 
-    const { rows } = await client.query(
-      `CALL ins.usp_login_user($1,$2,$3,$4)`,
+  try {
+    const result = await client.query(
+      "CALL ins.usp_login_user($1::VARCHAR, $2::JSON, $3::SMALLINT, $4::TEXT);",
       [email, null, null, null]
     );
 
-    const row = rows[0];
-    const user = row?.p_loginuser;
+    const row = result.rows[0] || {};
+    const user = row.p_loginuser;
+    const p_status = Number(row.p_status);
+    const p_message = row.p_message || "Unknown response from DB";
 
-    if (row.p_status !== 1 || !user) {
-      return res.status(401).json({ message: row.p_message });
-    }
+    // Handle DB response status
+    if (p_status === 1) {
+      if (!user || user.code === "NOTREGISTERED") {
+        return res.status(404).json({
+          status: false,
+          message: user?.message || "User not registered",
+          code: user?.code || "NOTREGISTERED",
+          source: "db",
+        });
+      }
 
-    if (!(await bcrypt.compare(password, user.passwordhash))) {
-      return res.status(401).json({ message: "Incorrect password" });
-    }
+      if (!user.passwordhash) {
+        return res.status(500).json({
+          status: false,
+          message: "Password hash missing in DB response",
+          source: "db",
+        });
+      }
 
-    const token = jwt.sign(
-      {
+      // Compare entered password with hashed password
+      const isMatch = await bcrypt.compare(password, user.passwordhash);
+
+      if (!isMatch) {
+        return res.status(401).json({
+          status: false,
+          message: "Incorrect password",
+          source: "db",
+        });
+      }
+      
+      // if (user.code === "BLOCKED") {
+      //   return res.status(403).json({
+      //     message: "Your account has been blocked. Please contact support.",
+      //   });
+      // }
+
+      // Generate JWT token
+      const token = jwt.sign(
+        {
+          id: user.userid,
+          email: email,
+          role: user.roleid,
+          name: user.fullname,
+          p_code: user.code,
+        },
+        JWT_SECRET,
+        { expiresIn: "1h" }
+      );
+
+      return res.status(200).json({
+        status: true,
+        message: "Welcome back " + user.fullname,
+        token,
         id: user.userid,
-        email,
-        role: user.roleid,
         name: user.fullname,
+        email: email,
+        role: user.roleid,
         p_code: user.code,
-      },
-      JWT_SECRET,
-      { expiresIn: "1h" }
-    );
-
-    return res.status(200).json({
-      status: true,
-      message: `Welcome back ${user.fullname}`,
-      token,
-      id: user.userid,
-      name: user.fullname,
-      email,
-      role: user.roleid,
-      p_code: user.code,
-      source: "db",
-    });
-  } catch (err) {
-    console.error("Login Error:", err);
-    return res.status(500).json({ message: "Login failed" });
+        p_message: user.message,
+        source: "db",
+      });
+    } else if (p_status === 0) {
+      return res.status(400).json({
+        status: false,
+        message: p_message,
+        source: "db",
+      });
+    } else if (p_status === -1) {
+      console.error("Stored Procedure Failure:", p_message);
+      return res.status(500).json({
+        status: false,
+        message: "Unexpected database error",
+        source: "db",
+      });
+    } else {
+      return res.status(500).json({
+        status: false,
+        message: "Unknown database response",
+        source: "db",
+      });
+    }
+  } catch (error) {
+    console.error("Login error:", error);
+    return res.status(500).json({ message: "Server error during login" });
   }
 };
 
