@@ -1,5 +1,5 @@
 import { client } from '../../config/Db.js';
-import Redis from '../../utils/redisWrapper.js';
+import Redis from '../../utils/RedisWrapper.js';
 import path from 'path';
 
 import { createClient } from '@supabase/supabase-js';
