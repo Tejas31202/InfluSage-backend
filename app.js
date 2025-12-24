@@ -47,16 +47,16 @@ dotenv.config();
 const app = express();
 
 // Temporary middleware to measure API request execution time
-// app.use((req, res, next) => {
-//   const start = Date.now();
+app.use((req, res, next) => {
+  const start = Date.now();
 
-//   res.on("finish", () => {
-//     const duration = Date.now() - start;
-//     console.log(`[${req.method}] ${req.originalUrl} - ${duration}ms`);
-//   });
+  res.on("finish", () => {
+    const duration = Date.now() - start;
+    console.log(`[${req.method}] ${req.originalUrl} - ${duration}ms`);
+  });
 
-//   next();
-// });
+  next();
+});
 
 
 /* =========================

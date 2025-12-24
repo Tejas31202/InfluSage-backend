@@ -16,9 +16,7 @@ export const getUserStatusList = async (req, res) => {
     const result = await client.query(
       "SELECT * FROM ins.fn_get_userapprovalstatus();"
     );
-
     const statusList = result.rows;
-
     return res.status(200).json({
       message: "Fetched user approval status successfully.",
       data: statusList,
@@ -38,9 +36,7 @@ export const getCampaignStatusList = async (req, res) => {
     const result = await client.query(
       "SELECT * FROM ins.fn_get_campaignapprovalstatus();"
     );
-
     const statusList = result.rows;
-
     return res.status(200).json({
       message: "Fetched campaign approval status successfully.",
       data: statusList,
@@ -60,9 +56,7 @@ export const getDashboardCountList = async (req, res) => {
     const result = await client.query(
       "select * from ins.fn_get_admindashboard();"
     );
-
     const data = result.rows[0].fn_get_admindashboard[0];
-
     return res.status(200).json({
       message: "fatching Admin Dashboard Details",
       data: data,
@@ -111,9 +105,7 @@ export const getRequestedUserList = async (req, res) => {
         p_search || null,
       ]
     );
-
     const data = result.rows[0].fn_get_usermanagement;
-
     return res.status(200).json({
       message: "fatching getRequestedUserList",
       data: data,
@@ -171,9 +163,7 @@ export const getRequestedCampaignList = async (req, res) => {
         p_search || null,
       ]
     );
-
     const data = result.rows[0].fn_get_campaignmanagement;
-
     return res.status(200).json({
       message: "fatching getRequestedCampaignList",
       data: data,
@@ -189,11 +179,10 @@ export const getRequestedCampaignList = async (req, res) => {
 };
 
 export const insertApprovedOrRejectedApplication = async (req, res) => {
-
-  const p_adminid=req.user.id;
+  const p_adminid = req.user.id;
   const { p_userid, p_campaignid } = req.body;
 
-  if (!p_adminid && !p_userid ) {
+  if (!p_adminid && !p_userid) {
     return res.status(400).json({
       message: "Required field missing: p_adminid or p_userid must be specified.",
     });
@@ -201,11 +190,10 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
 
   try {
     await client.query("BEGIN");
-
     await client.query(
-          "SELECT set_config('app.current_user_id', $1, true)",
-          [String(p_adminid)]
-        );
+      "SELECT set_config('app.current_user_id', $1, true)",
+      [String(p_adminid)]
+    );
     const result = await client.query(
       `CALL ins.usp_update_approvalstatus(
         $1::bigint,
@@ -214,13 +202,12 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
         $4::smallint,
         $5::character
       );`,
-      [p_adminid,p_userid || null, p_campaignid || null,null, null]
+      [p_adminid, p_userid || null, p_campaignid || null, null, null]
     );
     await client.query("COMMIT");
     const row = result.rows?.[0] || {};
     const p_status = Number(row.p_status);
     const p_message = row.p_message;
-
     // ----------------- HANDLE p_status -----------------
     if (p_status === 1) {
       // Proceed with emails + notifications as before
@@ -228,7 +215,6 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
       let email = null;
       let firstName = null;
       let campaignName = null;
-
       // ------------------
       // USER APPROVAL 
       // ------------------
@@ -237,26 +223,22 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
           `SELECT id, firstname, email FROM ins.users WHERE id = $1`,
           [p_userid]
         );
-
         const user = userResult.rows[0];
         if (!user) return res.status(404).json({ message: p_message || "User not found" });
-
         recipientId = user.id;
         email = user.email;
         firstName = user.firstname;
-
         await sendingMailFormatForAdmin(
           email,
           `Your Profile Approved`,
-          userProfileEmailHTML({ userName: firstName  })
+          userProfileEmailHTML({ userName: firstName })
         );
         res.status(200).json({
-           p_status,
-           message: p_message,
-           source: "db",
+          p_status,
+          message: p_message,
+          source: "db",
         });
       }
-
       // CAMPAIGN APPROVAL 
       else if (p_campaignid && !p_userid) {
         const campaignOwnerResult = await client.query(
@@ -270,33 +252,29 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
           WHERE c.id = $1`,
           [p_campaignid]
         );
-        
         const data = campaignOwnerResult.rows[0];
         if (!data) {
-          return res.status(404).json({ message: p_message ||"Campaign or owner not found" });
+          return res.status(404).json({ message: p_message || "Campaign or owner not found" });
         }
-
         recipientId = data.ownerid;
         email = data.email;
         firstName = data.firstname;
         campaignName = data.campaignname;
-
         await sendingMailFormatForAdmin(
           email,
           `Your Campaign Approved`,
           campaignEmailHTML({
             userName: firstName,
             campaignName,
-            status: "Approved" ,
+            status: "Approved",
           })
         );
         res.status(200).json({
-           p_status,
-           message: p_message,
-           source: "db",
+          p_status,
+          message: p_message,
+          source: "db",
         });
       }
-
       // -----------------------------------
       // FETCH NOTIFICATIONS + SOCKET EMIT
       // -----------------------------------
@@ -306,26 +284,22 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
           `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean, $3::text)`,
           [recipientId, null, p_role]
         );
-
         const notifyData =
           notificationRes.rows[0]?.fn_get_notificationlist || [];
         if (notifyData.length === 0) {
           // console.log("No notifications found.");
           return;
-        } 
-          const latest = notifyData[0];
-          const toUserId = latest.receiverid;
-
+        }
+        const latest = notifyData[0];
+        const toUserId = latest.receiverid;
         if (!toUserId) return;
-        io.to(`user_${toUserId}`).emit("receiveNotification", latest);          
+        io.to(`user_${toUserId}`).emit("receiveNotification", latest);
       }
-
       // return res.status(200).json({
       //   message: p_message,
       //   status: p_status
       // });
     }
-
     // Case 2: p_status = 0 → DB validation fail
     else if (p_status === 0) {
       return res.status(400).json({
@@ -333,16 +307,14 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
         message: p_message || "Validation failed"
       });
     }
-
     // Case 3: p_status = -1 → SP failed
     else if (p_status === -1) {
       console.error("Stored Procedure Failure:", p_message);
       return res.status(500).json({
         status: p_status,
-        message:"Something went wrong. Please try again later."
+        message: "Something went wrong. Please try again later."
       });
     }
-
     // Fallback: unexpected value
     else {
       return res.status(500).json({
@@ -350,7 +322,6 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
         message: "Unexpected database response",
       });
     }
-
   } catch (error) {
     console.error("Error in insertApprovedOrRejectedApplication:", error);
     return res.status(500).json({
@@ -364,26 +335,21 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
 export const getUserDetails = async (req, res) => {
   try {
     const p_userid = req.query.p_userid || req.body.p_userid;
-
     if (!p_userid) {
       return res.status(400).json({
         message: "User ID is required to fetch user details.",
       });
     }
-
     const result = await client.query(
       "SELECT * FROM ins.fn_get_userdetails($1::bigint)",
       [p_userid]
     );
-
     const allDetails = result.rows[0].fn_get_userdetails[0];
-
     if (allDetails === 0 || !allDetails) {
       return res.status(404).json({
         message: "No user details found for the given ID.",
       });
     }
-
     return res.status(200).json({
       message: "User details fetched successfully.",
       userDetails: allDetails,
@@ -401,20 +367,16 @@ export const getUserDetails = async (req, res) => {
 export const getCampaignDetails = async (req, res) => {
   try {
     const p_campaignid = req.query.p_campaignid || req.body.p_campaignid;
-
     if (!p_campaignid) {
       return res.status(400).json({
         message: "p_campaignid is required to fetch camapign details.",
       });
     }
-
     const result = await client.query(
       "select * from ins.fn_get_campaignmanagementdetails($1::bigint);",
       [p_campaignid]
     );
-
     const campaign = result.rows[0].fn_get_campaignmanagementdetails[0];
-
     return res.status(200).json({
       message: "campaign details fetched successfully.",
       campaignDetails: campaign,
@@ -428,9 +390,7 @@ export const getCampaignDetails = async (req, res) => {
 export const campaignBlockReason = async (req, res) => {
   try {
     const result = await client.query("SELECT * FROM ins.fn_get_campaignblockreason();");
-
     const BlockReason = result.rows;
-
     return res.status(200).json({
       message: "Campaign Block Reasons fetched successfully",
       data: BlockReason
@@ -447,7 +407,6 @@ export const campaignBlockReason = async (req, res) => {
 export const userBlockReason = async (req, res) => {
   try {
     const result = await client.query("SELECT * FROM ins.fn_get_userblockreason();");
-
     return res.status(200).json({
       message: "User Block Reasons fetched successfully",
       data: result.rows,
@@ -464,20 +423,17 @@ export const userBlockReason = async (req, res) => {
 export const blockInfluencerAndCampaignApplication = async (req, res) => {
   const p_adminid = req.user?.id || req.body.p_adminid;
   const { p_userid, p_campaignid, p_objective } = req.body;
-
   if (!p_userid && !p_campaignid) {
     return res.status(400).json({
       message: "Required field missing: p_userid or p_campaignid must be specified.",
     });
   }
-
   try {
-
     await client.query("BEGIN");
     await client.query(
-          "SELECT set_config('app.current_user_id', $1, true)",
-          [String(p_adminid)]
-        );
+      "SELECT set_config('app.current_user_id', $1, true)",
+      [String(p_adminid)]
+    );
     const result = await client.query(
       `CALL ins.usp_insert_entityblock(
         $1::bigint,
@@ -489,18 +445,15 @@ export const blockInfluencerAndCampaignApplication = async (req, res) => {
       );`,
       [p_adminid, p_userid || null, p_campaignid || null, p_objective, null, null]
     );
-
     await client.query("COMMIT");
     const row = result.rows[0] || {};
     const p_status = Number(row.p_status);
     const p_message = row.p_message;
-
     // -------------------------------
     //       STATUS HANDLING
     // -------------------------------
     if (p_status === 1) {
       let recipientId = null;
-
       // -------------------------------
       // USER BLOCK → EMAIL + SOCKET
       // -------------------------------
@@ -511,21 +464,18 @@ export const blockInfluencerAndCampaignApplication = async (req, res) => {
         );
         const user = userResult.rows[0];
         if (!user) return res.status(404).json({ message: "User not found" });
-
         recipientId = user.id;
-
         await sendingMailFormatForAdmin(
           user.email,
           `Your Profile blocked by influsage admin team`,
           userProfileBlockEmailHTML({ userName: user.firstname })
         );
-       res.status(200).json({
-           p_status,
-           message: p_message,
-           source: "db",
+        res.status(200).json({
+          p_status,
+          message: p_message,
+          source: "db",
         });
       }
-
       // -------------------------------
       // CAMPAIGN BLOCK → EMAIL + SOCKET
       // -------------------------------
@@ -541,12 +491,9 @@ export const blockInfluencerAndCampaignApplication = async (req, res) => {
            WHERE c.id = $1`,
           [p_campaignid]
         );
-
         const data = campaignOwner.rows[0];
         if (!data) return res.status(404).json({ message: "Campaign or owner not found" });
-
         recipientId = data.ownerid;
-
         await sendingMailFormatForAdmin(
           data.email,
           `Your Campaign blocked by influsage admin team`,
@@ -556,50 +503,43 @@ export const blockInfluencerAndCampaignApplication = async (req, res) => {
           })
         );
         res.status(200).json({
-           p_status,
-           message: p_message,
-           source: "db",
+          p_status,
+          message: p_message,
+          source: "db",
         });
       }
-
       // Safety fallback
       else {
         return res.status(400).json({
           message: "Invalid request: provide either userId or campaignId",
         });
       }
-
       // -------------------------------
       // SOCKET NOTIFICATIONS
       // -------------------------------
       const p_role = 'RECEIVER';
-
       if (recipientId) {
         const notificationRes = await client.query(
           `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean, $3::text)`,
           [recipientId, null, p_role]
         );
-
         const notifyData = notificationRes.rows[0]?.fn_get_notificationlist || [];
         if (notifyData.length === 0) {
           // console.log("No notifications found.");
           return;
-        } 
-          const latest = notifyData[0];
-          const toUserId = latest.receiverid;
-          if (!toUserId) return;
-      
-            io.to(`user_${toUserId}`).emit("receiveNotification", notifyData);  
-      }
+        }
+        const latest = notifyData[0];
+        const toUserId = latest.receiverid;
+        if (!toUserId) return;
 
+        io.to(`user_${toUserId}`).emit("receiveNotification", notifyData);
+      }
       return res.status(200).json({ message: p_message, status: true, p_status, source: "db" });
     }
-
     // VALIDATION FAIL → p_status = 0
     else if (p_status === 0) {
       return res.status(400).json({ message: p_message || "Validation failed", status: false, p_status });
     }
-
     // SP FAILED → p_status = -1
     else if (p_status === -1) {
       console.error("Stored Procedure Failure:", p_message);
@@ -609,7 +549,6 @@ export const blockInfluencerAndCampaignApplication = async (req, res) => {
         p_status
       });
     }
-
     // Unexpected fallback
     else {
       return res.status(500).json({
@@ -618,7 +557,6 @@ export const blockInfluencerAndCampaignApplication = async (req, res) => {
         p_status
       });
     }
-
   } catch (error) {
     console.error("Error in blockInfluencerApplication:", error);
     return res.status(500).json({
@@ -631,22 +569,18 @@ export const blockInfluencerAndCampaignApplication = async (req, res) => {
 export const adminRejectInfluencerOrCampaign = async (req, res) => {
   try {
     const p_adminid = req.user?.id || req.body.p_adminid;
-
     if (!p_adminid) {
       return res.status(400).json({ message: "p_adminid is required." });
     }
     const { p_userid, p_campaignid, p_text } = req.body;
-
     if (!p_userid && !p_campaignid) {
       return res
         .status(400)
         .json({ message: "Please provide either p_userid or p_campaignid." });
     }
-
     if (!p_text) {
       return res.status(400).json({ message: " p_text is required." });
     }
-
     await client.query("BEGIN");
     await client.query("SELECT set_config('app.current_user_id', $1, true)", [
       String(p_adminid),
@@ -664,9 +598,7 @@ export const adminRejectInfluencerOrCampaign = async (req, res) => {
       [p_adminid, p_userid || null, p_campaignid || null, p_text, null, null]
     );
     await client.query("COMMIT");
-
     const { p_status, p_message } = result.rows[0];
-
     if (p_status === 1) {
       //  1️⃣ Influencer Rejection
       if (p_userid && !p_campaignid) {
@@ -674,15 +606,12 @@ export const adminRejectInfluencerOrCampaign = async (req, res) => {
           "SELECT firstname, email FROM ins.users WHERE id = $1",
           [p_userid]
         );
-
         const user = userResult.rows[0];
-
         if (!user) {
           return res.status(404).json({
             message: "User not found.",
           });
         }
-
         // Send user profile rejection email
         await sendingMailFormatForAdmin(
           user.email,
@@ -692,7 +621,6 @@ export const adminRejectInfluencerOrCampaign = async (req, res) => {
             reason: p_text,
           })
         );
-
         return res.status(200).json({
           message: p_message,
           p_status,
@@ -700,7 +628,6 @@ export const adminRejectInfluencerOrCampaign = async (req, res) => {
         });
       }
       // 2️⃣ CAMPAIGN REJECTION CASE
-
       if (p_campaignid && !p_userid) {
         const campaignOwnerResult = await client.query(
           `SELECT
@@ -712,15 +639,12 @@ export const adminRejectInfluencerOrCampaign = async (req, res) => {
          WHERE c.id = $1`,
           [p_campaignid]
         );
-
         const campaignData = campaignOwnerResult.rows[0];
-
         if (!campaignData) {
           return res.status(404).json({
             message: "Campaign or owner not found.",
           });
         }
-
         // Send campaign rejection email
         await sendingMailFormatForAdmin(
           campaignData.email,
@@ -731,7 +655,6 @@ export const adminRejectInfluencerOrCampaign = async (req, res) => {
             reason: p_text,
           })
         );
-
         return res.status(200).json({
           message: p_message,
           p_status,
@@ -748,7 +671,6 @@ export const adminRejectInfluencerOrCampaign = async (req, res) => {
           p_status,
         });
     }
-
     // SP FAILED → p_status = -1
     else if (p_status === -1) {
       console.error("Stored Procedure Failure:", p_message);
@@ -758,7 +680,6 @@ export const adminRejectInfluencerOrCampaign = async (req, res) => {
         p_status,
       });
     }
-
     // Unexpected fallback
     else {
       return res.status(500).json({
