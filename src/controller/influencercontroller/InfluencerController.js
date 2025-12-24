@@ -186,8 +186,16 @@ export const resendOtp = async (req, res) => {
     const email = normalizeEmail(req.body.email);
     const otp = generateOTP();
 
+    // Store OTP with TTL
     await Redis.setEx(`otp:${email}`, 300, otp);
-    await Redis.expire(`pendingUser:${email}`, 300);
+
+    // Get pending user
+    const pendingUser = await Redis.get(`pendingUser:${email}`);
+
+    // Reset TTL ONLY if exists
+    if (pendingUser) {
+      await Redis.setEx(`pendingUser:${email}`, 300, pendingUser);
+    }
 
     await sendingMail(
       email,
