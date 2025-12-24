@@ -68,15 +68,18 @@ app.use(cookieParser());
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: process.env.FRONTEND_URL, // your Netlify URL
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   })
 );
 
-app.use(
-  "/src/uploads",
-  express.static(path.join(process.cwd(), "src/uploads"))
-);
+
+
+
+
+dotenv.config(); // if app in src
 
 /* =========================
    Auth & Common Routes
@@ -156,8 +159,9 @@ console.log(`Redis type active: ${redisType}`);
 
 export const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
-    methods: ["GET", "POST"],
+    origin: process.env.FRONTEND_URL,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   },
 });

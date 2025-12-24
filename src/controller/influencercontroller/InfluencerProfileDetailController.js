@@ -42,7 +42,7 @@ export const completeUserProfile = async (req, res) => {
     };
 
     const saveToRedis = async (data) => {
-      await Redis.setEx(redisKey, 604800, JSON.stringify(data));
+       await Redis.setEx(redisKey, 604800, finalData); // 7 days TTL
     };
     const {
       profilejson = null,
@@ -294,8 +294,8 @@ export const getUserProfile = async (req, res) => {
   const redisKey = `profile:${userId}`;
 
   try {
-    const cachedData = await Redis.get(redisKey);
-    const redisParsed = cachedData ? JSON.parse(cachedData) : {};
+    // 1. Redis data (may contain partial edits)
+    const redisParsed = await Redis.get(redisKey) || {};
 
     const result = await client.query(
       `SELECT * FROM ins.fn_get_userprofile($1::BIGINT)`,
@@ -387,20 +387,26 @@ export const deletePortfolioFile = async (req, res) => {
         .status(400)
         .json({ message: "userId and filepath are required" });
     }
-    const redisKey = `getInfluencerProfile:${userId}`;
 
+    // Redis key
+    const redisKey = `profile:${userId}`;
+
+    // 1 Redis se data fetch
     let profileData = await Redis.get(redisKey);
     if (profileData) {
-      profileData = JSON.parse(profileData);
+      // profileData = JSON.parse(profileData);
 
       if (profileData.portfoliojson) {
         profileData.portfoliojson = profileData.portfoliojson.filter(
           (file) => file.filepath !== filePathToDelete
         );
-        await Redis.setEx(redisKey, 10800, JSON.stringify(profileData));
+        //Redis store data for 3h->10800sec
+        await Redis.setEx(redisKey, 604800, profileData);;
       }
     }
-    const uploadDir = path.join(process.cwd(), "src", "uploads", "influencer");
+
+    //  2 Local file delete
+    const uploadDir = path.join(process.cwd(), "src", process.env.SUPABASE_BUCKET, "influencer");
     const fileName = path.basename(filePathToDelete);
     const fullPath = path.join(uploadDir, fileName);
 

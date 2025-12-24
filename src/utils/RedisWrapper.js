@@ -1,7 +1,7 @@
 import { createClient } from "redis";
 import { Redis as UpstashRedis } from "@upstash/redis";
 
-const isUpstash = process.env.REDIS_PROVIDER === "Local";
+const isUpstash = process.env.REDIS_PROVIDER === "Upstash";
 
 let redis;
 

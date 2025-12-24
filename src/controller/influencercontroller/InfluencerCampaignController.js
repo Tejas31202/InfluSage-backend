@@ -108,7 +108,6 @@ export const applyNowCampaign = async (req, res) => {
           return res.status(500).json({ message: "Unexpected upload error" });
         }
       }
-
       if (applycampaignjson.filepaths && Array.isArray(applycampaignjson.filepaths)) {
         applycampaignjson.filepaths = [...applycampaignjson.filepaths, ...uploadedFiles];
       } else {
@@ -204,7 +203,6 @@ export const applyNowCampaign = async (req, res) => {
   }
 };
 
-
 export const getUsersAppliedCampaigns = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
@@ -223,7 +221,7 @@ export const getUsersAppliedCampaigns = async (req, res) => {
     const cachedData = await Redis.get(redisKey);
     if (cachedData) {
       return res.status(200).json({
-        data: JSON.parse(cachedData),
+        data: cachedData,
         source: "redis",
       });
     }
@@ -381,7 +379,7 @@ export const getSingleApplyCampaign = async (req, res) => {
     const cachedData = await Redis.get(redisKey);
     if (cachedData) {
       return res.status(200).json({
-        data: JSON.parse(cachedData),
+        data: cachedData,
         source: "redis",
       });
     }
@@ -438,7 +436,7 @@ export const getUserCampaignWithDetails = async (req, res) => {
     const cachedData = await Redis.get(redisKey);
 
     if (cachedData) {
-      responseData.appliedDetails = JSON.parse(cachedData);
+      responseData.appliedDetails = cachedData;
     } else {
       const appliedResult = await client.query(
         `SELECT ins.fn_get_campaignapplicationdetails($1,$2)`,
@@ -602,7 +600,7 @@ export const deleteApplyNowPortfolioFile = async (req, res) => {
 
     let campaignData = await Redis.get(redisKey);
     if (campaignData) {
-      campaignData = JSON.parse(campaignData);
+      campaignData = (campaignData);
 
       if (campaignData.applycampaignjson?.filepaths) {
         campaignData.applycampaignjson.filepaths =
@@ -610,7 +608,8 @@ export const deleteApplyNowPortfolioFile = async (req, res) => {
             (file) => file.filepath !== filePath
           );
 
-        await Redis.setEx(redisKey, 7200, JSON.stringify(campaignData));
+        // Update Redis data
+        await Redis.setEx(redisKey, 7200, campaignData);
       }
     }
 

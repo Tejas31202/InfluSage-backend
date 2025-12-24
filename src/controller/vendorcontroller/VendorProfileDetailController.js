@@ -31,14 +31,14 @@ export const getCompanySizes = async (req, res) => {
 
     if (cachedData) {
       return res.status(200).json({
-        companySizes: JSON.parse(cachedData),
+        companySizes: cachedData,
         source: "redis",
       });
     }
 
     const result = await client.query("SELECT * FROM ins.fn_get_companysize()");
-    
-    await Redis.setEx(redisKey, 3600, JSON.stringify(result.rows)); // TTL 3600 sec (1h)
+
+    await Redis.setEx(redisKey, 3600, result.rows);
 
     return res.status(200).json({
       companySizes: result.rows,
@@ -53,6 +53,7 @@ export const getCompanySizes = async (req, res) => {
   }
 };
 
+
 export const getInfluencerTiers = async (req, res) => {
   const redisKey = "influencer_tiers";
   try {
@@ -60,7 +61,7 @@ export const getInfluencerTiers = async (req, res) => {
 
     if (cachedData) {
       return res.status(200).json({
-        influencerTiers: JSON.parse(cachedData),
+        influencerTiers:cachedData,
         source: "redis",
       });
     }
@@ -69,7 +70,7 @@ export const getInfluencerTiers = async (req, res) => {
       "SELECT * FROM ins.fn_get_influencertiers()"
     );
 
-    await Redis.setEx(redisKey, 3600, JSON.stringify(result.rows)); // TTL 60 mins
+    await Redis.setEx(redisKey, 3600, result.rows); // TTL 60 mins
 
     return res.status(200).json({
       influencerTiers: result.rows,
@@ -117,8 +118,11 @@ export const getVendorProfile = async (req, res) => {
   const redisKey = `vendorprofile:${vendorId}`;
   try {
     const cachedData = await Redis.get(redisKey);
+
     if (cachedData) {
-      const parsed = JSON.parse(cachedData);
+      const parsed = cachedData; // already parsed
+
+
       const profileParts = {
         p_profile: parsed.profilejson || {},
         p_categories: parsed.categoriesjson || {},
@@ -416,12 +420,14 @@ export const getObjectives = async (req, res) => {
     const cachedData = await Redis.get(redisKey);
     if (cachedData) {
       return res.status(200).json({
-        objectives: JSON.parse(cachedData),
+        objectives:cachedData,
         source: "redis",
       });
     }
     const result = await client.query("SELECT * FROM ins.fn_get_objectives();");
-    await Redis.setEx(redisKey, 86400, JSON.stringify(result.rows)); // TTL: 24h
+
+    await Redis.setEx(redisKey, 86400, result.rows);
+
     return res.status(200).json({
       objectives: result.rows,
       source: "db",

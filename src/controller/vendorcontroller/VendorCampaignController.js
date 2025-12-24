@@ -32,12 +32,12 @@ export const finalizeCampaign = async (req, res) => {
     const cachedData = await Redis.get(redisKey);
     if (!cachedData) {
       return res.status(404).json({
-        message: "No campaign data found in Redis to finalize",
-        source: "redis",
+      message: "No campaign data found in Redis to finalize",
+      source: "redis",
       });
     }
 
-    const campaignData = JSON.parse(cachedData);
+    const campaignData = cachedData;
 
     // --------------- BEGIN DB TRANSACTION ---------------
     await client.query("BEGIN");
@@ -70,9 +70,11 @@ export const finalizeCampaign = async (req, res) => {
         JSON.stringify(campaignData.p_campaignfilejson || {}),
         JSON.stringify(campaignData.p_contenttypejson || {}),
         null,
-        null,
+        null
       ]
     );
+
+    console.log("DB finalize result:", result.rows[0]);
 
     await client.query("COMMIT");
 
@@ -190,7 +192,7 @@ export const getCampaign = async (req, res) => {
       if (cachedData) {
         return res.status(200).json({
           message: "Draft campaign from Redis",
-          campaignParts: JSON.parse(cachedData),
+          campaignParts: cachedData,
           source: "redis",
         });
       }
@@ -206,7 +208,7 @@ export const getCampaign = async (req, res) => {
     if (cachedEditData) {
       return res.status(200).json({
         message: "Campaign data from Redis",
-        campaignParts: JSON.parse(cachedEditData),
+        campaignParts:cachedEditData,
         source: "redis",
       });
     }
@@ -222,7 +224,7 @@ export const getCampaign = async (req, res) => {
     const fullData = result.rows[0];
 
     // Cache DB data in Redis for next time 1h->3600 sec
-    await Redis.setEx(redisKey, 3600,JSON.stringify(fullData));
+    await Redis.setEx(redisKey, 3600, fullData);
 
     return res.status(200).json({
       message: "Campaign data from DB",
@@ -261,28 +263,18 @@ export const deleteCampaignFile = async (req, res) => {
     let campaignData = await Redis.get(redisKey);
     let updatedFiles = [];
 
-    if (campaignData) {
-      campaignData = JSON.parse(campaignData);
+    if (campaignData && Array.isArray(campaignData.p_campaignfilejson)) {
+      campaignData.p_campaignfilejson = campaignData.p_campaignfilejson.filter(file => {
+        const redisFileName = file.filepath.split("/").pop();
+        const requestFileName = filePathToDelete.split("/").pop();
+        return redisFileName !== requestFileName;
+      });
 
-      if (Array.isArray(campaignData.p_campaignfilejson)) {
-        const beforeCount = campaignData.p_campaignfilejson.length;
-
-        // Match by filename instead of full URL
-        campaignData.p_campaignfilejson = campaignData.p_campaignfilejson.filter(
-          (file) => {
-            const redisFileName = file.filepath.split("/").pop();
-            const requestFileName = filePathToDelete.split("/").pop();
-            return redisFileName !== requestFileName;
-          }
-        );
-
-        updatedFiles = campaignData.p_campaignfilejson;
-        //Redis Store data for 1h->3600 sec
-        await Redis.setEx(redisKey, 3600, JSON.stringify(campaignData));
-      }
+      updatedFiles = campaignData.p_campaignfilejson;
+      await Redis.setEx(redisKey, 3600, campaignData); // update Redis
     }
 
-    // ---------------- 3 Convert public URL → Supabase Path ----------------
+    // ---------------- 2️⃣ Convert public URL to relative path ----------------
     const supabaseFilePath = filePathToDelete
       .split(`/storage/v1/object/public/${bucketName}/`)[1]
       ?.trim();
@@ -294,12 +286,13 @@ export const deleteCampaignFile = async (req, res) => {
       });
     }
 
-    // ---------------- 4 Delete from Supabase Storage ----------------
+    // ---------------- 3️⃣ Delete from Supabase Storage ----------------
     const { error: deleteError } = await supabase.storage
       .from(bucketName)
       .remove([supabaseFilePath]);
 
     if (deleteError) {
+      console.error("❌ Supabase delete error:", deleteError.message);
       return res.status(500).json({
         status: false,
         message: "Error deleting file from Supabase",
@@ -307,12 +300,11 @@ export const deleteCampaignFile = async (req, res) => {
       });
     }
 
-    // ----------------  SUCCESS RESPONSE ----------------
     return res.status(200).json({
       status: true,
-      message: "File deleted successfully from Supabase & Redis",
+      message: "File deleted successfully from Supabase and Redis",
       deletedFile: supabaseFilePath,
-      campaignFiles: updatedFiles || [],
+      campaignFiles: campaignData?.p_campaignfilejson || [],
     });
   } catch (error) {
     console.error("error in deleteCampaignFile:",error);
@@ -437,6 +429,9 @@ export const upsertCampaign = async (req, res) => {
 
     // ---------------- REDIS DRAFT HANDLING ----------------
     const redisKey = `getCampaign:${p_userid}${campaignId ? `:${campaignId}` : ""}`;
+
+    // GET
+    // const cached = await Redis.get(redisKey);
     let existingDraft = {};
     const cached = await Redis.get(redisKey);
     if (cached) existingDraft = JSON.parse(cached);
@@ -459,7 +454,8 @@ export const upsertCampaign = async (req, res) => {
       updated_at: new Date(),
     };
     //Redis store data for 24h -> 86400 sec
-    await Redis.setEx(redisKey,86400, JSON.stringify(draftData));
+    await Redis.setEx(redisKey, 86400, draftData);
+
 
     // ---------------- DRAFT SAVE ONLY ----------------
     if (!isFinalSubmit) {
@@ -467,9 +463,10 @@ export const upsertCampaign = async (req, res) => {
         status: true,
         message: "Draft stored in Redis successfully",
         campaignParts: draftData,
+        source: "redis",
       });
     }
-
+    
     // DB Call for edit only startdate and enddate 
 
     await client.query("BEGIN");
