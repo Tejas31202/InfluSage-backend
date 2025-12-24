@@ -1,9 +1,6 @@
 import { client } from '../config/Db.js';
 import Redis from '../utils/redisWrapper.js';
 
-// const Redis = redis.createClient({ url: process.env.REDIS_URL });
-// Redis.connect().catch(console.error);
-
 export const getRoles = async (req, res) => {
   try {
     const result = await client.query(`SELECT * from ins.fn_get_roles();`);
@@ -88,7 +85,7 @@ export const getCategories = async (req, res) => {
 
     const result = await client.query("select * from ins.fn_get_categories();");
 
-    await Redis.setEx(redisKey, 7200, JSON.stringify(result.rows)); // TTL 2h
+    await Redis.setEx(redisKey, 7200, JSON.stringify(result.rows)); 
 
     return res.status(200).json({
       categories: result.rows,
@@ -105,7 +102,6 @@ export const getCategories = async (req, res) => {
 
 export const getProviders = async (req, res) => {
   try {
-    // DB function call
     const result = await client.query("SELECT * FROM ins.fn_get_providers()");
 
     const providers = result.rows;

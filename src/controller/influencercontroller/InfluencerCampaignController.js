@@ -8,11 +8,6 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// const Redis = redis.createClient({ url: process.env.REDIS_URL });
-// Redis.connect().catch(console.error);
-
-
-//For Selected Camapign Details
 export const getCampaignDetails = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
@@ -23,7 +18,6 @@ export const getCampaignDetails = async (req, res) => {
       [userId, campaignId]
     );
 
-    //Check From DB Not Found Campaign
     if (result.rows.length === 0) {
       return res.status(404).json({ message: "Campaign not found." });
     }
@@ -40,17 +34,14 @@ export const getCampaignDetails = async (req, res) => {
   }
 };
 
-//For Apply Campaign
 export const applyNowCampaign = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
     const campaignId = req.params.campaignId;
     const redisKey = `applyCampaign:${userId}`;
 
-    // Unique folder name pattern
     const userFolder = `${userId}`;
 
-    // Parse JSON from form-data
     let applycampaignjson = {};
     if (req.body.applycampaignjson) {
       try {
@@ -60,7 +51,6 @@ export const applyNowCampaign = async (req, res) => {
       }
     }
 
-    // File upload to Supabase
     if (req.files && req.files.portfolioFiles) {
       const uploadedFiles = [];
 
@@ -71,7 +61,6 @@ export const applyNowCampaign = async (req, res) => {
         const fileBuffer = file.buffer;
 
         try {
-          // Step 1: Check if file already exists in Supabase bucket
           const { data: existingFiles, error: listError } = await supabase.storage
             .from(process.env.SUPABASE_BUCKET)
             .list(`Influencer/${userFolder}/Campaigns/${campaignId}/ApplyCampaigns/`, {
@@ -86,19 +75,15 @@ export const applyNowCampaign = async (req, res) => {
           const fileExists = existingFiles?.some((f) => f.name === newFileName);
 
           if (fileExists) {
-            // res.status(400).json({ message: `File already exists: ${fileName}, skipping upload.` });
 
-            //add existing file URL to uploadedFiles
             const { data: publicData } = supabase.storage
               .from(process.env.SUPABASE_BUCKET)
               .getPublicUrl(uniqueFileName);
             uploadedFiles.push({ filepath: publicData.publicUrl });
 
-            continue; // Skip upload, go to next file
-
+            continue; 
           }
 
-          // Step 2: Upload if file doesn’t exist
           const { error: uploadError } = await supabase.storage
             .from(process.env.SUPABASE_BUCKET)
             .upload(uniqueFileName, fileBuffer, {
@@ -113,7 +98,6 @@ export const applyNowCampaign = async (req, res) => {
               .json({ message: "Failed to upload file to cloud storage" });
           }
 
-          // Step 3: Get public URL for the uploaded file
           const { data: publicUrlData } = supabase.storage
             .from(process.env.SUPABASE_BUCKET)
             .getPublicUrl(uniqueFileName);
@@ -125,14 +109,12 @@ export const applyNowCampaign = async (req, res) => {
         }
       }
 
-      // Merge old + new filepaths
       if (applycampaignjson.filepaths && Array.isArray(applycampaignjson.filepaths)) {
         applycampaignjson.filepaths = [...applycampaignjson.filepaths, ...uploadedFiles];
       } else {
         applycampaignjson.filepaths = uploadedFiles;
       }
       
-
     }
     await client.query("BEGIN");
 
@@ -141,7 +123,6 @@ export const applyNowCampaign = async (req, res) => {
       [String(userId)]
     );
 
-    // Save data in DB via stored procedure
     const result = await client.query(
       `CALL ins.usp_insert_campaignapplication(
         $1::bigint,
@@ -155,14 +136,11 @@ export const applyNowCampaign = async (req, res) => {
 
     await client.query("COMMIT");
 
-
-    // After stored procedure call
     const row = result.rows[0];
     const p_status = Number(row?.p_status);
     const p_role = 'SENDER';
     const p_message = row?.p_message;
 
-    // Case 1: p_status = 1 → SUCCESS
     if (p_status === 1) {
       try {
         const notification = await client.query(
@@ -171,10 +149,8 @@ export const applyNowCampaign = async (req, res) => {
         );
 
         const notifyData = notification.rows[0]?.fn_get_notificationlist || [];
-        // console.log("new data:", notifyData);
 
         if (notifyData.length === 0) {
-          // console.log("No notifications found.");
           return;
         }
 
@@ -197,7 +173,6 @@ export const applyNowCampaign = async (req, res) => {
       });
     }
 
-    // Case 2: p_status = 0 → DB VALIDATION FAIL
     else if (p_status === 0) {
       return res.status(400).json({
         status: false,
@@ -205,7 +180,6 @@ export const applyNowCampaign = async (req, res) => {
       });
     }
 
-    // Case 3: p_status = -1 → PROCEDURE FAILED
     else if (p_status === -1) {
       console.error("Stored Procedure Failure:", p_message);
       return res.status(500).json({
@@ -214,7 +188,6 @@ export const applyNowCampaign = async (req, res) => {
       });
     }
 
-    // Fallback: if unexpected value
     else {
       return res.status(500).json({
         status: false,
@@ -232,7 +205,6 @@ export const applyNowCampaign = async (req, res) => {
 };
 
 
-//For Applied Campaign
 export const getUsersAppliedCampaigns = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
@@ -248,7 +220,6 @@ export const getUsersAppliedCampaigns = async (req, res) => {
     };
     const redisKey = `applyCampaign:${userId}:${p_sortby}:${p_sortorder}:${p_pagenumber}:${p_pagesize}`;
 
-    //Try Cache First From Redis
     const cachedData = await Redis.get(redisKey);
     if (cachedData) {
       return res.status(200).json({
@@ -257,7 +228,6 @@ export const getUsersAppliedCampaigns = async (req, res) => {
       });
     }
 
-    //If Not In Redis → Fetch From DB (don't save in Redis)
     const result = await client.query(
       `SELECT * FROM ins.fn_get_campaignapplication(
       $1::bigint,
@@ -270,12 +240,10 @@ export const getUsersAppliedCampaigns = async (req, res) => {
       [userId, p_sortby, p_sortorder, p_pagenumber, p_pagesize, p_search]
     );
 
-    //Check Db Return Data OR Not
     if (!result.rows || result.rows.length === 0) {
       return res.status(404).json({ message: "No applied campaigns found." });
     }
 
-    //Return Data From Db
     return res.status(200).json({
       data: result.rows[0].fn_get_campaignapplication,
       source: "db",
@@ -289,7 +257,6 @@ export const getUsersAppliedCampaigns = async (req, res) => {
   }
 };
 
-//For Save Campaign
 export const saveCampaign = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
@@ -323,11 +290,6 @@ export const saveCampaign = async (req, res) => {
     const p_status = Number(row?.p_status);
     const p_message = row?.p_message;
 
-    // -------------------------
-    //      STATUS HANDLING
-    // -------------------------
-
-    // Case 1 → p_status = 1 (Success)
     if (p_status === 1) {
       return res.status(200).json({
         status: true,
@@ -335,7 +297,6 @@ export const saveCampaign = async (req, res) => {
       });
     }
 
-    // Case 2 → p_status = 0 (Validation fail)
     else if (p_status === 0) {
       return res.status(400).json({
         status: false,
@@ -343,7 +304,6 @@ export const saveCampaign = async (req, res) => {
       });
     }
 
-    // Case 3 → p_status = -1 (SP failed)
     else if (p_status === -1) {
       console.error("Stored Procedure Failure:", p_message);
       return res.status(500).json({
@@ -352,7 +312,6 @@ export const saveCampaign = async (req, res) => {
       });
     }
 
-    // Unexpected case
     else {
       return res.status(500).json({
         status: false,
@@ -369,8 +328,6 @@ export const saveCampaign = async (req, res) => {
   }
 };
 
-
-//For Get Save Camapign
 export const getSaveCampaign = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
@@ -415,14 +372,12 @@ export const getSaveCampaign = async (req, res) => {
   }
 };
 
-//For Apply Single Campaign
 export const getSingleApplyCampaign = async (req, res) => {
   try {
     const userId = req.user?.id || req.userId;
     const { campaignId } = req.params;
     const redisKey = `applyCampaign:${userId}:${campaignId}`;
 
-    // 1 Try cache first
     const cachedData = await Redis.get(redisKey);
     if (cachedData) {
       return res.status(200).json({
@@ -431,7 +386,6 @@ export const getSingleApplyCampaign = async (req, res) => {
       });
     }
 
-    // 2 If not in Redis → fetch from DB (❌ don't save in Redis)
     const result = await client.query(
       `SELECT ins.fn_get_campaignapplicationdetails($1,$2)`,
       [userId, campaignId]
@@ -441,7 +395,6 @@ export const getSingleApplyCampaign = async (req, res) => {
       return res.status(404).json({ message: "No applied campaigns found." });
     }
 
-    // 3 Just return DB response directly
     return res.status(200).json({
       data: result.rows[0]?.fn_get_campaignapplicationdetails,
       source: "db",
@@ -455,7 +408,6 @@ export const getSingleApplyCampaign = async (req, res) => {
   }
 };
 
-//For Get user Campign With Details
 export const getUserCampaignWithDetails = async (req, res) => {
   try {
     const userId = req.user?.id;
@@ -472,7 +424,6 @@ export const getUserCampaignWithDetails = async (req, res) => {
       appliedDetails: null,
     };
 
-    // 1 Get campaign details (from DB)
     const campaignResult = await client.query(
       "select * from ins.fn_get_campaignbrowsedetails($1::bigint,$2::bigint)",
       [userId, campaignId]
@@ -483,7 +434,6 @@ export const getUserCampaignWithDetails = async (req, res) => {
         campaignResult.rows[0].fn_get_campaignbrowsedetails;
     }
 
-    // 2 Get applied campaign details (check Redis first)
     const redisKey = `applyCampaign:${userId}:${campaignId}`;
     const cachedData = await Redis.get(redisKey);
 
@@ -501,7 +451,6 @@ export const getUserCampaignWithDetails = async (req, res) => {
       }
     }
 
-    // 3 Return combined response
     return res.status(200).json({ data: responseData });
   } catch (error) {
     console.error("Error in getUserCampaignWithDetails:", error.message);
@@ -512,7 +461,6 @@ export const getUserCampaignWithDetails = async (req, res) => {
   }
 };
 
-//For Browse Campaigns
 export const browseCampaigns = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
@@ -644,7 +592,7 @@ export const withdrawApplication = async (req, res) => {
 
 export const deleteApplyNowPortfolioFile = async (req, res) => {
   const userId = req.user?.id || req.body.userId;
-  const { filePath } = req.body; // this is the public URL
+  const { filePath } = req.body; 
   const redisKey = `applyCampaign:${userId}`;
 
   try {
@@ -652,28 +600,23 @@ export const deleteApplyNowPortfolioFile = async (req, res) => {
       return res.status(400).json({ message: "filePath is required" });
     }
 
-    // Step 1: Redis se data fetch karo
     let campaignData = await Redis.get(redisKey);
     if (campaignData) {
       campaignData = JSON.parse(campaignData);
 
-      // Redis se file remove karo
       if (campaignData.applycampaignjson?.filepaths) {
         campaignData.applycampaignjson.filepaths =
           campaignData.applycampaignjson.filepaths.filter(
             (file) => file.filepath !== filePath
           );
 
-        // Update Redis data
         await Redis.setEx(redisKey, 7200, JSON.stringify(campaignData));
       }
     }
 
-    // Step 2: Supabase file path from (public URL se relative path)
     const supabaseBaseURL = `${SUPABASE_URL}/storage/v1/object/public/uploads/`;
     const relativeFilePath = filePath.replace(supabaseBaseURL, "");
 
-    // Step 3: Supabase se file delete karo
     const { error: deleteError } = await supabase.storage
       .from(process.env.SUPABASE_BUCKET)
       .remove([relativeFilePath]);

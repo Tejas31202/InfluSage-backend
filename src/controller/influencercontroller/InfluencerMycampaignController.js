@@ -1,6 +1,5 @@
 import { client } from "../../config/Db.js";
 
-//...........ClientList.....................
 export const getClientsList = async (req, res) => {
   const p_userid = req.user?.id || req.body.p_userid;
 

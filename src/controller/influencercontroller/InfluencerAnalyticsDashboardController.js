@@ -491,7 +491,6 @@ export const getInfluencerCampaignTopPerformingContent = async (req, res) => {
     return res.status(200).json({
       Message: "Top Performing Content Sucessfully Get",
       data: campaignTopPerformingContentRes,
-      source: "db"
     })
   }
   catch (error) {

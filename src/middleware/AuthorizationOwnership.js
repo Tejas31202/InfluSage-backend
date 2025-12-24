@@ -11,7 +11,6 @@ export const authorizeOwnership = ({ idParam }) => {
         return next();
       }
 
-      //  Call PostgreSQL authorization function
       const result = await client.query(
         `SELECT ins.fn_get_campaignauthorization($1, $2) AS authmsg`,
         [userId, campaignId]
@@ -19,7 +18,6 @@ export const authorizeOwnership = ({ idParam }) => {
 
       const authMsg = result.rows[0]?.authmsg;
 
-      //  Unauthorized condition (based on function message)
       if (
         authMsg &&
         authMsg.toLowerCase().includes("access denied")
@@ -30,7 +28,6 @@ export const authorizeOwnership = ({ idParam }) => {
         });
       }
 
-      //  Allowed → continue
       next();
 
     } catch (err) {

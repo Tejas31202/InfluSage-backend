@@ -9,9 +9,8 @@ dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
-/* =====================================================
-   COMMON HELPER : GET USER USING USP
-===================================================== */
+
+  //  COMMON HELPER : GET USER USING USP
 async function getUserByEmail(email) {
   const result = await client.query(
     "CALL ins.usp_login_user($1::VARCHAR, $2::JSON, $3::SMALLINT, $4::TEXT);",
@@ -27,9 +26,9 @@ async function getUserByEmail(email) {
   };
 }
 
-/* =====================================================
-   CREATE USER (FOR SOCIAL SIGNUP)
-===================================================== */
+
+  //  CREATE USER (FOR SOCIAL SIGNUP)
+
 async function createUser({ firstName, lastName, email, passwordhash, roleId }) {
   try {
   const result = await client.query(
@@ -62,9 +61,9 @@ async function createUser({ firstName, lastName, email, passwordhash, roleId }) 
   }
 }
     
-/* =====================================================
-   GOOGLE OAUTH REDIRECT
-===================================================== */
+
+  //  GOOGLE OAUTH REDIRECT
+
 export async function getGoogleLoginPage(req, res) {
   try {
     const { roleid } = req.query;
@@ -79,7 +78,7 @@ export async function getGoogleLoginPage(req, res) {
     res.cookie("selected_role", roleid || 1, {
       maxAge: 10 * 60 * 1000,
       httpOnly: true,
-      secure: true, //false to true new updated
+      secure: true, 
       sameSite: "lax",
     });
 
@@ -93,9 +92,9 @@ export async function getGoogleLoginPage(req, res) {
   }
 }
 
-/* =====================================================
-   GOOGLE OAUTH CALLBACK
-===================================================== */
+
+  //  GOOGLE OAUTH CALLBACK
+
 export async function getGoogleLoginCallback(req, res) {
   const { code } = req.query;
   const selectedRole = req.cookies["selected_role"];
@@ -175,9 +174,6 @@ export async function getGoogleLoginCallback(req, res) {
   }
 }
 
-/* =====================================================
-   SET PASSWORD AFTER GOOGLE SIGNUP
-===================================================== */
 export async function setPasswordAfterGoogleSignup(req, res) {
   try {
     const { email, firstName, lastName, roleId, password } = req.body;
@@ -195,10 +191,8 @@ export async function setPasswordAfterGoogleSignup(req, res) {
         .json({ message: "User already exists, please login" });
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user via procedure
     await createUser({
       firstName: firstName || "",
       lastName: lastName || "",
@@ -232,8 +226,6 @@ export async function setPasswordAfterGoogleSignup(req, res) {
       { expiresIn: "1h" }
     );
 
-    // console.log("User after set password:", user);
-
     return res.status(201).json({
       success: true,
       message: "Signup completed successfully",
@@ -249,9 +241,9 @@ export async function setPasswordAfterGoogleSignup(req, res) {
   }
 }
 
-/* =====================================================
-   FACEBOOK OAUTH REDIRECT
-===================================================== */
+
+  //  FACEBOOK OAUTH REDIRECT
+
 export async function getFacebookLoginPage(req, res) {
   try {
     const { roleid } = req.query;
@@ -278,9 +270,9 @@ export async function getFacebookLoginPage(req, res) {
   }
 }
 
-/* =====================================================
-   FACEBOOK OAUTH CALLBACK
-===================================================== */
+
+  //  FACEBOOK OAUTH CALLBACK
+
 export async function getFacebookLoginCallback(req, res) {
   const { code } = req.query;
   const selectedRole = req.cookies["selected_role"];

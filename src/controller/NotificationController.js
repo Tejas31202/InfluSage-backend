@@ -1,6 +1,5 @@
 import { client } from '../config/Db.js';
 
-//..................Get All Notification List............................
 export const getAllNotification = async (req, res) => {
   const userId = req.user?.id;
   const limitedData = req.query?.limitedData;

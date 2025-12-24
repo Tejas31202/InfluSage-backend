@@ -140,7 +140,6 @@ export const uploadContentLink = async (req, res) => {
         
       });
     }
-    // Case 3: p_status = -1 → SP failed
     else if (p_status === -1) {
       console.error("Stored Procedure Failure:", p_message);
       return res.status(500).json({
@@ -187,7 +186,7 @@ export const getInfluencerContractDetail = async (req, res) => {
         data: data[0],
       });
     }
-    return res.status(400).json({
+    return res.status(200).json({
       message: "No Contract Created",
       data: data,
     });
