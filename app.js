@@ -30,7 +30,7 @@ import VendorOffersRoutes from './src/routes/vendorroutes/VendorOffersRoutes.js'
 import VendorMyCampaignRoutes from './src/routes/vendorroutes/VendorMyCampaignRoutes.js';
 import VendorDashboardRoutes from './src/routes/vendorroutes/VendorDashboardRoutes.js';
 import VendorContractRoutes from './src/routes/vendorroutes/VendorContractRoutes.js';
-import VendorFeedbackRoutes from './src/routes/vendorroutes/VendorFeedbackRoutes.js';
+import VendorFeedbackRoutes from './src/routes/vendorroutes/VendorFeedBackRoutes.js';
 import VendorAnalyticsDashboardRoutes from './src/routes/vendorroutes/VendorAnalyticsDashboardRoutes.js';
 
 // Admin Routes
