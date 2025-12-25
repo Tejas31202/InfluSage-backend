@@ -24,6 +24,14 @@ export const finalizeCampaign = async (req, res) => {
       return res.status(400).json({ message: "User ID is required" });
     }
 
+    const safeParse = (data) => {
+      try {
+          return JSON.parse(data);
+      } catch {
+         return null;
+      }
+    };
+
     // Redis key
     const redisKey = campaignId
       ? `getCampaign:${userId}:${campaignId}`
@@ -37,7 +45,7 @@ export const finalizeCampaign = async (req, res) => {
       });
     }
 
-    const campaignData = cachedData;
+    const campaignData = safeParse(cachedData);
 
     // --------------- BEGIN DB TRANSACTION ---------------
     await client.query("BEGIN");
@@ -181,7 +189,14 @@ export const getCampaign = async (req, res) => {
 
     if (!userId)
       return res.status(400).json({ message: "User ID required" });
-
+   
+    const safeParse = (data) => {
+    try {
+      return JSON.parse(data);
+    } catch {
+      return null;
+    }
+  };
     const redisKey =
       campaignId === "01"
         ? `getCampaign:${userId}`
@@ -189,10 +204,12 @@ export const getCampaign = async (req, res) => {
 
     if (campaignId === "01") {
       const cachedData = await Redis.get(redisKey);
-      if (cachedData) {
+      const redisParsed = cachedData ? safeParse(cachedData) : null;
+      
+      if (redisParsed) {
         return res.status(200).json({
           message: "Draft campaign from Redis",
-          campaignParts: cachedData,
+          campaignParts: redisParsed,
           source: "redis",
         });
       }
@@ -205,13 +222,16 @@ export const getCampaign = async (req, res) => {
     }
 
     const cachedEditData = await Redis.get(redisKey);
-    if (cachedEditData) {
-      return res.status(200).json({
-        message: "Campaign data from Redis",
-        campaignParts:cachedEditData,
-        source: "redis",
-      });
-    }
+    const parsedEditData = safeParse(cachedEditData);
+
+    if (parsedEditData) {
+        return res.status(200).json({
+          message: "Campaign data from Redis",
+          campaignParts: parsedEditData, // ✅ object
+          source: "redis",
+        });
+     }
+
     const result = await client.query(
       `SELECT * FROM ins.fn_get_campaigndetailsjson($1::BIGINT, $2::BIGINT)`,
       [userId, campaignId]
@@ -224,7 +244,7 @@ export const getCampaign = async (req, res) => {
     const fullData = result.rows[0];
 
     // Cache DB data in Redis for next time 1h->3600 sec
-    await Redis.setEx(redisKey, 3600, fullData);
+    await Redis.setEx(redisKey, 3600, JSON.stringify(fullData));
 
     return res.status(200).json({
       message: "Campaign data from DB",
@@ -260,20 +280,22 @@ export const deleteCampaignFile = async (req, res) => {
       : `getCampaign:${userId}`;
 
     // ---------------- 2 Update Redis ----------------
-    let campaignData = await Redis.get(redisKey);
-    let updatedFiles = [];
+   // 2️⃣ Fetch & parse Redis data
+    const redisData = await Redis.get(redisKey);
+    let campaignData = redisData ? JSON.parse(redisData) : null;
 
-    if (campaignData && Array.isArray(campaignData.p_campaignfilejson)) {
-      campaignData.p_campaignfilejson = campaignData.p_campaignfilejson.filter(file => {
-        const redisFileName = file.filepath.split("/").pop();
-        const requestFileName = filePathToDelete.split("/").pop();
-        return redisFileName !== requestFileName;
-      });
+    if (campaignData?.p_campaignfilejson?.length) {
+      const requestFileName = filePathToDelete.split("/").pop();
 
-      updatedFiles = campaignData.p_campaignfilejson;
-      await Redis.setEx(redisKey, 3600, campaignData); // update Redis
+      campaignData.p_campaignfilejson =
+        campaignData.p_campaignfilejson.filter(file => {
+          const redisFileName = file.filepath.split("/").pop();
+          return redisFileName !== requestFileName;
+        });
+
+      // Save updated data back to Redis
+      await Redis.setEx(redisKey, 3600, JSON.stringify(campaignData));
     }
-
     // ---------------- 2️⃣ Convert public URL to relative path ----------------
     const supabaseFilePath = filePathToDelete
       .split(`/storage/v1/object/public/${bucketName}/`)[1]
@@ -430,32 +452,27 @@ export const upsertCampaign = async (req, res) => {
     // ---------------- REDIS DRAFT HANDLING ----------------
     const redisKey = `getCampaign:${p_userid}${campaignId ? `:${campaignId}` : ""}`;
 
-    // GET
-    // const cached = await Redis.get(redisKey);
     let existingDraft = {};
     const cached = await Redis.get(redisKey);
-    if (cached) existingDraft = JSON.parse(cached);
+    if (cached) existingDraft = parseIfJson(cached);
 
     const draftData = {
-      p_objectivejson: { ...(existingDraft.p_objectivejson || {}), ...p_objectivejson },
-      p_vendorinfojson: { ...(existingDraft.p_vendorinfojson || {}), ...p_vendorinfojson },
-      p_campaignjson: { ...(existingDraft.p_campaignjson || {}), ...p_campaignjson },
-      p_campaigncategoyjson: p_campaigncategoyjson.length
-        ? p_campaigncategoyjson
-        : existingDraft.p_campaigncategoyjson || [],
-      p_contenttypejson: p_contenttypejson.length
-        ? p_contenttypejson
-        : existingDraft.p_contenttypejson || [],
-      p_campaignfilejson: [
-        ...(existingDraft.p_campaignfilejson || []),
-        ...(p_campaignfilejson || []),
-        ...(campaignFiles || []),
-      ],
-      updated_at: new Date(),
+        p_objectivejson: { ...(existingDraft.p_objectivejson || {}), ...p_objectivejson },
+        p_vendorinfojson: { ...(existingDraft.p_vendorinfojson || {}), ...p_vendorinfojson },
+        p_campaignjson: { ...(existingDraft.p_campaignjson || {}), ...p_campaignjson },
+        p_campaigncategoyjson: p_campaigncategoyjson.length
+         ? p_campaigncategoyjson
+         : existingDraft.p_campaigncategoyjson || [],
+        p_contenttypejson: p_contenttypejson.length
+         ? p_contenttypejson
+         : existingDraft.p_contenttypejson || [],
+        p_campaignfilejson: campaignFiles.length
+         ? [...(existingDraft.p_campaignfilejson || []), ...campaignFiles]
+         : existingDraft.p_campaignfilejson || [],
+        updated_at: new Date(),
     };
-    //Redis store data for 24h -> 86400 sec
-    await Redis.setEx(redisKey, 86400, draftData);
 
+    await Redis.setEx(redisKey, 86400, JSON.stringify(draftData));
 
     // ---------------- DRAFT SAVE ONLY ----------------
     if (!isFinalSubmit) {
