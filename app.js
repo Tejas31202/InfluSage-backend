@@ -41,6 +41,7 @@ import AdminAnalyticsDashboardRoutes from './src/routes/adminroutes/AdminAnalyti
 import ChatRoutes from './src/routes/chatroutes/ChatRoutes.js';
 import UserAdminSupportChatRoutes from './src/routes/chatroutes/UserAdminSupportChatRoutes.js';
 import NotificationRoutes from './src/routes/NotificationRoutes.js';
+import SettingRoutes from './src/routes/SettingRoutes.js';
 
 dotenv.config();
 
@@ -125,6 +126,7 @@ app.use("/admin", AdminAnalyticsDashboardRoutes);
 app.use("/chat", ChatRoutes);
 app.use("/chat/support", UserAdminSupportChatRoutes);
 app.use("/new", NotificationRoutes);
+app.use("/setting",SettingRoutes);
 
 const PORT = process.env.BACKEND_PORT || 3001;
 
