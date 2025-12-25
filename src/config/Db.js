@@ -1,7 +1,8 @@
 import dotenv from 'dotenv';
 import { Client } from 'pg';
-import Redis from '../utils/redisWrapper.js';
+import Redis from '../utils/RedisWrapper.js';
  
+
 dotenv.config();
  
 // ---------- PostgreSQL Client Setup ----------

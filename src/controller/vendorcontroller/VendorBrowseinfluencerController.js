@@ -1,5 +1,5 @@
 import { client } from '../../config/Db.js';
-import Redis from '../../utils/redisWrapper.js';
+import Redis from '../../utils/RedisWrapper.js';
 
 // const Redis = redis.createClient({ url: process.env.REDIS_URL });
 // Redis.connect().catch(console.error);

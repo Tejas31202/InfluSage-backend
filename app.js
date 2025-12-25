@@ -5,7 +5,7 @@ import path from 'path';
 import cookieParser from 'cookie-parser';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import Redis from './src/utils/redisWrapper.js';
+import Redis from './src/utils/RedisWrapper.js';
 
 // Routes
 

@@ -1,6 +1,6 @@
 import { client } from "../../config/Db.js";
 import { createClient } from "@supabase/supabase-js";
-import Redis from "../../utils/redisWrapper.js";
+import Redis from "../../utils/RedisWrapper.js";
 import path from "path";
 import fs from "fs";
 
@@ -9,6 +9,10 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// const Redis = redis.createClient({ url: process.env.REDIS_URL });
+// Redis.connect().catch(console.error);
+
+//New Code With Changes
 export const completeUserProfile = async (req, res) => {
   const userId = req.user?.id || req.body?.userId;
 
@@ -33,6 +37,7 @@ export const completeUserProfile = async (req, res) => {
   const redisKey = `profile:${userId}`;
 
   try {
+    // Helper functions
     const safeParse = (data) => {
       try {
         return data ? JSON.parse(data) : null;
@@ -42,8 +47,10 @@ export const completeUserProfile = async (req, res) => {
     };
 
     const saveToRedis = async (data) => {
-       await Redis.setEx(redisKey, 604800, finalData); // 7 days TTL
+      await Redis.setEx(redisKey, 604800, JSON.stringify(data));
     };
+
+    // Parse JSON fields
     const {
       profilejson = null,
       socialaccountjson = null,
@@ -52,6 +59,7 @@ export const completeUserProfile = async (req, res) => {
       paymentjson = null,
     } = req.body || {};
 
+    // Handle photo upload
     if (req.files?.photo?.[0]) {
       const file = req.files.photo[0];
       const fileName = file.originalname;
@@ -65,7 +73,9 @@ export const completeUserProfile = async (req, res) => {
         const oldPaths = existingFiles.map(
           (f) => `${profileFolderPath}/${f.name}`
         );
-        await supabase.storage.from(process.env.SUPABASE_BUCKET).remove(oldPaths);
+        await supabase.storage
+          .from(process.env.SUPABASE_BUCKET)
+          .remove(oldPaths);
       }
 
       const { error: uploadError } = await supabase.storage
@@ -91,6 +101,7 @@ export const completeUserProfile = async (req, res) => {
       }
     }
 
+    // Handle portfolio uploads
     if (req.files?.portfolioFiles) {
       const uploadedFiles = [];
 
@@ -129,6 +140,8 @@ export const completeUserProfile = async (req, res) => {
       parsedPortfolio.filepaths = [...existingPaths, ...uploadedFiles];
       req.body.portfoliojson = JSON.stringify(parsedPortfolio);
     }
+
+    // Merge body + Redis data
     const mergedData = {
       ...(req.body.profilejson && {
         profilejson: safeParse(req.body.profilejson),
@@ -147,6 +160,7 @@ export const completeUserProfile = async (req, res) => {
     const redisData = existingRedis ? safeParse(existingRedis) : {};
     const finalData = { ...redisData, ...mergedData };
 
+    // Define the required profile parts
     const requiredParts = [
       "profilejson",
       "socialaccountjson",
@@ -155,18 +169,22 @@ export const completeUserProfile = async (req, res) => {
       "paymentjson",
     ];
 
+    // Count how many parts are filled
     const completedParts = requiredParts.filter((k) => finalData[k]);
 
+    // Check if all parts are complete
     const isFullyCompleted = completedParts.length === requiredParts.length;
     let result;
+    // Handle different p_code states
     switch (userpcode) {
       case "APPROVED":
+        // Save in DB, clear Redis
         await client.query("BEGIN");
         await client.query(
           "SELECT set_config('app.current_user_id', $1, true)",
           [String(userId)]
         );
-         result = await client.query(
+        result = await client.query(
           `CALL ins.usp_upsert_userprofile(
               $1::bigint, $2::json, $3::json, $4::json, $5::json, $6::json, $7::smallint, $8::text
             )`,
@@ -184,10 +202,7 @@ export const completeUserProfile = async (req, res) => {
         await client.query("COMMIT");
         await Redis.del(redisKey);
 
-        return res.status(200).json({
-          message:result.rows[0].p_message,
-          status:result.rows[0].p_status
-        });
+        return res.status(200).json(result.rows[0]);
 
       case "BLOCKED":
       case "APPROVALPENDING":
@@ -200,8 +215,10 @@ export const completeUserProfile = async (req, res) => {
 
       case "REJECTED":
       case "PENDINGPROFILE":
+        // console.log(userpcode);
 
         if (!isFullyCompleted) {
+          // Incomplete → save in Redis and respond
           await saveToRedis(finalData);
           return res.status(200).json({
             message: "Profile incomplete, saved temporarily in Redis",
@@ -211,6 +228,8 @@ export const completeUserProfile = async (req, res) => {
             userpcode,
           });
         }
+
+        // Fully completed → save all in DB
         await client.query("BEGIN");
         await client.query(
           "SELECT set_config('app.current_user_id', $1, true)",
@@ -259,7 +278,7 @@ export const completeUserProfile = async (req, res) => {
     }
   } catch (error) {
     console.error("error in complateUserProfile:", error);
-    await client.query("ROLLBACK").catch(() => {});
+    await client.query("ROLLBACK").catch(() => {}); // fail-safe rollback
     return res.status(500).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
@@ -267,6 +286,7 @@ export const completeUserProfile = async (req, res) => {
   }
 };
 
+// Get User Profile
 const calculateProfileCompletion = (profileParts) => {
   const partsArray = Object.values(profileParts);
   const totalSections = partsArray.length;
@@ -277,6 +297,8 @@ const calculateProfileCompletion = (profileParts) => {
 
   return Math.round((filledSections / totalSections) * 100);
 };
+
+//fix numeric-key objects to arrays
 const fixArrays = (obj) => {
   Object.keys(obj).forEach((key) => {
     if (obj[key] && typeof obj[key] === "object" && !Array.isArray(obj[key])) {
@@ -292,11 +314,19 @@ const fixArrays = (obj) => {
 export const getUserProfile = async (req, res) => {
   const userId = req.params.userId;
   const redisKey = `profile:${userId}`;
-
+  const safeParse = (data) => {
+    try {
+      return JSON.parse(data);
+    } catch {
+      return null;
+    }
+  };
   try {
     // 1. Redis data (may contain partial edits)
-    const redisParsed = await Redis.get(redisKey) || {};
+    const cachedData = await Redis.get(redisKey);
+    const redisParsed = cachedData ? safeParse(cachedData) : null;
 
+    // 2. DB full data
     const result = await client.query(
       `SELECT * FROM ins.fn_get_userprofile($1::BIGINT)`,
       [userId]
@@ -309,14 +339,17 @@ export const getUserProfile = async (req, res) => {
       p_portfolios: result.rows[0].p_portfolios || [],
       p_paymentaccounts: result.rows[0].p_paymentaccounts || [],
     };
+
+    // 3. Mapping Redis keys → DB keys
     const redisDataMapped = {
-      p_profile: redisParsed.profilejson,
-      p_socials: redisParsed.socialaccountjson,
-      p_categories: redisParsed.categoriesjson,
-      p_portfolios: redisParsed.portfoliojson,
-      p_paymentaccounts: redisParsed.paymentjson,
+      p_profile: redisParsed?.profilejson ?? null,
+      p_socials: redisParsed?.socialaccountjson ?? null,
+      p_categories: redisParsed?.categoriesjson ?? null,
+      p_portfolios: redisParsed?.portfoliojson ?? null,
+      p_paymentaccounts: redisParsed?.paymentjson ?? null,
     };
 
+    // 4. Merge logic WITHOUT deep merge
     const merged = {
       p_profile: redisDataMapped.p_profile ?? dbData.p_profile,
       p_socials: redisDataMapped.p_socials ?? dbData.p_socials,
@@ -326,13 +359,16 @@ export const getUserProfile = async (req, res) => {
         redisDataMapped.p_paymentaccounts ?? dbData.p_paymentaccounts,
     };
 
+    // Fix numeric-key objects if any
     fixArrays(merged);
 
+    // 5. Decide source properly
     const isMerged = Object.keys(redisDataMapped).some(
       (key) =>
         redisDataMapped[key] !== null && redisDataMapped[key] !== undefined
     );
 
+    // 6. Calculate profile completion
     const profileCompletion = calculateProfileCompletion(merged);
 
     return res.status(200).json({
@@ -349,8 +385,10 @@ export const getUserProfile = async (req, res) => {
     });
   }
 };
+
+// Get User Name by Email
 export const getUserNameByEmail = async (req, res) => {
-  const { email } = req.params; 
+  const { email } = req.params;
 
   try {
     const result = await client.query(
@@ -389,33 +427,36 @@ export const deletePortfolioFile = async (req, res) => {
     }
 
     // Redis key
-    const redisKey = `profile:${userId}`;
+    const redisKey = `getInfluencerProfile:${userId}`;
 
     // 1 Redis se data fetch
     let profileData = await Redis.get(redisKey);
     if (profileData) {
-      // profileData = JSON.parse(profileData);
+      profileData = JSON.parse(profileData);
 
       if (profileData.portfoliojson) {
         profileData.portfoliojson = profileData.portfoliojson.filter(
           (file) => file.filepath !== filePathToDelete
         );
         //Redis store data for 3h->10800sec
-        await Redis.setEx(redisKey, 604800, profileData);;
+        await Redis.setEx(redisKey, 10800, JSON.stringify(profileData));
       }
     }
 
     //  2 Local file delete
-    const uploadDir = path.join(process.cwd(), "src", process.env.SUPABASE_BUCKET, "influencer");
+    const uploadDir = path.join(process.cwd(), "src", "uploads", "influencer");
     const fileName = path.basename(filePathToDelete);
     const fullPath = path.join(uploadDir, fileName);
 
     if (fs.existsSync(fullPath)) {
       fs.unlinkSync(fullPath);
+      // console.log(" File deleted from local folder:", fullPath);
     }
 
-    const bucketName =process.env.SUPABASE_BUCKET
+    // 3 Supabase se delete (actual storage path nikalo)
+    const bucketName = process.env.SUPABASE_BUCKET;
 
+    // Public URL ko relative storage path me convert karo
     const supabaseFilePath = filePathToDelete
       .split("/storage/v1/object/public/" + bucketName + "/")[1]
       ?.trim();
@@ -436,6 +477,8 @@ export const deletePortfolioFile = async (req, res) => {
         console.log("File deleted from Supabase storage:", supabaseFilePath);
       }
     }
+
+    // 🔹 4️⃣ Final response
     return res.status(200).json({
       status: true,
       message: "Portfolio file deleted successfully",

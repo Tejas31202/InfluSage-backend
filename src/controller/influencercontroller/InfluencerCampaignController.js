@@ -1,6 +1,6 @@
 import { client } from '../../config/Db.js';
 import { createClient } from '@supabase/supabase-js';
-import Redis from '../../utils/redisWrapper.js';
+import Redis from '../../utils/RedisWrapper.js';
 import { io } from '../../../app.js'
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
