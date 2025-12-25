@@ -10,18 +10,21 @@ export const changePassword = async (req, res) => {
         .status(400)
         .json({ message: "p_userid and email are required" });
     }
+
+    const { oldPassword, newPassword, confirmPassword } = req.body || {};
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      res.status(400).json({
+        message: "oldPassword,newPassword,confirmPassword are requied.",
+      });
+    }
     // Fetch existing password hash
     const userResult = await client.query(
       "SELECT passwordhash FROM ins.fn_get_loginpassword($1::VARCHAR);",
       [email]
     );
     const dbPasswordHash = userResult.rows[0].passwordhash;
-    const { oldPassword, newPassword, confirmPassword } = req.body || {};
-    if (!oldPassword || !newPassword || !confirmPassword) {
-      res.status(400).json({
-          message: "oldPassword,newPassword,confirmPassword are requied.",
-        });
-    }
+
+
     // Compare old password
     const isOldPasswordValid = await bcrypt.compare(
       oldPassword,
