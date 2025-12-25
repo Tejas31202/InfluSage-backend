@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 import pkg from "pg";
-import { Redis } from "@upstash/redis";
+import Redis from "@upstash/redis";
 
 dotenv.config();
 
