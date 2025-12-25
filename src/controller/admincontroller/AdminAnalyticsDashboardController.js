@@ -139,16 +139,15 @@ export const getInfluencerContentHistory = async (req, res) => {
       return res.status(400).json({ message: "p_contractcontentlinkid is required." });
     }
 
-    const p_pagenumber = Number(req.query.p_pagenumber) || 1;
-    const p_pagesize = Number(req.query.p_pagesize) || 20;
-
+    const {p_pagenumber,p_pagesize} = req.query;
+  
     const result = await client.query(
       `select * from ins.fn_get_analytichistorydetails($1::bigint,$2::bigint,$3::integer,$4::integer);`,
       [
         p_adminid,
         p_contractcontentlinkid,
-        p_pagenumber,
-        p_pagesize 
+        p_pagenumber||1,
+        p_pagesize ||20
       ]
     );
 
@@ -157,10 +156,6 @@ export const getInfluencerContentHistory = async (req, res) => {
     return res.status(200).json({
       message: "Content history retrieved successfully.",
       data:data,
-      pagination: {
-        p_pagenumber:p_pagenumber,
-        p_pagesize:p_pagesize
-      }
     });
   } catch (error) {
     console.error("Error in getInfluencerContentHistory:", error);
