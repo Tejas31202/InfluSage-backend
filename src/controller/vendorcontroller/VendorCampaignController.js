@@ -82,7 +82,7 @@ export const finalizeCampaign = async (req, res) => {
       ]
     );
 
-    console.log("DB finalize result:", result.rows[0]);
+    // console.log("DB finalize result:", result.rows[0]);
 
     await client.query("COMMIT");
 
