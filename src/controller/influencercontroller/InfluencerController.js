@@ -115,7 +115,7 @@ export const verifyOtpAndRegister = async (req, res) => {
       return res.status(400).json({ message: "No pending registration found" });
     }
 
-    const { firstName, lastName, roleId, passwordhash } = JSON.parse(pendingUser);
+    const { firstName, lastName, roleId, passwordhash } = pendingUser;
 
     const result = await runTransaction(null, () =>
       client.query(
