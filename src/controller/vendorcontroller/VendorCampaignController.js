@@ -432,9 +432,8 @@ export const upsertCampaign = async (req, res) => {
 
     // GET
     // const cached = await Redis.get(redisKey);
-    let existingDraft = {};
-    const cached = await Redis.get(redisKey);
-    if (cached) existingDraft = JSON.parse(cached);
+   const existingDraft = await Redis.get(redisKey) || {};
+
 
     const draftData = {
       p_objectivejson: { ...(existingDraft.p_objectivejson || {}), ...p_objectivejson },
@@ -509,6 +508,7 @@ export const upsertCampaign = async (req, res) => {
     const finalCampaignId = row.p_campaignid;
 
     if (p_status === 1) {
+      await Redis.del(redisKey);
       return res.status(200).json({
         status: true,
         message: p_message || "Campaign saved successfully",

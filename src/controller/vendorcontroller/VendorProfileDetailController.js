@@ -319,15 +319,8 @@ export const completeVendorProfile = async (req, res) => {
       }
     } else {
       // 1 Try to fetch Redis partials
-      let redisData = {};
-      const existingRedis = await Redis.get(redisKey);
-      if (existingRedis) {
-        try {
-          redisData = JSON.parse(existingRedis);
-        } catch (e) {
-          console.warn("Redis data corrupted:", e);
-        }
-      }
+      const redisData = (await Redis.get(redisKey)) || {};
+
       // 2 Merge Redis + current request body (request takes priority)
       const finalData = {
         ...redisData,
@@ -348,11 +341,11 @@ export const completeVendorProfile = async (req, res) => {
       mergedData.paymentjson = finalData.paymentjson;
       //  CASE B: User new or incomplete → check Redis
       if (!allPartsPresent) {
-        const existingRedis = await Redis.get(redisKey);
-        let redisData = existingRedis ? JSON.parse(existingRedis) : {};
-        redisData = { ...redisData, ...mergedData };
+        const redisData = (await Redis.get(redisKey)) || {};  // already parsed
+        const mergedRedisData = { ...redisData, ...mergedData };
 
-        await Redis.setEx(redisKey, 86400, JSON.stringify(redisData));
+        await Redis.setEx(redisKey, 86400, mergedRedisData);  // wrapper handles stringify
+
         return res.status(200).json({
           message: "Partial data saved in Redis (first-time user)",
           source: "redis",
