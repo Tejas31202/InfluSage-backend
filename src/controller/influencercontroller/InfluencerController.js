@@ -67,18 +67,28 @@ export const requestRegistration = async (req, res) => {
     const passwordhash = await bcrypt.hash(password, 10);
     const otp = generateOTP();
 
+    // Generate OTP once only
+    const otpCode = generateOTP();
+
     await Redis.setEx(
       `pendingUser:${normalizedEmail}`,
       300,
-      JSON.stringify({ firstName, lastName, email: normalizedEmail, roleId, passwordhash })
+      {
+        firstName,
+        lastName,
+        email: normalizedEmail,
+        roleId,
+        passwordhash,
+      }
     );
 
-    await Redis.setEx(`otp:${normalizedEmail}`, 300, otp);
+    await Redis.setEx(`otp:${normalizedEmail}`, 300, otpCode);
 
+    // Send OTP email
     await sendingMail(
       normalizedEmail,
       "InflueSage OTP Verification",
-      htmlContent({ otp })
+      htmlContent({ otp: otpCode })
     );
 
     return res.status(200).json({ message: "OTP sent successfully" });
@@ -144,33 +154,21 @@ export const loginUser = async (req, res) => {
     const p_status = Number(row.p_status);
     const p_message = row.p_message || "Unknown response from DB";
 
-    // Handle DB response status
     if (p_status === 1) {
       if (!user || user.code === "NOTREGISTERED") {
         return res.status(404).json({
           status: false,
           message: user?.message || "User not registered",
           code: user?.code || "NOTREGISTERED",
-          source: "db",
         });
       }
 
-      if (!user.passwordhash) {
-        return res.status(500).json({
-          status: false,
-          message: "Password hash missing in DB response",
-          source: "db",
-        });
-      }
-
-      // Compare entered password with hashed password
       const isMatch = await bcrypt.compare(password, user.passwordhash);
 
       if (!isMatch) {
         return res.status(401).json({
           status: false,
           message: "Incorrect password",
-          source: "db",
         });
       }
       
@@ -180,7 +178,6 @@ export const loginUser = async (req, res) => {
       //   });
       // }
 
-      // Generate JWT token
       const token = jwt.sign(
         {
           id: user.userid,
@@ -199,7 +196,7 @@ export const loginUser = async (req, res) => {
         token,
         id: user.userid,
         name: user.fullname,
-        email: email,
+        email,
         role: user.roleid,
         p_code: user.code,
         p_message: user.message,
@@ -225,6 +222,7 @@ export const loginUser = async (req, res) => {
         source: "db",
       });
     }
+
   } catch (error) {
     console.error("Login error:", error);
     return res.status(500).json({ 

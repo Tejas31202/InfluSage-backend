@@ -1,21 +1,11 @@
-import nodemailer from 'nodemailer';
+// 📁 utils/MailUtils.js
+import dotenv from 'dotenv';
+import sgMail from '@sendgrid/mail';
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+dotenv.config();
 
-export async function sendingMail(to, subject,htmlContent) {
-  await transporter.sendMail({
-    from: process.env.EMAIL_USER,
-    to,
-    subject,
-    html:htmlContent,
-  });
-}
+// Set API key from environment
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 export async function sendingMailFormatForAdmin(to,subject,html){
   await transporter.sendMail({
@@ -25,3 +15,26 @@ export async function sendingMailFormatForAdmin(to,subject,html){
     html
   })
 }
+
+export const sendingMail = async (toEmail, subject, htmlContent) => {
+  try {
+    const msg = {
+      to: toEmail,
+      from: {
+        email: process.env.SENDER_EMAIL, // must be verified in SendGrid
+        name: 'InfluSage', // optional display name
+      },
+      subject: subject,
+      html: htmlContent,
+    };
+
+    const response = await sgMail.send(msg);
+    // console.log('✅ Email sent successfully to:', toEmail);
+    return response;
+  } catch (error) {
+    console.error('❌ Error sending email:', error.response?.body || error.message);
+    throw error;
+  }
+};
+
+export default sendingMail;

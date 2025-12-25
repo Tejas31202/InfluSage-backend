@@ -78,14 +78,15 @@ export const getCategories = async (req, res) => {
 
     if (cachedData) {
       return res.status(200).json({
-        categories: JSON.parse(cachedData),
+        // categories: JSON.parse(cachedData),
+        categories:cachedData,
         source: "redis",
       });
     }
 
     const result = await client.query("select * from ins.fn_get_categories();");
 
-    await Redis.setEx(redisKey, 7200, JSON.stringify(result.rows)); 
+    await Redis.setEx(redisKey, 7200, result.rows); // TTL 2h
 
     return res.status(200).json({
       categories: result.rows,
@@ -99,6 +100,7 @@ export const getCategories = async (req, res) => {
     });
   }
 };
+
 
 export const getProviders = async (req, res) => {
   try {
