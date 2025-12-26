@@ -202,7 +202,10 @@ export const completeUserProfile = async (req, res) => {
         await client.query("COMMIT");
         await Redis.del(redisKey);
 
-        return res.status(200).json(result.rows[0]);
+        return res.status(200).json({
+          message:result.rows[0].p_message,
+          status:result.rows[0].p_status
+        });
 
       case "BLOCKED":
       case "APPROVALPENDING":
@@ -253,19 +256,29 @@ export const completeUserProfile = async (req, res) => {
         );
         await client.query("COMMIT");
         const { p_status, p_message } = result.rows[0];
-        if (p_status) {
+        if (p_status === 1) {
           await Redis.del(redisKey);
           return res.status(200).json({
+            status: true,
             message: p_message,
-            source: "db",
-            data: result.rows[0],
+          });
+        } else if (p_status === 0) {
+          return res.status(400).json({
+            status: false,
+            message: p_message,
+          });
+        } else if (p_status === -1) {
+          console.error("Stored Procedure Failure:", p_message);
+          return res.status(500).json({
+            status: false,
+            message: "Something went wrong. Please try again later.",
+          });
+        } else {
+          return res.status(500).json({
+            status: false,
+            message: p_message || "Unexpected database response",
           });
         }
-
-        return res.status(400).json({
-          message: p_message,
-          source: "db",
-        });
 
       default:
         // Unknown p_code → Save only in Redis
