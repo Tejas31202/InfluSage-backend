@@ -426,13 +426,13 @@ setInterval(() => {
   console.log("App Idle Time:", getIdleTime(), "seconds");
 }, 10000);
 
-setInterval(() => {
-  console.log("🔄 Resetting request counters (5 minutes passed)");
-  getCount = 0;
-  postCount = 0;
-  socketConnectCount = 0;
-  socketDisconnectCount = 0;
-}, 300000); // 5 min
+// setInterval(() => {
+//   console.log("🔄 Resetting request counters (5 minutes passed)");
+//   getCount = 0;
+//   postCount = 0;
+//   socketConnectCount = 0;
+//   socketDisconnectCount = 0;
+// }, 300000); // 5 min
 
 // Start server using HTTP server
 server.listen(PORT, () => {
