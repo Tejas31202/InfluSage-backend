@@ -46,6 +46,39 @@ dotenv.config();
 
 const app = express();
 
+
+/* =====================================================
+   🔴 DEBUG MIDDLEWARE – Detect stuck HTTP requests
+   MUST be before any other middleware or routes
+===================================================== */
+app.use((req, res, next) => {
+  const start = Date.now();
+  let finished = false;
+
+  res.on("finish", () => {
+    finished = true;
+    console.log(
+      "✅ DONE",
+      req.method,
+      req.originalUrl,
+      `${Date.now() - start}ms`
+    );
+  });
+
+  setTimeout(() => {
+    if (!finished) {
+      console.error(
+        "⏰ STUCK REQUEST",
+        req.method,
+        req.originalUrl,
+        ">5s"
+      );
+    }
+  }, 5000);
+
+  next();
+});
+
 let lastActivity = Date.now();
 let getCount = 0;
 let postCount = 0;
