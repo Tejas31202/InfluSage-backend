@@ -1,9 +1,33 @@
 import { client } from '../config/Db.js';
 import Redis from '../utils/RedisWrapper.js';
 
+//This Code Important Never Delet This
+
+// export const getRoles = async (req, res) => {
+//   try {
+//     const result = await client.query(`SELECT * from ins.fn_get_roles();`);
+
+//     return res.status(200).json({
+//       status: true,
+//       message: "Roles fetched successfully",
+//       roles: result.rows,
+//     });
+//   } catch (error) {
+//     console.error(" Error fetching roles:", error);
+//     return res.status(500).json({
+//       status: false,
+//       message: error.message,
+//     });
+//   }
+// };
+
+//Temp Code for uat error
 export const getRoles = async (req, res) => {
   try {
-    const result = await client.query(`SELECT * from ins.fn_get_roles();`);
+    const result = await client.query({
+      text: `SELECT * FROM ins.fn_get_roles();`,
+      statement_timeout: 3000, // ⏰ 3 seconds max
+    });
 
     return res.status(200).json({
       status: true,
@@ -11,13 +35,15 @@ export const getRoles = async (req, res) => {
       roles: result.rows,
     });
   } catch (error) {
-    console.error(" Error fetching roles:", error);
+    console.error("❌ Error fetching roles:", error);
+
     return res.status(500).json({
       status: false,
-      message: error.message,
+      message: "Failed to fetch roles",
     });
   }
 };
+ 
 
 export const getContentTypes = async (req, res) => {
   try {
