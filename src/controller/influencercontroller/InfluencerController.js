@@ -28,7 +28,7 @@ const runTransaction = async (userId, callback) => {
     await client.query("BEGIN");
     await client.query(
       "SELECT set_config('app.current_user_id', $1, true)",
-      [String(userId ?? null)]
+      [userId ? String(userId) : null]
     );
     const result = await callback();
     await client.query("COMMIT");
