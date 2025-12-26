@@ -1,17 +1,16 @@
+
 import dotenv from "dotenv";
 import pkg from "pg";
 import { Redis } from "@upstash/redis";
 
-
 dotenv.config();
-
 
 const { Client } = pkg;
 
 let client;
+let isConnecting = false; //  prevent parallel reconnects
 
 // -------------------- PostgreSQL -------------------- //
-// Helper to create new PostgreSQL client
 const createPgClient = () =>
   new Client({
     connectionString:
@@ -24,50 +23,44 @@ const createPgClient = () =>
     },
   });
 
-// Connect function with retry
 const connectPostgres = async (retryCount = 0) => {
   const MAX_RETRIES = 5;
   const RETRY_DELAY = 5000;
 
+  if (isConnecting) return; //  avoid multiple connects
+  isConnecting = true;
+
   try {
-    if (client) {
-      await client.end().catch(() => {});
+    if (!client) {
+      client = createPgClient();
     }
 
-    client = createPgClient();
     await client.connect();
 
     console.log(
       `✅ Connected to PostgreSQL (${process.env.USE_POOLER === "true" ? "Pooler" : "Direct"})`
     );
-
-    // Handle unexpected errors
-    client.on("error", (err) => {
-      console.error("⚠️ PostgreSQL client error:", err.message);
-      console.log("♻️ Reconnecting PostgreSQL...");
-      setTimeout(() => connectPostgres(), RETRY_DELAY);
-    });
   } catch (err) {
     console.error("❌ PostgreSQL connection error:", err.message);
-
-    if (process.env.USE_POOLER === "true") {
-      console.log("🔁 Switching to direct connection...");
-      process.env.USE_POOLER = "false";
-      setTimeout(() => connectPostgres(), RETRY_DELAY);
-      return;
-    }
 
     if (retryCount < MAX_RETRIES) {
       console.log(`🔄 Retrying PostgreSQL connection (${retryCount + 1}/${MAX_RETRIES})...`);
       setTimeout(() => connectPostgres(retryCount + 1), RETRY_DELAY);
     } else {
-      console.error("❌ Max retries reached. Could not connect to PostgreSQL.");
+      console.error("❌ Max retries reached. PostgreSQL not connected.");
     }
+  } finally {
+    isConnecting = false;
   }
 };
 
 // Initial connect
 connectPostgres();
+
+// ⚠️ IMPORTANT: only LOG error, DO NOT reconnect here
+client?.on("error", (err) => {
+  console.error("⚠️ PostgreSQL client runtime error:", err.message);
+});
 
 // -------------------- Upstash Redis -------------------- //
 export const redisClient = new Redis({
@@ -75,7 +68,7 @@ export const redisClient = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
 });
 
-// Test connection (optional)
+// Optional ping
 (async () => {
   try {
     const pong = await redisClient.ping();
@@ -90,6 +83,99 @@ export default { client, redisClient };
 
 
 
+// old code
+// import dotenv from "dotenv";
+// import pkg from "pg";
+// import { Redis } from "@upstash/redis";
+
+
+// dotenv.config();
+
+
+// const { Client } = pkg;
+
+// let client;
+
+// // -------------------- PostgreSQL -------------------- //
+// // Helper to create new PostgreSQL client
+// const createPgClient = () =>
+//   new Client({
+//     connectionString:
+//       process.env.USE_POOLER === "true"
+//         ? process.env.DATABASE_URL_POOLED
+//         : process.env.DATABASE_URL_DIRECT || process.env.SUPABASE_DB_URL,
+//     ssl: {
+//       require: true,
+//       rejectUnauthorized: false,
+//     },
+//   });
+
+// // Connect function with retry
+// const connectPostgres = async (retryCount = 0) => {
+//   const MAX_RETRIES = 5;
+//   const RETRY_DELAY = 5000;
+
+//   try {
+//     if (client) {
+//       await client.end().catch(() => {});
+//     }
+
+//     client = createPgClient();
+//     await client.connect();
+
+//     console.log(
+//       `✅ Connected to PostgreSQL (${process.env.USE_POOLER === "true" ? "Pooler" : "Direct"})`
+//     );
+
+//     // Handle unexpected errors
+//     client.on("error", (err) => {
+//       console.error("⚠️ PostgreSQL client error:", err.message);
+//       console.log("♻️ Reconnecting PostgreSQL...");
+//       setTimeout(() => connectPostgres(), RETRY_DELAY);
+//     });
+//   } catch (err) {
+//     console.error("❌ PostgreSQL connection error:", err.message);
+
+//     if (process.env.USE_POOLER === "true") {
+//       console.log("🔁 Switching to direct connection...");
+//       process.env.USE_POOLER = "false";
+//       setTimeout(() => connectPostgres(), RETRY_DELAY);
+//       return;
+//     }
+
+//     if (retryCount < MAX_RETRIES) {
+//       console.log(`🔄 Retrying PostgreSQL connection (${retryCount + 1}/${MAX_RETRIES})...`);
+//       setTimeout(() => connectPostgres(retryCount + 1), RETRY_DELAY);
+//     } else {
+//       console.error("❌ Max retries reached. Could not connect to PostgreSQL.");
+//     }
+//   }
+// };
+
+// // Initial connect
+// connectPostgres();
+
+// // -------------------- Upstash Redis -------------------- //
+// export const redisClient = new Redis({
+//   url: process.env.UPSTASH_REDIS_REST_URL,
+//   token: process.env.UPSTASH_REDIS_REST_TOKEN,
+// });
+
+// // Test connection (optional)
+// (async () => {
+//   try {
+//     const pong = await redisClient.ping();
+//     console.log("✅ Upstash Redis Connected:", pong);
+//   } catch (err) {
+//     console.error("❌ Upstash Redis Error:", err.message);
+//   }
+// })();
+
+// export { client };
+// export default { client, redisClient };
+
+
+//oldest code
 // import dotenv from "dotenv";
 // import pkg from "pg";
 // import { createClient as createRedisClient } from "redis";
