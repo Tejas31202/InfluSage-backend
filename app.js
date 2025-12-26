@@ -181,6 +181,9 @@ export const io = new Server(server, {
   },
 });
 
+let socketConnectCount = 0;
+let socketDisconnectCount = 0;
+
 io.on("connection", (socket) => {
   console.log("🔗 User connected:", socket.id);
   socketConnectCount++;
