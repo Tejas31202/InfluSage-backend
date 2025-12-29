@@ -13,9 +13,7 @@ let isConnecting = false;
 const createPgClient = () =>
   new Client({
     connectionString: process.env.RENDER_DATABASE_INTERNAL_URL,
-    ssl: false, // ✅ Internal DB = no SSL
-    connectionTimeoutMillis: 5000,
-    keepAlive: true,
+    ssl: { rejectUnauthorized: false }
   });
 
 const connectPostgres = async (retry = 0) => {
