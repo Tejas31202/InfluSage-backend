@@ -113,7 +113,7 @@ export const getdeleteAccountReason = async (req, res) => {
 }
 
 export const deleteAccount = async (req, res) => {
-  const p_userid = req.user?.id || req.query.p_userid;
+  const p_userid = req.user?.id || req.body?.user_id;
   if (!p_userid) return res.status(400).json({ message: "User Id Required For Delete Account" });
   try {
     const delAccount = await client.query(
