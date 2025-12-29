@@ -4,40 +4,38 @@ import pkg from "pg";
 import { Redis } from "@upstash/redis";
 
 dotenv.config();
-
 const { Client } = pkg;
 
-let client;
+let client = null;
 let isConnecting = false;
 
-// =====================
-// PostgreSQL (Render INTERNAL)
-// =====================
+// -------------------- PostgreSQL --------------------
 const createPgClient = () =>
   new Client({
     connectionString: process.env.RENDER_DATABASE_INTERNAL_URL,
-    // ❌ SSL NOT needed for internal DB
-    ssl: false,
+    ssl: false, // ✅ Internal DB = no SSL
     connectionTimeoutMillis: 5000,
     keepAlive: true,
   });
 
 const connectPostgres = async (retry = 0) => {
   const MAX_RETRIES = 5;
-  const RETRY_DELAY = 4000;
+  const RETRY_DELAY = 5000;
 
   if (isConnecting) return;
   isConnecting = true;
 
   try {
-    if (!client) {
-      client = createPgClient();
-    }
-
+    // Always create new client
+    client = createPgClient();
     await client.connect();
     console.log("✅ PostgreSQL Connected (Render Internal DB)");
   } catch (err) {
     console.error("❌ PostgreSQL connection error:", err.message);
+
+    // Cleanup old client
+    try { await client?.end(); } catch (_) {}
+    client = null;
 
     if (retry < MAX_RETRIES) {
       console.log(`🔄 Retrying PostgreSQL (${retry + 1}/${MAX_RETRIES})...`);
@@ -53,20 +51,17 @@ const connectPostgres = async (retry = 0) => {
 // Initial connect
 connectPostgres();
 
-// ⚠️ Runtime error → only log (NO reconnect loop)
+// Runtime error → log only
 client?.on("error", (err) => {
   console.error("⚠️ PostgreSQL runtime error:", err.message);
 });
 
-// =====================
-// Upstash Redis
-// =====================
+// -------------------- Upstash Redis --------------------
 export const redisClient = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
 });
 
-// Optional ping
 (async () => {
   try {
     const pong = await redisClient.ping();
@@ -78,6 +73,7 @@ export const redisClient = new Redis({
 
 export { client };
 export default { client, redisClient };
+
 
 
 // new code
