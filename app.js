@@ -57,12 +57,12 @@ app.use((req, res, next) => {
 
   res.on("finish", () => {
     finished = true;
-    console.log(
-      "✅ DONE",
-      req.method,
-      req.originalUrl,
-      `${Date.now() - start}ms`
-    );
+    // console.log(
+    //   "✅ DONE",
+    //   req.method,
+    //   req.originalUrl,
+    //   `${Date.now() - start}ms`
+    // );
   });
 
   setTimeout(() => {
@@ -450,14 +450,14 @@ function getIdleTime() {
   return idleSec;
 }
 // Log For Req And Res
-setInterval(() => {
-  console.log("-------Last 10 Second-----")
-  console.log("Get Request : - ", getCount);
-  console.log("Post Count : -", postCount)
-  console.log("Socket Connected Count :-", socketConnectCount)
-  console.log("socekt Disconnected Count :-", socketDisconnectCount)
-  console.log("App Idle Time:", getIdleTime(), "seconds");
-}, 10000);
+// setInterval(() => {
+//   console.log("-------Last 10 Second-----")
+//   console.log("Get Request : - ", getCount);
+//   console.log("Post Count : -", postCount)
+//   console.log("Socket Connected Count :-", socketConnectCount)
+//   console.log("socekt Disconnected Count :-", socketDisconnectCount)
+//   console.log("App Idle Time:", getIdleTime(), "seconds");
+// }, 10000);
 
 // setInterval(() => {
 //   console.log("🔄 Resetting request counters (5 minutes passed)");
