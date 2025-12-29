@@ -97,6 +97,8 @@ export const changePassword = async (req, res) => {
 };
 
 export const getdeleteAccountReason = async (req, res) => {
+  const p_userid = req.user.id;
+  if (!p_userid) return res.status(400).json({ Message: "User Id Required For get Delete Reasons." })
   try {
     const delAccountReason = await client.query(`select * from ins.fn_get_deleteaccountreasons()`);
     const reasonRes = delAccountReason.rows;
@@ -109,3 +111,47 @@ export const getdeleteAccountReason = async (req, res) => {
     });
   }
 }
+
+export const deleteAccount = async (req, res) => {
+  const p_userid = req.user?.id || req.query.p_userid;
+  if (!p_userid) return res.status(400).json({ message: "User Id Required For Delete Account" });
+  try {
+    const delAccount = await client.query(
+      `CALL ins.usp_delete_user($1::BIGINT,$2::SMALLINT,$3::TEXT)`,
+      [p_userid, null, null]
+    );
+    const { p_status, p_message } = delAccount.rows[0];
+    if (p_status === 1) {
+      return res.status(200).json({
+        status: true,
+        message: p_message,
+        source: "db",
+      });
+    } else if (p_status === 0) {
+      return res.status(400).json({
+        status: false,
+        message: p_message,
+        source: "db",
+      });
+    }
+    // Case 3: p_status = -1 → SP failed
+    else if (p_status === -1) {
+      console.error("Stored Procedure Failure:", p_message);
+      return res.status(500).json({
+        status: false,
+        message: "Something went wrong. Please try again later.",
+      });
+    } else {
+      return res.status(500).json({
+        status: false,
+        message: p_message || "Unexpected database response",
+      });
+    }
+  } catch (error) {
+    console.error("Error in changePassword:", error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
+  }
+};
