@@ -8,15 +8,15 @@ dotenv.config();
 let client = null;
 let isConnecting = false;
 
-// -------------------- PostgreSQL (using host/port/user/password) --------------------
-const createPgClient = () => 
+// -------------------- PostgreSQL --------------------
+const createClient = () =>
   new Client({
-    host: process.env.DB_HOST, 
-    port: parseInt(process.env.DB_PORT || "5432"), 
-    user: process.env.DB_USER,       // your DB username
-    password: process.env.DB_PASSWORD, // your DB password
-    database: process.env.DATABASE,  // your DB name
-    ssl: { rejectUnauthorized: false }, // required for public Render DB
+    host: process.env.DB_HOST,                     // public host
+    port: parseInt(process.env.DB_PORT || "5432"),
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DATABASE,
+    ssl: { rejectUnauthorized: false },           // required for public Render DB
     connectionTimeoutMillis: 5000,
     keepAlive: true,
   });
@@ -29,18 +29,15 @@ const connectPostgres = async (retry = 0) => {
   isConnecting = true;
 
   try {
-    client = createPgClient();
+    client = createClient();
     await client.connect();
     console.log("✅ PostgreSQL Connected (Public DB via details)");
 
-    // Runtime errors → log but don’t crash app
     client.on("error", (err) => {
       console.error("⚠️ PostgreSQL runtime error:", err.message);
     });
   } catch (err) {
     console.error("❌ PostgreSQL connection error:", err.message);
-
-    try { await client?.end(); } catch (_) {}
     client = null;
 
     if (retry < MAX_RETRIES) {
@@ -54,8 +51,19 @@ const connectPostgres = async (retry = 0) => {
   }
 };
 
-// Initial connect
+// Immediately connect
 connectPostgres();
+
+// Helper: wait for client to be ready
+export const waitForClient = async () => {
+  let wait = 0;
+  while (!client && wait < 10000) { // wait max 10s
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    wait += 100;
+  }
+  if (!client) throw new Error("PostgreSQL client not connected yet");
+  return client;
+};
 
 // -------------------- Upstash Redis --------------------
 export const redisClient = new Redis({
@@ -72,7 +80,7 @@ export const redisClient = new Redis({
   }
 })();
 
-// -------------------- Exports --------------------
+// -------------------- Export --------------------
 export { client };
 export default { client, redisClient };
 
