@@ -534,7 +534,6 @@ export const blockInfluencerAndCampaignApplication = async (req, res) => {
 
         io.to(`user_${toUserId}`).emit("receiveNotification", notifyData);
       }
-      return res.status(200).json({ message: p_message, status: true, p_status, source: "db" });
     }
     // VALIDATION FAIL → p_status = 0
     else if (p_status === 0) {
