@@ -1,19 +1,24 @@
 //db.js for Render INTERNAL Postgres and Upstash Redis
 import dotenv from "dotenv";
-import pkg from "pg";
+import { Client } from "pg";
 import { Redis } from "@upstash/redis";
 
 dotenv.config();
-const { Client } = pkg;
 
 let client = null;
 let isConnecting = false;
 
-// -------------------- PostgreSQL --------------------
-const createPgClient = () =>
+// -------------------- PostgreSQL (using host/port/user/password) --------------------
+const createPgClient = () => 
   new Client({
-    connectionString: process.env.RENDER_DATABASE_INTERNAL_URL,
-    ssl: { rejectUnauthorized: false }
+    host: process.env.DB_HOST, 
+    port: parseInt(process.env.DB_PORT || "5432"), 
+    user: process.env.DB_USER,       // your DB username
+    password: process.env.DB_PASSWORD, // your DB password
+    database: process.env.DATABASE,  // your DB name
+    ssl: { rejectUnauthorized: false }, // required for public Render DB
+    connectionTimeoutMillis: 5000,
+    keepAlive: true,
   });
 
 const connectPostgres = async (retry = 0) => {
@@ -24,19 +29,22 @@ const connectPostgres = async (retry = 0) => {
   isConnecting = true;
 
   try {
-    // Always create new client
     client = createPgClient();
     await client.connect();
-    console.log("✅ PostgreSQL Connected (Render Internal DB)");
+    console.log("✅ PostgreSQL Connected (Public DB via details)");
+
+    // Runtime errors → log but don’t crash app
+    client.on("error", (err) => {
+      console.error("⚠️ PostgreSQL runtime error:", err.message);
+    });
   } catch (err) {
     console.error("❌ PostgreSQL connection error:", err.message);
 
-    // Cleanup old client
     try { await client?.end(); } catch (_) {}
     client = null;
 
     if (retry < MAX_RETRIES) {
-      console.log(`🔄 Retrying PostgreSQL (${retry + 1}/${MAX_RETRIES})...`);
+      console.log(`🔄 Retrying PostgreSQL (${retry + 1}/${MAX_RETRIES}) in ${RETRY_DELAY / 1000}s...`);
       setTimeout(() => connectPostgres(retry + 1), RETRY_DELAY);
     } else {
       console.error("❌ PostgreSQL connection failed permanently");
@@ -48,11 +56,6 @@ const connectPostgres = async (retry = 0) => {
 
 // Initial connect
 connectPostgres();
-
-// Runtime error → log only
-client?.on("error", (err) => {
-  console.error("⚠️ PostgreSQL runtime error:", err.message);
-});
 
 // -------------------- Upstash Redis --------------------
 export const redisClient = new Redis({
@@ -69,6 +72,7 @@ export const redisClient = new Redis({
   }
 })();
 
+// -------------------- Exports --------------------
 export { client };
 export default { client, redisClient };
 
