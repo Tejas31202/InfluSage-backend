@@ -94,4 +94,18 @@ export const changePassword = async (req, res) => {
       error: error.message,
     });
   }
-}; 
+};
+
+export const getdeleteAccountReason = async (req, res) => {
+  try {
+    const delAccountReason = await client.query(`select * from ins.fn_get_deleteaccountreasons()`);
+    const reasonRes = delAccountReason.rows;
+    return res.status(200).json({ Message: "Sucessfully get reason for del account.", data: reasonRes })
+  } catch (error) {
+    console.log("Error in Getting Delete Account Reason", error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
+  }
+}

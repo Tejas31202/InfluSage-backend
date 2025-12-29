@@ -47,6 +47,21 @@ dotenv.config();
 
 const app = express();
 
+let lastActivity = Date.now();
+let getCount = 0;
+let postCount = 0;
+
+app.use((req, res, next) => {
+  if (req.method === 'GET') {
+    getCount++;
+  }
+  if (req.method === 'POST') {
+    postCount++;
+  }
+  lastActivity = Date.now();
+  next();
+})
+
 // Temporary middleware to measure API request execution time
 // app.use((req, res, next) => {
 //   const start = Date.now();
@@ -70,16 +85,11 @@ app.use(cookieParser());
 app.use(
   cors({
     origin: process.env.FRONTEND_URL, // your Netlify URL
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   })
 );
-
-
-
-
-
 dotenv.config(); // if app in src
 
 /* =========================
@@ -126,7 +136,7 @@ app.use("/admin", AdminAnalyticsDashboardRoutes);
 app.use("/chat", ChatRoutes);
 app.use("/chat/support", UserAdminSupportChatRoutes);
 app.use("/new", NotificationRoutes);
-app.use("/setting",SettingRoutes);
+app.use("/setting", SettingRoutes);
 
 const PORT = process.env.BACKEND_PORT || 3001;
 
@@ -168,8 +178,14 @@ export const io = new Server(server, {
   },
 });
 
+let socketConnectCount = 0;
+let socketDisconnectCount = 0;
+
 io.on("connection", (socket) => {
   console.log("🔗 User connected:", socket.id);
+  socketConnectCount++;
+  lastActivity = Date.now();
+  console.log("🟢 Socket connected:", socket.id);
 
   /* ---------------- REGISTER USER ---------------- */
   // socket.on("register", async (userId) => {
@@ -236,7 +252,7 @@ io.on("connection", (socket) => {
   // });
 
 
-  socket.once("register", async (userId) => {
+  socket.on("register", async (userId) => {
     try {
       //IF USER ID MISSING THAN RETURN 
       if (!userId) {
@@ -298,7 +314,7 @@ io.on("connection", (socket) => {
   //   io.to(`notification_${toUserId}`).emit("receiveNotification", { message });
   //   // console.log(`🔔 Notification sent to ${toUserId}`);
   // });
-/*------------------- NOTIFICATION NEW WRROR HANDLE MAX LISNER ---------*/
+  /*------------------- NOTIFICATION NEW WRROR HANDLE MAX LISNER ---------*/
   socket.on("sendNotification", async ({ toUserId, message }) => {
     try {
       if (!toUserId) return;
@@ -376,6 +392,9 @@ io.on("connection", (socket) => {
   /* ---------------- DISCONNECT ---------------- */
   socket.on("disconnect", () => {
     if (socket.userId) {
+      socketDisconnectCount++;
+      lastActivity = Date.now();
+      console.log("Socket disconnected:", socket.id);
       onlineUsers.delete(socket.userId);
 
       socket.broadcast.emit("user-offline", {
@@ -387,6 +406,32 @@ io.on("connection", (socket) => {
     }
   });
 });
+
+function getIdleTime() {
+  const now = Date.now();
+  const idleMs = now - lastActivity;
+  const idleSec = Math.floor(idleMs / 1000);
+  return idleSec;
+}
+
+
+
+setInterval(() => {
+  console.log("-------Last 10 Second-----")
+  console.log("Get Request : - ", getCount);
+  console.log("Post Count : -", postCount)
+  console.log("Socket Connected Count :-",socketConnectCount)
+  console.log("socekt Disconnected Count :-",socketDisconnectCount)
+  console.log("App Idle Time:", getIdleTime(), "seconds");
+}, 10000);
+
+// setInterval(() => {
+//   console.log("🔄 Resetting request counters (5 minutes passed)");
+//   getCount = 0;
+//   postCount = 0;
+//   socketConnectCount=0;
+//   socketDisconnectCount=0;
+// }, 300000); // 5 min
 
 
 // Start server using HTTP server
