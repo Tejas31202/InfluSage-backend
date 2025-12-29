@@ -1,4 +1,4 @@
-
+//db.js for Render INTERNAL Postgres and Upstash Redis
 import dotenv from "dotenv";
 import pkg from "pg";
 import { Redis } from "@upstash/redis";
@@ -8,26 +8,25 @@ dotenv.config();
 const { Client } = pkg;
 
 let client;
-let isConnecting = false; //  prevent parallel reconnects
+let isConnecting = false;
 
-// -------------------- PostgreSQL -------------------- //
+// =====================
+// PostgreSQL (Render INTERNAL)
+// =====================
 const createPgClient = () =>
   new Client({
-    connectionString:
-      process.env.USE_POOLER === "true"
-        ? process.env.DATABASE_URL_POOLED
-        : process.env.DATABASE_URL_DIRECT || process.env.SUPABASE_DB_URL,
-    ssl: {
-      require: true,
-      rejectUnauthorized: false,
-    },
+    connectionString: process.env.RENDER_DATABASE_INTERNAL_URL,
+    // ❌ SSL NOT needed for internal DB
+    ssl: false,
+    connectionTimeoutMillis: 5000,
+    keepAlive: true,
   });
 
-const connectPostgres = async (retryCount = 0) => {
+const connectPostgres = async (retry = 0) => {
   const MAX_RETRIES = 5;
-  const RETRY_DELAY = 5000;
+  const RETRY_DELAY = 4000;
 
-  if (isConnecting) return; //  avoid multiple connects
+  if (isConnecting) return;
   isConnecting = true;
 
   try {
@@ -36,18 +35,15 @@ const connectPostgres = async (retryCount = 0) => {
     }
 
     await client.connect();
-
-    console.log(
-      `✅ Connected to PostgreSQL (${process.env.USE_POOLER === "true" ? "Pooler" : "Direct"})`
-    );
+    console.log("✅ PostgreSQL Connected (Render Internal DB)");
   } catch (err) {
     console.error("❌ PostgreSQL connection error:", err.message);
 
-    if (retryCount < MAX_RETRIES) {
-      console.log(`🔄 Retrying PostgreSQL connection (${retryCount + 1}/${MAX_RETRIES})...`);
-      setTimeout(() => connectPostgres(retryCount + 1), RETRY_DELAY);
+    if (retry < MAX_RETRIES) {
+      console.log(`🔄 Retrying PostgreSQL (${retry + 1}/${MAX_RETRIES})...`);
+      setTimeout(() => connectPostgres(retry + 1), RETRY_DELAY);
     } else {
-      console.error("❌ Max retries reached. PostgreSQL not connected.");
+      console.error("❌ PostgreSQL connection failed permanently");
     }
   } finally {
     isConnecting = false;
@@ -57,12 +53,14 @@ const connectPostgres = async (retryCount = 0) => {
 // Initial connect
 connectPostgres();
 
-// ⚠️ IMPORTANT: only LOG error, DO NOT reconnect here
+// ⚠️ Runtime error → only log (NO reconnect loop)
 client?.on("error", (err) => {
-  console.error("⚠️ PostgreSQL client runtime error:", err.message);
+  console.error("⚠️ PostgreSQL runtime error:", err.message);
 });
 
-// -------------------- Upstash Redis -------------------- //
+// =====================
+// Upstash Redis
+// =====================
 export const redisClient = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
@@ -80,6 +78,90 @@ export const redisClient = new Redis({
 
 export { client };
 export default { client, redisClient };
+
+
+// new code
+// import dotenv from "dotenv";
+// import pkg from "pg";
+// import { Redis } from "@upstash/redis";
+
+// dotenv.config();
+
+// const { Client } = pkg;
+
+// let client;
+// let isConnecting = false; //  prevent parallel reconnects
+
+// // -------------------- PostgreSQL -------------------- //
+// const createPgClient = () =>
+//   new Client({
+//     connectionString:
+//       process.env.USE_POOLER === "true"
+//         ? process.env.DATABASE_URL_POOLED
+//         : process.env.DATABASE_URL_DIRECT || process.env.SUPABASE_DB_URL,
+//     ssl: {
+//       require: true,
+//       rejectUnauthorized: false,
+//     },
+//   });
+
+// const connectPostgres = async (retryCount = 0) => {
+//   const MAX_RETRIES = 5;
+//   const RETRY_DELAY = 5000;
+
+//   if (isConnecting) return; //  avoid multiple connects
+//   isConnecting = true;
+
+//   try {
+//     if (!client) {
+//       client = createPgClient();
+//     }
+
+//     await client.connect();
+
+//     console.log(
+//       `✅ Connected to PostgreSQL (${process.env.USE_POOLER === "true" ? "Pooler" : "Direct"})`
+//     );
+//   } catch (err) {
+//     console.error("❌ PostgreSQL connection error:", err.message);
+
+//     if (retryCount < MAX_RETRIES) {
+//       console.log(`🔄 Retrying PostgreSQL connection (${retryCount + 1}/${MAX_RETRIES})...`);
+//       setTimeout(() => connectPostgres(retryCount + 1), RETRY_DELAY);
+//     } else {
+//       console.error("❌ Max retries reached. PostgreSQL not connected.");
+//     }
+//   } finally {
+//     isConnecting = false;
+//   }
+// };
+
+// // Initial connect
+// connectPostgres();
+
+// // ⚠️ IMPORTANT: only LOG error, DO NOT reconnect here
+// client?.on("error", (err) => {
+//   console.error("⚠️ PostgreSQL client runtime error:", err.message);
+// });
+
+// // -------------------- Upstash Redis -------------------- //
+// export const redisClient = new Redis({
+//   url: process.env.UPSTASH_REDIS_REST_URL,
+//   token: process.env.UPSTASH_REDIS_REST_TOKEN,
+// });
+
+// // Optional ping
+// (async () => {
+//   try {
+//     const pong = await redisClient.ping();
+//     console.log("✅ Upstash Redis Connected:", pong);
+//   } catch (err) {
+//     console.error("❌ Upstash Redis Error:", err.message);
+//   }
+// })();
+
+// export { client };
+// export default { client, redisClient };
 
 
 
