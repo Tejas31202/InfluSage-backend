@@ -236,7 +236,7 @@ io.on("connection", (socket) => {
   // });
 
 
-  socket.once("register", async (userId) => {
+  socket.on("register", async (userId) => {
     try {
       //IF USER ID MISSING THAN RETURN 
       if (!userId) {
