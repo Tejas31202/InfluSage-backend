@@ -407,12 +407,12 @@ io.on("connection", (socket) => {
   });
 });
 //Get Time 
-function getIdleTime() {
-  const now = Date.now();
-  const idleMs = now - lastActivity;
-  const idleSec = Math.floor(idleMs / 1000);
-  return idleSec;
-}
+// function getIdleTime() {
+//   const now = Date.now();
+//   const idleMs = now - lastActivity;
+//   const idleSec = Math.floor(idleMs / 1000);
+//   return idleSec;
+// }
 // Log For Req And Res
 // setInterval(() => {
 //   console.log("-------Last 10 Second-----")
@@ -423,12 +423,12 @@ function getIdleTime() {
 //   console.log("App Idle Time:", getIdleTime(), "seconds");
 // }, 10000);
 
-function getIdleTime() {
-  const now = Date.now();
-  const idleMs = now - lastActivity;
-  const idleSec = Math.floor(idleMs / 1000);
-  return idleSec;
-}
+// function getIdleTime() {
+//   const now = Date.now();
+//   const idleMs = now - lastActivity;
+//   const idleSec = Math.floor(idleMs / 1000);
+//   return idleSec;
+// }
 // setInterval(() => {
 //   console.log("-------Last 10 Second-----")
 //   console.log("Get Request : - ", getCount);
