@@ -71,6 +71,7 @@ async function handleUserLogin(user) {
       email: user.email,
       role: user.roleid,
       name: fullname,
+      p_code: user.code,
     },
     JWT_SECRET,
     { expiresIn: "1h" }
@@ -84,6 +85,7 @@ async function handleUserLogin(user) {
     name: fullname,
     email: user.email,
     role: user.roleid,
+    p_code: user.code,
   };
 }
 // ================== Normal Login ==================
@@ -219,16 +221,17 @@ export async function getGoogleLoginCallback(req, res) {
     const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
     const { data } = await oauth2.userinfo.get();
 
+    const firstName = data.given_name || (data.name ? data.name.split(" ")[0] : "");
+    const lastName = data.family_name || (data.name ? data.name.split(" ").slice(1).join(" ") : "");
+
     const { p_status, p_message, user } = await getUserByEmail(data.email);
 
     if (p_status === 1) {
       if (!user || user.code === "NOTREGISTERED") {
         const redirectUrl = `${process.env.FRONTEND_URL}/roledefault?email=${encodeURIComponent(
           data.email
-        )}&firstName=${encodeURIComponent(
-          data.given_name || ""
-        )}&lastName=${encodeURIComponent(
-          data.family_name || ""
+        )}&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(
+          lastName
         )}&roleId=${selectedRole || ""}`;
 
         return res.redirect(redirectUrl);
@@ -244,18 +247,32 @@ export async function getGoogleLoginCallback(req, res) {
           id: user.userid,
           role: user.roleid,
           email: data.email,
-          name: user.name,
-          p_code: user.code,
+          name: user.name || `${firstName} ${lastName}`.trim(),
+          p_code: user?.code || user?.p_code,
         },
         JWT_SECRET,
         { expiresIn: "1h" }
       );
 
-      const redirectUrl = `${process.env.FRONTEND_URL}/login?token=${token}&userId=${user.userid}&roleId=${user.roleid}&email=${encodeURIComponent(
-        data.email
-      )}`;
+      const fullName = user?.name || `${firstName} ${lastName}`.trim();
+const pCode = user?.code || user?.p_code;
 
-      return res.redirect(redirectUrl);
+      // const redirectUrl = `${process.env.FRONTEND_URL}/login?token=${token}&userId=${user.userid}&roleId=${user.roleid}&email=${encodeURIComponent(
+      //   data.email
+      // )}`;
+
+      // return res.redirect(redirectUrl);
+      const redirectUrl =
+  `${process.env.FRONTEND_URL}/login` +
+  `?token=${encodeURIComponent(token)}` +
+  `&userId=${user.userid}` +
+  `&roleId=${user.roleid}` +
+  `&email=${encodeURIComponent(data.email)}` +
+  `&name=${encodeURIComponent(fullName)}` +
+  `&p_code=${encodeURIComponent(pCode)}`;
+
+return res.redirect(redirectUrl);
+
 
     }
 
@@ -283,10 +300,16 @@ export async function getGoogleLoginCallback(req, res) {
 
 export async function setPasswordAfterGoogleSignup(req, res) {
   try {
-    const { email, firstName, lastName, roleId, password } = req.body;
+    const { email, firstName, lastName, roleId, password, fullName } = req.body;
 
     if (!email || !password || !roleId) {
       return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    if ((!firstName || !lastName) && fullName) {
+      const nameParts = fullName.trim().split(" ");
+      firstName = firstName || nameParts[0];
+      lastName = lastName || nameParts.slice(1).join(" ");
     }
 
     // Check if user already exists
@@ -316,7 +339,7 @@ export async function setPasswordAfterGoogleSignup(req, res) {
     const normalizedUser = {
       id: loginRes.user.userid,
       role: loginRes.user.roleid,
-      name: loginRes.user.name || `${firstName} ${lastName}`,
+      name: loginRes.user.name || `${firstName} ${lastName}`.trim(),
       email: loginRes.user.email,
       p_code: loginRes.user.code,
     };
@@ -328,7 +351,7 @@ export async function setPasswordAfterGoogleSignup(req, res) {
         role: normalizedUser.role,
         name: normalizedUser.name,
         email: normalizedUser.email,
-        p_code: normalizedUser.code,
+        p_code: normalizedUser.p_code,
       },
       JWT_SECRET,
       { expiresIn: "1h" }

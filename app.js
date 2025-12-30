@@ -60,7 +60,7 @@ app.use((req, res, next) => {
   }
   lastActivity = Date.now();
   next();
-})
+});
 
 // Temporary middleware to measure API request execution time
 // app.use((req, res, next) => {
@@ -413,17 +413,14 @@ function getIdleTime() {
   const idleSec = Math.floor(idleMs / 1000);
   return idleSec;
 }
-
-
-
-setInterval(() => {
-  console.log("-------Last 10 Second-----")
-  console.log("Get Request : - ", getCount);
-  console.log("Post Count : -", postCount)
-  console.log("Socket Connected Count :-",socketConnectCount)
-  console.log("socekt Disconnected Count :-",socketDisconnectCount)
-  console.log("App Idle Time:", getIdleTime(), "seconds");
-}, 10000);
+// setInterval(() => {
+//   console.log("-------Last 10 Second-----")
+//   console.log("Get Request : - ", getCount);
+//   console.log("Post Count : -", postCount)
+//   console.log("Socket Connected Count :-",socketConnectCount)
+//   console.log("socekt Disconnected Count :-",socketDisconnectCount)
+//   console.log("App Idle Time:", getIdleTime(), "seconds");
+// }, 10000);
 
 // setInterval(() => {
 //   console.log("🔄 Resetting request counters (5 minutes passed)");
