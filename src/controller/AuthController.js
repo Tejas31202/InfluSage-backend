@@ -71,6 +71,7 @@ async function handleUserLogin(user) {
       email: user.email,
       role: user.roleid,
       name: fullname,
+      p_code: user.code,
     },
     JWT_SECRET,
     { expiresIn: "1h" }
@@ -84,6 +85,7 @@ async function handleUserLogin(user) {
     name: fullname,
     email: user.email,
     role: user.roleid,
+    p_code: user.code,
   };
 }
 // ================== Normal Login ==================
@@ -246,17 +248,31 @@ export async function getGoogleLoginCallback(req, res) {
           role: user.roleid,
           email: data.email,
           name: user.name || `${firstName} ${lastName}`.trim(),
-          p_code: user.code,
+          p_code: user?.code || user?.p_code,
         },
         JWT_SECRET,
         { expiresIn: "1h" }
       );
 
-      const redirectUrl = `${process.env.FRONTEND_URL}/login?token=${token}&userId=${user.userid}&roleId=${user.roleid}&email=${encodeURIComponent(
-        data.email
-      )}`;
+      const fullName = user?.name || `${firstName} ${lastName}`.trim();
+const pCode = user?.code || user?.p_code;
 
-      return res.redirect(redirectUrl);
+      // const redirectUrl = `${process.env.FRONTEND_URL}/login?token=${token}&userId=${user.userid}&roleId=${user.roleid}&email=${encodeURIComponent(
+      //   data.email
+      // )}`;
+
+      // return res.redirect(redirectUrl);
+      const redirectUrl =
+  `${process.env.FRONTEND_URL}/login` +
+  `?token=${encodeURIComponent(token)}` +
+  `&userId=${user.userid}` +
+  `&roleId=${user.roleid}` +
+  `&email=${encodeURIComponent(data.email)}` +
+  `&name=${encodeURIComponent(fullName)}` +
+  `&p_code=${encodeURIComponent(pCode)}`;
+
+return res.redirect(redirectUrl);
+
 
     }
 
@@ -284,7 +300,7 @@ export async function getGoogleLoginCallback(req, res) {
 
 export async function setPasswordAfterGoogleSignup(req, res) {
   try {
-    const { email, firstName, lastName, roleId, password, fullName  } = req.body;
+    const { email, firstName, lastName, roleId, password, fullName } = req.body;
 
     if (!email || !password || !roleId) {
       return res.status(400).json({ message: "Missing required fields" });
@@ -335,7 +351,7 @@ export async function setPasswordAfterGoogleSignup(req, res) {
         role: normalizedUser.role,
         name: normalizedUser.name,
         email: normalizedUser.email,
-        p_code: normalizedUser.code,
+        p_code: normalizedUser.p_code,
       },
       JWT_SECRET,
       { expiresIn: "1h" }

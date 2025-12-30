@@ -41,43 +41,11 @@ import AdminAnalyticsDashboardRoutes from './src/routes/adminroutes/AdminAnalyti
 import ChatRoutes from './src/routes/chatroutes/ChatRoutes.js';
 import UserAdminSupportChatRoutes from './src/routes/chatroutes/UserAdminSupportChatRoutes.js';
 import NotificationRoutes from './src/routes/NotificationRoutes.js';
+import SettingRoutes from './src/routes/SettingRoutes.js';
 
 dotenv.config();
 
 const app = express();
-
-
-/* =====================================================
-   🔴 DEBUG MIDDLEWARE – Detect stuck HTTP requests
-   MUST be before any other middleware or routes
-===================================================== */
-app.use((req, res, next) => {
-  const start = Date.now();
-  let finished = false;
-
-  res.on("finish", () => {
-    finished = true;
-    // console.log(
-    //   "✅ DONE",
-    //   req.method,
-    //   req.originalUrl,
-    //   `${Date.now() - start}ms`
-    // );
-  });
-
-  setTimeout(() => {
-    if (!finished) {
-      console.error(
-        "⏰ STUCK REQUEST",
-        req.method,
-        req.originalUrl,
-        ">5s"
-      );
-    }
-  }, 5000);
-
-  next();
-});
 
 let lastActivity = Date.now();
 let getCount = 0;
@@ -92,7 +60,7 @@ app.use((req, res, next) => {
   }
   lastActivity = Date.now();
   next();
-})
+});
 
 // Temporary middleware to measure API request execution time
 // app.use((req, res, next) => {
@@ -122,11 +90,6 @@ app.use(
     credentials: true,
   })
 );
-
-
-
-
-
 dotenv.config(); // if app in src
 
 /* =========================
@@ -173,6 +136,7 @@ app.use("/admin", AdminAnalyticsDashboardRoutes);
 app.use("/chat", ChatRoutes);
 app.use("/chat/support", UserAdminSupportChatRoutes);
 app.use("/new", NotificationRoutes);
+app.use("/setting", SettingRoutes);
 
 const PORT = process.env.BACKEND_PORT || 3001;
 
@@ -430,7 +394,7 @@ io.on("connection", (socket) => {
     if (socket.userId) {
       socketDisconnectCount++;
       lastActivity = Date.now();
-      console.log("🔴 Socket disconnected:", socket.id);
+      console.log("Socket disconnected:", socket.id);
       onlineUsers.delete(socket.userId);
 
       socket.broadcast.emit("user-offline", {
@@ -459,13 +423,29 @@ function getIdleTime() {
 //   console.log("App Idle Time:", getIdleTime(), "seconds");
 // }, 10000);
 
+function getIdleTime() {
+  const now = Date.now();
+  const idleMs = now - lastActivity;
+  const idleSec = Math.floor(idleMs / 1000);
+  return idleSec;
+}
+// setInterval(() => {
+//   console.log("-------Last 10 Second-----")
+//   console.log("Get Request : - ", getCount);
+//   console.log("Post Count : -", postCount)
+//   console.log("Socket Connected Count :-",socketConnectCount)
+//   console.log("socekt Disconnected Count :-",socketDisconnectCount)
+//   console.log("App Idle Time:", getIdleTime(), "seconds");
+// }, 10000);
+
 // setInterval(() => {
 //   console.log("🔄 Resetting request counters (5 minutes passed)");
 //   getCount = 0;
 //   postCount = 0;
-//   socketConnectCount = 0;
-//   socketDisconnectCount = 0;
+//   socketConnectCount=0;
+//   socketDisconnectCount=0;
 // }, 300000); // 5 min
+
 
 // Start server using HTTP server
 server.listen(PORT, () => {

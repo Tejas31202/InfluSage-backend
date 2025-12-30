@@ -313,32 +313,12 @@ export default { client, redisClient };
 // //
 // export const redisClient = createRedisClient({
 //   url: process.env.REDIS_URL,
-//   socket: {
-//     family: 4, // Force IPv4 (avoids Render IPv6 timeouts)
-//     reconnectStrategy: (retries) => Math.min(retries * 100, 3000),
-//   },
 // });
-
-// redisClient.on("connect", () => console.log("✅ Connected to Redis"));
-// redisClient.on("error", (err) => console.error("❌ Redis error:", err.message));
-
-// (async () => {
-//   try {
-//     await redisClient.connect();
-//     console.log("🚀 Redis connection established successfully!");
-//   } catch (err) {
-//     console.error("Redis connect failed:", err.message);
-//   }
-// })();
-
-// // ✅ Redis keep-alive every 10 minutes
-// setInterval(async () => {
-//   try {
-//     await redisClient.ping();
-//     console.log("🔁 Redis keep-alive ✅");
-//   } catch (err) {
-//     console.error("Redis ping failed ❌", err.message);
-//   }
-// }, 600000); // 10 min
-
-// export default { client, redisClient };
+ 
+// redisClient.connect()
+//   .then(() => console.log(" Connected to Redis"))
+//   .catch((err) => console.error(" Redis connection error:", err));
+ 
+ 
+ 
+ 

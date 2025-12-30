@@ -1,7 +1,7 @@
 import { createClient } from "redis";
 import { Redis as UpstashRedis } from "@upstash/redis";
 
-const isUpstash = process.env.REDIS_PROVIDER === "Upstash";
+const isUpstash = process.env.REDIS_PROVIDER === "Local";
 
 let redis;
 
@@ -40,14 +40,14 @@ export default {
   if (!data) return null;
 
   try {
-    
+    // Upstash already object, local Redis stringified
     if (typeof data === "string") {
-      
+      // Agar string me array/object hai, parse karo
       return JSON.parse(data);
     }
-    return data; 
+    return data; // Upstash object
   } catch (err) {
-    return data; 
+    return data; // Agar parse fail ho jaaye, original return
   }
 },
 

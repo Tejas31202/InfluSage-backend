@@ -1,8 +1,6 @@
 import { client } from '../config/Db.js';
 import Redis from '../utils/RedisWrapper.js';
 
-//This Code Important Never Delet This
-
 export const getRoles = async (req, res) => {
   try {
     const result = await client.query(`SELECT * from ins.fn_get_roles();`);

@@ -2,6 +2,7 @@ import { client } from '../../config/Db.js';
 import Redis from '../../utils/RedisWrapper.js';
 import path from 'path';
 
+
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -116,11 +117,18 @@ export const getUserNameByEmail = async (req, res) => {
 export const getVendorProfile = async (req, res) => {
   const vendorId = req.params.userId;
   const redisKey = `vendorprofile:${vendorId}`;
+    const safeParse = (data) => {
+    try {
+      return JSON.parse(data);
+    } catch {
+      return null;
+    }
+  };
   try {
     const cachedData = await Redis.get(redisKey);
 
     if (cachedData) {
-      const parsed = cachedData; // already parsed
+      const parsed = safeParse(cachedData); // already parsed
 
 
       const profileParts = {
