@@ -156,9 +156,9 @@ export const completeUserProfile = async (req, res) => {
       ...(paymentjson && { paymentjson: safeParse(paymentjson) }),
     };
 
-    // const existingRedis = await Redis.get(redisKey).catch(() => null);
-    // const redisData = existingRedis ? safeParse(existingRedis) : {};
-    // const finalData = { ...redisData, ...mergedData };
+    const existingRedis = await Redis.get(redisKey).catch(() => null);
+    const redisData = existingRedis ? safeParse(existingRedis) : {};
+    const finalData = { ...redisData, ...mergedData };
 
     // Define the required profile parts
     const requiredParts = [
