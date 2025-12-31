@@ -2,7 +2,6 @@ import { client } from '../../config/Db.js';
 import Redis from '../../utils/RedisWrapper.js';
 import path from 'path';
 
-
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -117,18 +116,11 @@ export const getUserNameByEmail = async (req, res) => {
 export const getVendorProfile = async (req, res) => {
   const vendorId = req.params.userId;
   const redisKey = `vendorprofile:${vendorId}`;
-    const safeParse = (data) => {
-    try {
-      return JSON.parse(data);
-    } catch {
-      return null;
-    }
-  };
   try {
     const cachedData = await Redis.get(redisKey);
 
     if (cachedData) {
-      const parsed = safeParse(cachedData); // already parsed
+      const parsed = cachedData; // already parsed
 
 
       const profileParts = {
@@ -138,9 +130,8 @@ export const getVendorProfile = async (req, res) => {
         p_objectives: parsed.objectivesjson || {},
         p_paymentaccounts: parsed.paymentjson || {},
       };
-      const profileCompletion = calculateProfileCompletion(
-        Object.values(profileParts)
-      );
+      const profileCompletion = calculateProfileCompletion(profileParts);
+
       return res.status(200).json({
         message: "Partial profile from Redis",
         profileParts,
@@ -199,7 +190,11 @@ export const completeVendorProfile = async (req, res) => {
     } = req.body || {};
 
     // Step 1: Handle uploaded photo
-    let updatedProfileJson = profilejson ? JSON.parse(profilejson) : {};
+    let updatedProfileJson =
+      typeof profilejson === "string"
+        ? JSON.parse(profilejson)
+        : profilejson || {};
+
 
     // 2 Handle Profile Photo Upload (Debug + Safe Upload)
     if (req.file) {
@@ -329,36 +324,32 @@ export const completeVendorProfile = async (req, res) => {
       // 1 Try to fetch Redis partials
       const redisData = (await Redis.get(redisKey)) || {};
 
-      // 2 Merge Redis + current request body (request takes priority)
       const finalData = {
         ...redisData,
         ...mergedData,
       };
-      // 3 Check completeness AFTER merging
+
       const allPartsPresent =
         finalData.profilejson &&
         finalData.categoriesjson &&
         finalData.providersjson &&
         finalData.objectivesjson &&
         finalData.paymentjson;
-      // 4 Now update mergedData to be finalData going forward
+
       mergedData.profilejson = finalData.profilejson;
       mergedData.categoriesjson = finalData.categoriesjson;
       mergedData.providersjson = finalData.providersjson;
       mergedData.objectivesjson = finalData.objectivesjson;
       mergedData.paymentjson = finalData.paymentjson;
-      //  CASE B: User new or incomplete → check Redis
+
       if (!allPartsPresent) {
-        const redisData = (await Redis.get(redisKey)) || {};  // already parsed
-        const mergedRedisData = { ...redisData, ...mergedData };
-
-        await Redis.setEx(redisKey, 86400, mergedRedisData);  // wrapper handles stringify
-
+        await Redis.setEx(redisKey, 86400, finalData);
         return res.status(200).json({
           message: "Partial data saved in Redis (first-time user)",
           source: "redis",
         });
       }
+
 
       //  CASE C: All parts present → insert into DB
       try {
