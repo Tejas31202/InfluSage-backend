@@ -1,7 +1,7 @@
 import { createClient } from "redis";
 import { Redis as UpstashRedis } from "@upstash/redis";
 
-const isUpstash = process.env.REDIS_PROVIDER === "Local";
+const isUpstash = process.env.REDIS_PROVIDER === "Upstash";
 
 let redis;
 
@@ -11,8 +11,18 @@ if (isUpstash) {
     token: process.env.UPSTASH_REDIS_REST_TOKEN,
   });
 } else {
-  redis = createClient({ url: process.env.REDIS_URL});
-  redis.connect().catch(console.error);
+  redis = createClient({
+    socket: {
+      host: "127.0.0.1",
+      port: 6380,
+    },
+  });
+
+  redis.on("error", (err) => {
+    console.error("Redis Client Error", err);
+  });
+
+  await redis.connect();
 }
 
 

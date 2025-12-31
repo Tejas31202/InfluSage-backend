@@ -1,4 +1,5 @@
 import { client } from '../../config/Db.js';
+import { io } from '../../../app.js';
 
 export const influencerApproveOrRejectContract = async (req, res) => {
   const userId = req.user?.id || req.body.userId;
@@ -43,9 +44,34 @@ export const influencerApproveOrRejectContract = async (req, res) => {
     const row = result.rows?.[0] || {};
     const p_status = Number(row.p_status);
     const p_message = row.p_message;
+    const p_role = "SENDER";
 
     // ----------------- HANDLE p_status -----------------
     if (p_status === 1) {
+      try {
+        const notification = await client.query(
+          `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean, $3::text)`,
+          [userId, null, p_role]
+        );
+
+        const notifyData =
+          notification.rows[0]?.fn_get_notificationlist || [];
+
+        if (notifyData.length > 0) {
+          const latest = notifyData[0];
+          const toUserId = String(latest.receiverid);
+
+          if (toUserId) {
+            io.to(`notification_${toUserId}`).emit(
+              "receiveNotification",
+              latest
+            );
+            console.log(`Notification sent to user_${toUserId}`);
+          }
+        }
+      } catch (error) {
+        console.error("Notification error:", error);
+      }
       return res.status(200).json({
         message: p_message,
         p_status,
@@ -103,9 +129,9 @@ export const uploadContentLink = async (req, res) => {
 
     await client.query("BEGIN");
     await client.query(
-          "SELECT set_config('app.current_user_id', $1, true)",
-          [String(userId)]
-        );
+      "SELECT set_config('app.current_user_id', $1, true)",
+      [String(userId)]
+    );
     const result = await client.query(
       `CALL ins.usp_upsert_contentlink(
       $1::bigint,
@@ -126,18 +152,59 @@ export const uploadContentLink = async (req, res) => {
 
     const row = result.rows[0] || {};
     const p_status = Number(row.p_status);
-    const p_message = row.p_message;  
+    const p_message = row.p_message;
 
     if (p_status === 1) {
+      try {
+        const notification = await client.query(
+          `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean, $3::text)`,
+          [userId, null, p_role]
+        );
+        const notifyData =
+          notification.rows[0]?.fn_get_notificationlist || [];
+        if (notifyData.length > 0) {
+          const latest = notifyData[0];
+          const toUserId = String(latest.receiverid);
+          if (toUserId) {
+            io.to(`notification_${toUserId}`).emit(
+              "receiveNotification",
+              latest
+            );
+            console.log(`Notification sent to user_${toUserId}`);
+          }
+        }
+      } catch (error) {
+        console.error("Notification error:", error);
+      }
+      try {
+        const notification = await client.query(
+          `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean, $3::text)`,
+          [userId, null, p_role]
+        );
+        const notifyData =
+          notification.rows[0]?.fn_get_notificationlist || [];
+        if (notifyData.length > 0) {
+          const latest = notifyData[0];
+          const toUserId = String(latest.receiverid);
+          if (toUserId) {
+            io.to(`notification_${toUserId}`).emit(
+              "receiveNotification",
+              latest
+            );
+            console.log(`Notification sent to user_${toUserId}`);
+          }
+        }
+      } catch (error) {
+        console.error("Notification error:", error);
+      }
       return res.status(200).json({
         status: true,
         message: p_message || "Content link uploaded successfully",
       });
-    } else if (p_status ===0 ) {
+    } else if (p_status === 0) {
       return res.status(400).json({
         status: false,
         message: p_message || "Failed to upload content link",
-        
       });
     }
     else if (p_status === -1) {
@@ -231,20 +298,20 @@ export const getInfluencerUploadedContentLink = async (req, res) => {
 }
 
 export const getContractContentTypes = async (req, res) => {
-  const { p_contractid  } = req.params;
-   const p_influencerid  = req.user?.id || req.query.p_influencerid;
-  if (!p_influencerid ) {
+  const { p_contractid } = req.params;
+  const p_influencerid = req.user?.id || req.query.p_influencerid;
+  if (!p_influencerid) {
     return res.status(400).json({ error: "influencerId is required" });
   }
 
   try {
     const contractContentTypes = await client.query(`
         select  * from ins.fn_get_contractcontenttype($1::bigint,$2::bigint)`,
-      [p_contractid, p_influencerid ]
+      [p_contractid, p_influencerid]
     )
     const responseData = contractContentTypes.rows[0].fn_get_contractcontenttype[0];
     return res.status(200).json(responseData);
-    
+
   } catch (error) {
     console.error("Error fetching contract content types:", error);
     return res.status(500).json({
