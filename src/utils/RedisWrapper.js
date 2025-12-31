@@ -1,7 +1,7 @@
 import { createClient } from "redis";
 import { Redis as UpstashRedis } from "@upstash/redis";
 
-const isUpstash = process.env.REDIS_PROVIDER === "Upstash";
+const isUpstash = process.env.REDIS_PROVIDER === "Local";
 
 let redis;
 
@@ -11,18 +11,8 @@ if (isUpstash) {
     token: process.env.UPSTASH_REDIS_REST_TOKEN,
   });
 } else {
-  redis = createClient({
-    socket: {
-      host: "127.0.0.1",
-      port: 6380,
-    },
-  });
-
-  redis.on("error", (err) => {
-    console.error("Redis Client Error", err);
-  });
-
-  await redis.connect();
+  redis = createClient({ url: process.env.REDIS_URL});
+  redis.connect().catch(console.error);
 }
 
 
@@ -52,12 +42,11 @@ export default {
   try {
     // Upstash already object, local Redis stringified
     if (typeof data === "string") {
-      // Agar string me array/object hai, parse karo
       return JSON.parse(data);
     }
     return data; // Upstash object
   } catch (err) {
-    return data; // Agar parse fail ho jaaye, original return
+    return data; 
   }
 },
 

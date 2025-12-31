@@ -466,10 +466,8 @@ export const deletePortfolioFile = async (req, res) => {
       // console.log(" File deleted from local folder:", fullPath);
     }
 
-    // 3 Supabase se delete (actual storage path nikalo)
     const bucketName = process.env.SUPABASE_BUCKET;
 
-    // Public URL ko relative storage path me convert karo
     const supabaseFilePath = filePathToDelete
       .split("/storage/v1/object/public/" + bucketName + "/")[1]
       ?.trim();
