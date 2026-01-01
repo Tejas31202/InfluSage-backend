@@ -695,3 +695,32 @@ export const adminRejectInfluencerOrCampaign = async (req, res) => {
     });
   }
 };
+
+export const getMessageManagement = async (req, res) => {
+  const p_userid = req.user?.id;
+  if (!p_userid) return res.status(400).json({ Message: "User ID required For Message Management" });
+  try {
+    const p_pagenumber = Number(req.query.p_pagenumber) || 1
+    const p_pagesize = Number(req.query.p_pagesize) || 20
+    const p_search = req.query.p_search || null
+    const messageManagementRes = await client.query(`SELECT * FROM ins.fn_get_messagemanagement($1::integer,$2::integer,$3::text)`,
+      [
+        p_pagenumber,
+        p_pagesize,
+        p_search
+      ]
+    );
+    const responseData = messageManagementRes.rows[0].fn_get_messagemanagement;
+    return res.status(200).json({
+      Message: "Message management fetched successfully",
+      data: responseData,
+      source: 'db'
+    })
+  } catch (error) {
+    console.error("Error fetching Message Management:", error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
+  }
+}

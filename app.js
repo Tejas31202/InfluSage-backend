@@ -1,6 +1,8 @@
+import dotenv from 'dotenv';
+dotenv.config(); // if app in src
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
+
 import path from 'path';
 import cookieParser from 'cookie-parser';
 import { createServer } from 'http';
@@ -42,8 +44,6 @@ import ChatRoutes from './src/routes/chatroutes/ChatRoutes.js';
 import UserAdminSupportChatRoutes from './src/routes/chatroutes/UserAdminSupportChatRoutes.js';
 import NotificationRoutes from './src/routes/NotificationRoutes.js';
 import SettingRoutes from './src/routes/SettingRoutes.js';
-
-dotenv.config();
 
 const app = express();
 
@@ -90,7 +90,7 @@ app.use(
     credentials: true,
   })
 );
-dotenv.config(); // if app in src
+
 
 /* =========================
    Auth & Common Routes
