@@ -31,7 +31,7 @@ export const changePassword = async (req, res) => {
       dbPasswordHash
     );
     if (!isOldPasswordValid) {
-      return res.status(400).json({ message: "Old password is incorrect" });
+      return res.status(400).json({ message: "current password is incorrect" });
     }
 
     if (oldPassword === newPassword) {
