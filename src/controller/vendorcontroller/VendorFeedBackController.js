@@ -1,4 +1,5 @@
 import { client } from '../../config/Db.js';
+import { io } from '../../../app.js';
 
 export const getSelectInfluencerListForFeedback = async (req, res) => {
   try {
@@ -41,11 +42,9 @@ export const vendorInsertFeedback = async (req, res) => {
       message: "Unauthorized: user not found",
     });
   }
-
   if (!p_contractid) {
     return res.status(400).json({ status: false, message: "Contract Id Required For Feedback" });
   }
-
   try {
     await client.query("BEGIN");
     await client.query(
@@ -69,14 +68,36 @@ export const vendorInsertFeedback = async (req, res) => {
         null
       ]);
 
-      await client.query("COMMIT");
+    await client.query("COMMIT");
 
     const feedbackRow = insertFeedback.rows?.[0] || {};
     const p_status = Number(feedbackRow.p_status);
     const p_message = feedbackRow.p_message;
 
     if (p_status === 1) {
-      // SUCCESS
+      try {
+        const p_role = "SENDER"; // role sending the notification
+        console.log("Notification role:", p_role);
+        console.log("Notification sender userId:", userId);
+
+        const notification = await client.query(
+          `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean, $3::text)`,
+          [userId, null, p_role]
+        );
+
+        const notifyData = notification.rows[0]?.fn_get_notificationlist || [];
+
+        notifyData.forEach(latest => {
+          const toUserId = latest.receiverid;
+          console.log("Notification receiver toUserId:", toUserId); // log receiver
+          if (toUserId) {
+            io.to(`notification_${toUserId}`).emit("receiveNotification", latest);
+            console.log(`Feedback notification sent to user_${toUserId}`);
+          }
+        });
+      } catch (error) {
+        console.error("Notification error:", error);
+      }
       return res.status(200).json({
         status: true,
         message: p_message,
