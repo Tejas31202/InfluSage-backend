@@ -1,7 +1,7 @@
 import express from 'express';
 import {
     getClientsList,
-    getInfluencerMyCampaign,
+    getInfluencerMyContract,
     getInfluencerMyCampaignDetails,
     getInfluencerMyCampaignStatus
 } from '../../controller/influencercontroller/InfluencerMycampaignController.js';
@@ -12,9 +12,9 @@ const routes = express.Router();
 routes.get("/client-list", authenticateUser(["Influencer"]), getClientsList);
 
 routes.get(
-  "/influencer-campaigns",
+  "/influencer-contract",
   authenticateUser(["Influencer"]),
-  getInfluencerMyCampaign
+  getInfluencerMyContract
 );
 
 routes.get(
