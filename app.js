@@ -12,6 +12,8 @@ import Redis from './src/utils/RedisWrapper.js';
 // Routes
 
 import { client } from "./src/config/Db.js";
+import {serviceStatusMiddleware} from './src/middleware/ServiceStatusMiddleware.js';
+import ServiceRoutes from './src/routes/serviceroutes/ServiceRoutes.js';
 import authRoutes from './src/routes/AuthRoutes.js';
 import CommonRoutes from './src/routes/CommonRoutes.js';
 
@@ -91,6 +93,10 @@ app.use(
   })
 );
 
+app.use(serviceStatusMiddleware);
+
+//service status on or off
+app.use("/api",ServiceRoutes);
 
 /* =========================
    Auth & Common Routes
