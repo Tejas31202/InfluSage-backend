@@ -83,7 +83,7 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use(serviceStatusMiddleware);
+
 app.use(
   cors({
     origin: process.env.FRONTEND_URL, // your Netlify URL
@@ -92,8 +92,10 @@ app.use(
     credentials: true,
   })
 );
-//service status on or off
 
+app.use(serviceStatusMiddleware);
+
+//service status on or off
 app.use("/api",ServiceRoutes);
 
 /* =========================
