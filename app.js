@@ -83,7 +83,6 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use("/api",ServiceRoutes);
 app.use(serviceStatusMiddleware);
 app.use(
   cors({
@@ -93,7 +92,9 @@ app.use(
     credentials: true,
   })
 );
+//service status on or off
 
+app.use("/api",ServiceRoutes);
 
 /* =========================
    Auth & Common Routes
