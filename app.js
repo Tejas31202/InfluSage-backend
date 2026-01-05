@@ -12,6 +12,8 @@ import Redis from './src/utils/RedisWrapper.js';
 // Routes
 
 import { client } from "./src/config/Db.js";
+import {serviceStatusMiddleware} from './src/middleware/ServiceStatusMiddleware.js';
+import ServiceRoutes from './src/routes/serviceroutes/ServiceRoutes.js';
 import authRoutes from './src/routes/AuthRoutes.js';
 import CommonRoutes from './src/routes/CommonRoutes.js';
 
@@ -81,7 +83,8 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-
+app.use("/api",ServiceRoutes);
+app.use(serviceStatusMiddleware);
 app.use(
   cors({
     origin: process.env.FRONTEND_URL, // your Netlify URL
