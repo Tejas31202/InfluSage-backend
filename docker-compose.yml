@@ -1,0 +1,27 @@
+services:
+  backend:
+    build: .
+    container_name: influsage-backend
+    ports:
+      - "3001:3001"
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: node app.js
+
+  db:
+    image: postgres:15
+    container_name: influsage-db
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DATABASE}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

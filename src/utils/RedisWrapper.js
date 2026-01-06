@@ -13,8 +13,8 @@ if (isUpstash) {
 } else {
   redis = createClient({
     socket: {
-      host: "127.0.0.1",
-      port: 6380,
+      host: process.env.REDIS_HOST, // 🔥 IMPORTANT
+      port: Number(process.env.REDIS_PORT),
     },
   });
 
