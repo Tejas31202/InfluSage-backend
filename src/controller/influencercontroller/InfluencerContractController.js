@@ -321,3 +321,103 @@ export const getContractContentTypes = async (req, res) => {
     });
   }
 };
+
+export const addVendorFeedback =async(req,res)=>{
+ 
+  const p_userid  = req.user?.id || req.body.userId;
+  if (!p_userid ) {
+    return res.status(401).json({
+      status: false,
+      message: "Unauthorized: user not found",
+    });
+  }
+  const { p_contractid, p_rating, p_text } = req.body||{};
+  if (!p_contractid) {
+    return res.status(400).json({message: "p_contractid is required." });
+  }
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      "SELECT set_config('app.current_user_id', $1, true)",
+      [String(p_userid )]
+    );
+    const insertFeedback = await client.query(`
+      call ins.usp_insert_vendorfeedback(
+        $1::bigint,
+        $2::bigint,
+        $3::smallint,
+        $4::text,
+        $5::smallint,
+        $6::text
+      )
+    `,
+      [
+        p_userid ,
+        p_contractid,
+        p_rating || null,
+        p_text || null,
+        null,
+        null
+      ]);
+      
+    await client.query("COMMIT");
+
+    const feedbackRow = insertFeedback.rows?.[0] || {};
+    const p_status = Number(feedbackRow.p_status);
+    const p_message = feedbackRow.p_message;
+
+    if (p_status === 1) {
+      try {
+        const p_role = "SENDER";
+        // console.log("Notification role:", p_role);
+        // console.log("Notification sender userId:", p_userid );
+
+        const notification = await client.query(
+          `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean, $3::text)`,
+          [p_userid , null, p_role]
+        );
+
+        const notifyData = notification.rows[0]?.fn_get_notificationlist || [];
+
+        notifyData.forEach(latest => {
+          const toUserId = latest.receiverid;
+          console.log("Notification receiver toUserId:", toUserId); // log receiver
+          if (toUserId) {
+            io.to(`notification_${toUserId}`).emit("receiveNotification", latest);
+            console.log(`Feedback notification sent to user_${toUserId}`);
+          }
+        });
+      } catch (error) {
+        console.error("Notification error:", error);
+      }
+      return res.status(200).json({
+        status: true,
+        message: p_message,
+        source: "db"
+      });
+    } else if (p_status === 0) {
+      return res.status(400).json({
+        status: false,
+        message: p_message,
+        source: "db",
+      });
+    } else if (p_status === -1) {
+      console.error("Stored Procedure Failure:", p_message);
+      return res.status(500).json({
+        status: p_status,
+        message: "Something went wrong. Please try again later.",
+      });
+    } else {
+      return res.status(500).json({
+        status: false,
+        message: "Unexpected database response",
+      });
+    }
+  } catch (error) {
+    console.error("error in addVendorFeedback:", error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
+  }
+}
