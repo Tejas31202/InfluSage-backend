@@ -1,5 +1,7 @@
 import { createClient } from "redis";
 import { Redis as UpstashRedis } from "@upstash/redis";
+import dotenv from "dotenv";
+dotenv.config();
 
 const isUpstash = process.env.REDIS_PROVIDER === "Upstash";
 
@@ -45,19 +47,19 @@ export default {
   },
 
   async get(key) {
-  const data = await redis.get(key);
-  if (!data) return null;
+    const data = await redis.get(key);
+    if (!data) return null;
 
-  try {
-    // Upstash already object, local Redis stringified
-    if (typeof data === "string") {
-      return JSON.parse(data);
+    try {
+      // Upstash already object, local Redis stringified
+      if (typeof data === "string") {
+        return JSON.parse(data);
+      }
+      return data; // Upstash object
+    } catch (err) {
+      return data;
     }
-    return data; // Upstash object
-  } catch (err) {
-    return data; 
-  }
-},
+  },
 
   async del(key) {
     return await redis.del(key);

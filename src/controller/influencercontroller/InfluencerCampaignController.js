@@ -81,7 +81,7 @@ export const applyNowCampaign = async (req, res) => {
               .getPublicUrl(uniqueFileName);
             uploadedFiles.push({ filepath: publicData.publicUrl });
 
-            continue; 
+            continue;
           }
 
           const { error: uploadError } = await supabase.storage
@@ -113,7 +113,7 @@ export const applyNowCampaign = async (req, res) => {
       } else {
         applycampaignjson.filepaths = uploadedFiles;
       }
-      
+
     }
     await client.query("BEGIN");
 
@@ -590,7 +590,7 @@ export const withdrawApplication = async (req, res) => {
 
 export const deleteApplyNowPortfolioFile = async (req, res) => {
   const userId = req.user?.id || req.body.userId;
-  const { filePath } = req.body; 
+  const { filePath } = req.body;
   const redisKey = `applyCampaign:${userId}`;
 
   try {
@@ -641,3 +641,27 @@ export const deleteApplyNowPortfolioFile = async (req, res) => {
     });
   }
 };
+
+export const getFeedbackList = async (req, res) => {
+  const p_campaignid = req.query.p_campaignid;
+  if (!p_campaignid) return res.status(400).json({ Message: "Campaign Id required For Feedback List" });
+  try {
+
+    const feedbackList = await client.query(`
+      select * from ins.fn_get_vendorfeedbacklist($1::bigint)`, [p_campaignid]);
+
+    const feedbackListRes = feedbackList.rows[0].fn_get_vendorfeedbacklist;
+    return res.status(200).json({
+      Message: "Feedback List Get Successfully",
+      data: feedbackListRes,
+      source: 'db'
+    })
+  } catch (error) {
+    console.error("Error While Getting Feedback List", error)
+    return res.status(500).json({
+      Message: "Something Went Wrong. Please Try Again Later",
+      error: error.message
+    })
+
+  }
+}
