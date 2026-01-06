@@ -129,3 +129,42 @@ export const vendorInsertFeedback = async (req, res) => {
     });
   }
 };
+
+export const getInfluencerFeedbackList = async (req, res) => {
+  try {
+    const p_userid = req.user?.id || req.query.p_userid;
+
+    if (!p_userid) {
+      return res.status(400).json({
+        message: "p_userid is required.",
+      });
+    }
+
+    const { p_influencerid } = req.query;
+
+    if (!p_influencerid) {
+      return res.status(400).json({
+        message: "p_influencerid is required.",
+      });
+    }
+
+    const result = await client.query(
+      `select * from ins.fn_get_influencerfeedbacklist($1::bigint,$2::bigint)`,
+      [p_userid, p_influencerid]
+    );
+
+    const data = result.rows[0]?.fn_get_influencerfeedbacklist;
+
+    return res.status(200).json({
+      message: "Influencer feedback data retrieved successfully.",
+      data: data,
+      source: "db",
+    });
+  } catch (error) {
+    console.error("error in getInfluencerFeedbackList:", error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
+  }
+};

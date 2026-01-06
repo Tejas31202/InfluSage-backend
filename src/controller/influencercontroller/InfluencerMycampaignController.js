@@ -77,7 +77,7 @@ export const getInfluencerMyContract = async (req, res) => {
         p_minbudget || null,
         p_startdate || null,
         p_enddate || null,
-        p_sortby || "createddate",
+        p_sortby || "createddate"||"paymentamount",
         p_sortorder || "DESC",
         p_pagenumber || 1,
         p_pagesize || 20,
@@ -161,3 +161,26 @@ export const getInfluencerMyCampaignStatus = async (req, res) => {
     });
   }
 }
+
+export const getInfluencerMyContractStatus = async (req, res) => {
+  try {
+    const status = await client.query(
+      `SELECT * FROM ins.fn_get_influencermycontractstatus();`
+    )
+    const result = status.rows;
+
+    return res.status(200).json({
+        Message: "Influencer My Contract status Fetched Successfully.",
+        data: result,
+        source: "db"
+      })
+  } catch (error) {
+    console.error("Error in getInfluencerMyContractStatus:", error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
+  }
+}
+
+
