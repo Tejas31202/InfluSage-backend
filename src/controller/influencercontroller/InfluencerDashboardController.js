@@ -162,14 +162,14 @@ export const getInfluencerFeedBack = async (req, res) => {
 
   try {
     const influencerFeedback = await client.query(
-      `SELECT * FROM ins.fn_get_influencerfeedbacklist($1::BIGINT)`,
+      `SELECT * FROM ins.fn_get_influencerdashboardfeedbacklist($1::BIGINT)`,
       [p_userid]
     );
 
-    const feedBackResult = influencerFeedback.rows[0].fn_get_influencerfeedbacklist || [];
+    const feedBackResult = influencerFeedback.rows[0]?.fn_get_influencerdashboardfeedbacklist || [];
 
     return res.status(200).json({
-      Message: "Vendor Performance Summary Successfully Fetched",
+      Message: "Influencer feedback list retrieved successfully.",
       Data: feedBackResult,
       source: "db"
     });
