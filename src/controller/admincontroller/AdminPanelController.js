@@ -700,9 +700,9 @@ export const getMessageManagement = async (req, res) => {
   const p_userid = req.user?.id;
   if (!p_userid) return res.status(400).json({ Message: "User ID required For Message Management" });
   try {
-    const p_pagenumber = Number(req.body.p_pagenumber) || 1;
-    const p_pagesize = Number(req.body.p_pagesize) || 20;
-    const rawSearch = req.body.p_search;
+    const p_pagenumber = Number(req.query.p_pagenumber) || 1;
+    const p_pagesize = Number(req.query.p_pagesize) || 20;
+    const rawSearch = req.query.p_search;
     const p_search = (rawSearch === null || rawSearch === "null" || rawSearch === "") ? null : rawSearch;
 
     const messageManagementRes = await client.query(`SELECT * FROM ins.fn_get_messagemanagement($1::integer,$2::integer,$3::text)`,

@@ -204,9 +204,11 @@ export const applyNowCampaign = async (req, res) => {
 };
 
 export const getUsersAppliedCampaigns = async (req, res) => {
+  console.log("user appliedcampaign called")
   try {
     const userId = req.user?.id || req.body.userId;
     const {
+      p_statusid = null,
       p_sortby = "createddate",
       p_sortorder = "DESC",
       p_pagenumber = 1,
@@ -219,6 +221,7 @@ export const getUsersAppliedCampaigns = async (req, res) => {
     const redisKey = `applyCampaign:${userId}:${p_sortby}:${p_sortorder}:${p_pagenumber}:${p_pagesize}`;
 
     const cachedData = await Redis.get(redisKey);
+    
     if (cachedData) {
       return res.status(200).json({
         data: cachedData,
@@ -229,13 +232,14 @@ export const getUsersAppliedCampaigns = async (req, res) => {
     const result = await client.query(
       `SELECT * FROM ins.fn_get_campaignapplication(
       $1::bigint,
-      $2::text,
+      $2::smallint,
       $3::text,
-      $4::int,
+      $4::text,
       $5::int,
-      $6::text)`,
+      $6::int,
+      $7::text)`,
 
-      [userId, p_sortby, p_sortorder, p_pagenumber, p_pagesize, p_search]
+      [userId, p_statusid, p_sortby, p_sortorder, p_pagenumber, p_pagesize, p_search]
     );
 
     if (!result.rows || result.rows.length === 0) {
@@ -663,5 +667,24 @@ export const getFeedbackList = async (req, res) => {
       error: error.message
     })
 
+  }
+}
+
+export const getCampaignApplicationStatus = async (req, res) => {
+  try {
+    const applicationStatus = await client.query(`
+     select * from  ins.fn_get_influencermycampaignstatus()`)
+    const applicationStatusRes = applicationStatus.rows;
+    return res.status(200).json({
+      Message: " Campaign Application Status Get Sucessfully",
+      data: applicationStatusRes,
+      source: 'db'
+    })
+  } catch (error) {
+    console.error("Error While Getting Campaign Application status", error)
+    return res.status(500).json({
+      Message: "Something Went Wrong. Please Try Again Later",
+      error: error.message
+    })
   }
 }
