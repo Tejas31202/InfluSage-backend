@@ -204,30 +204,17 @@ export const applyNowCampaign = async (req, res) => {
 };
 
 export const getUsersAppliedCampaigns = async (req, res) => {
-  console.log("user appliedcampaign called")
   try {
     const userId = req.user?.id || req.body.userId;
+    if (!userId) return res.status(400).json({ Message: "User ID Is Required To Get Applied Campaigns" })
     const {
       p_statusid = null,
       p_sortby = "createddate",
       p_sortorder = "DESC",
       p_pagenumber = 1,
       p_pagesize = 20,
-      p_search,
-    } = {
-      ...req.query,
-      ...req.params,
-    };
-    const redisKey = `applyCampaign:${userId}:${p_sortby}:${p_sortorder}:${p_pagenumber}:${p_pagesize}`;
-
-    const cachedData = await Redis.get(redisKey);
-    
-    if (cachedData) {
-      return res.status(200).json({
-        data: cachedData,
-        source: "redis",
-      });
-    }
+      p_search = null,
+    } = { ...req.params, ...req.query };
 
     const result = await client.query(
       `SELECT * FROM ins.fn_get_campaignapplication(
@@ -238,14 +225,11 @@ export const getUsersAppliedCampaigns = async (req, res) => {
       $5::int,
       $6::int,
       $7::text)`,
-
       [userId, p_statusid, p_sortby, p_sortorder, p_pagenumber, p_pagesize, p_search]
     );
-
     if (!result.rows || result.rows.length === 0) {
       return res.status(404).json({ message: "No applied campaigns found." });
     }
-
     return res.status(200).json({
       data: result.rows[0].fn_get_campaignapplication,
       source: "db",
