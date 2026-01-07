@@ -631,12 +631,17 @@ export const deleteApplyNowPortfolioFile = async (req, res) => {
 };
 
 export const getFeedbackList = async (req, res) => {
-  const p_campaignid = req.query.p_campaignid;
+  const {p_campaignid,p_limit ,p_offset } = req.query||{};
   if (!p_campaignid) return res.status(400).json({ Message: "Campaign Id required For Feedback List" });
   try {
 
     const feedbackList = await client.query(`
-      select * from ins.fn_get_vendorfeedbacklist($1::bigint)`, [p_campaignid]);
+      select * from ins.fn_get_vendorfeedbacklist($1::bigint,$2::integer,$3::integer);`, 
+      [
+        p_campaignid,
+        p_limit||20,
+        p_offset ||1
+      ]);
 
     const feedbackListRes = feedbackList.rows[0].fn_get_vendorfeedbacklist;
     return res.status(200).json({
