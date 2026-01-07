@@ -109,3 +109,24 @@ export const getVendorCampaignStatusOverview = async (req, res) => {
   }
 }
 
+export const getVendorDashboardFeedbackList = async (req, res) => {
+  const p_userid = req.user?.id || req.query.p_userid
+  if (!p_userid) return res.status(400).json({ Message: "User Id Required For Getting Feedback" })
+  try {
+    const vendorFeedback = await client.query(`
+        SELECT * FROM ins.fn_get_vendordashboardfeedbacklist($1::bigint)`, [p_userid]);
+
+    const vendorFeedbackRes = vendorFeedback.rows[0].fn_get_vendordashboardfeedbacklist || [];
+    return res.status(200).json({
+      Message: "Vendor Feedback Getting Successfully",
+      data: vendorFeedbackRes,
+      source: 'db'
+    })
+  } catch (error) {
+    console.error("Error While Getting Feedback", error)
+    return res.status(500).json({
+      Message: "Something Went Wrong. Please Try Again Later",
+      error: error.message
+    })
+  }
+}
