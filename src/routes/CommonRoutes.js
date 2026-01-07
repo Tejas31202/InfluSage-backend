@@ -10,7 +10,8 @@ import {
   getUserNameAndPhoto,
   getCountries,
   getStatesByCountry,
-  getCityiesByState
+  getCityiesByState,
+  getTermsAndConditions
 } from '../controller/CommonController.js';
 import authenticateUser from '../middleware/AuthMiddleware.js';
 
@@ -26,6 +27,7 @@ routes.get("/influencer-type", getInfluencerTiers);
 routes.get("/countries",getCountries);
 routes.get("/states/:countryId",getStatesByCountry);
 routes.get("/cities/:stateId",getCityiesByState);
+routes.get("/terms-conditions",getTermsAndConditions);
 
 routes.get(
   "/user-profile-info",
