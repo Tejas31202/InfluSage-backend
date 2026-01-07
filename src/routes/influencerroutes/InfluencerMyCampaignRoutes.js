@@ -5,7 +5,7 @@ import {
     getInfluencerMyCampaignDetails,
     getInfluencerMyCampaignStatus,
     getInfluencerMyContractStatus
-} from '../../controller/influencercontroller/InfluencerMycampaignController.js';
+} from '../../controller/influencercontroller/InfluencerMyCampaignController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 
 const routes = express.Router();
