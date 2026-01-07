@@ -140,7 +140,7 @@ export const getInfluencerFeedbackList = async (req, res) => {
       });
     }
 
-    const { p_influencerid } = req.query;
+    const { p_influencerid , p_limit ,p_offset } = req.query || {};
 
     if (!p_influencerid) {
       return res.status(400).json({
@@ -149,8 +149,18 @@ export const getInfluencerFeedbackList = async (req, res) => {
     }
 
     const result = await client.query(
-      `select * from ins.fn_get_influencerfeedbacklist($1::bigint,$2::bigint)`,
-      [p_userid, p_influencerid]
+      `select * from ins.fn_get_influencerfeedbacklist(
+      $1::bigint,
+      $2::bigint,
+      $3::integer,
+      $4::integer
+      );`,
+      [
+        p_userid, 
+        p_influencerid, 
+        p_limit || 20, 
+        p_offset || 1
+      ]
     );
 
     const data = result.rows[0]?.fn_get_influencerfeedbacklist;
