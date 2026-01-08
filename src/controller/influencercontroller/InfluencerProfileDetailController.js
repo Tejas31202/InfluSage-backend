@@ -47,7 +47,7 @@ export const completeUserProfile = async (req, res) => {
     };
 
     const saveToRedis = async (data) => {
-      await Redis.setEx(redisKey, 604800, JSON.stringify(data));
+      await Redis.setEx(redisKey, 604800, JSON.stringify(finalData));
     };
 
     // Parse JSON fields
@@ -165,7 +165,6 @@ export const completeUserProfile = async (req, res) => {
       ...existingRedis,      // keep old pages
       ...mergedData          // update current page
     };
-    
     const requiredParts = [
       "profilejson",
       "socialaccountjson",
@@ -285,6 +284,20 @@ export const completeUserProfile = async (req, res) => {
           });
         }
 
+        // if (p_status) {
+        //   await Redis.del(redisKey);
+        //   return res.status(200).json({
+        //     message: p_message,
+        //     source: "db",
+        //     data: result.rows[0],
+        //   });
+        // }
+
+        // return res.status(400).json({
+        //   message: p_message,
+        //   source: "db",
+        // });
+
       default:
         // Unknown p_code → Save only in Redis
         // return await saveToRedis(finalData, "Unknown p_code — saved in Redis.");
@@ -332,17 +345,17 @@ const fixArrays = (obj) => {
 export const getUserProfile = async (req, res) => {
   const userId = req.params.userId;
   const redisKey = `profile:${userId}`;
-  const safeParse = (data) => {
-    try {
-      return JSON.parse(data);
-    } catch {
-      return null;
-    }
-  };
+  // const safeParse = (data) => {
+  //   try {
+  //     return JSON.parse(data);
+  //   } catch {
+  //     return null;
+  //   }
+  // };
   try {
     // 1. Redis data (may contain partial edits)
-    const cachedData = await Redis.get(redisKey);
-    const redisParsed = cachedData ? safeParse(cachedData) : null;
+    const redisParsed = await Redis.get(redisKey);
+    // const redisParsed = cachedData ? safeParse(cachedData) : null;
 
     // 2. DB full data
     const result = await client.query(
@@ -445,12 +458,12 @@ export const deletePortfolioFile = async (req, res) => {
     }
 
     // Redis key
-    const redisKey = `getInfluencerProfile:${userId}`;
+    const redisKey = `profile:${userId}`;
 
     // 1 Redis se data fetch
     let profileData = await Redis.get(redisKey);
     if (profileData) {
-      profileData = JSON.parse(profileData);
+      // profileData = JSON.parse(profileData);
 
       if (profileData.portfoliojson) {
         profileData.portfoliojson = profileData.portfoliojson.filter(
@@ -462,13 +475,12 @@ export const deletePortfolioFile = async (req, res) => {
     }
 
     //  2 Local file delete
-    const uploadDir = path.join(process.cwd(), "src", "uploads", "influencer");
+    const uploadDir = path.join(process.cwd(), "src", process.env.SUPABASE_BUCKET, "influencer");
     const fileName = path.basename(filePathToDelete);
     const fullPath = path.join(uploadDir, fileName);
 
     if (fs.existsSync(fullPath)) {
       fs.unlinkSync(fullPath);
-      // console.log(" File deleted from local folder:", fullPath);
     }
 
     const bucketName = process.env.SUPABASE_BUCKET;

@@ -1,23 +1,11 @@
-import dotenv from "dotenv";
+// 📁 utils/MailUtils.js
+import dotenv from 'dotenv';
+import sgMail from '@sendgrid/mail';
+
 dotenv.config();
-import nodemailer from 'nodemailer';
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
-
-export async function sendingMail(to, subject,htmlContent) {
-  await transporter.sendMail({
-    from: process.env.EMAIL_USER,
-    to,
-    subject,
-    html:htmlContent,
-  });
-}
+// Set API key from environment
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 /**
 * Generic mail sender

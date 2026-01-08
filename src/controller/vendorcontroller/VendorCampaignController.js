@@ -24,14 +24,6 @@ export const finalizeCampaign = async (req, res) => {
       return res.status(400).json({ message: "User ID is required" });
     }
 
-    const safeParse = (data) => {
-      try {
-          return JSON.parse(data);
-      } catch {
-         return null;
-      }
-    };
-
     // Redis key
     const redisKey = campaignId
       ? `getCampaign:${userId}:${campaignId}`
@@ -45,7 +37,7 @@ export const finalizeCampaign = async (req, res) => {
       });
     }
 
-    const campaignData = safeParse(cachedData);
+    const campaignData = cachedData;
 
     // --------------- BEGIN DB TRANSACTION ---------------
     await client.query("BEGIN");
@@ -190,48 +182,36 @@ export const getCampaign = async (req, res) => {
     if (!userId)
       return res.status(400).json({ message: "User ID required" });
    
-    const safeParse = (data) => {
-    try {
-      return JSON.parse(data);
-    } catch {
-      return null;
-    }
-  };
     const redisKey =
       campaignId === "01"
         ? `getCampaign:${userId}`
         : `getCampaign:${userId}:${campaignId}`;
 
     if (campaignId === "01") {
-      const cachedData = await Redis.get(redisKey);
-      const redisParsed = cachedData ? safeParse(cachedData) : null;
-      
-      if (redisParsed) {
-        return res.status(200).json({
-          message: "Draft campaign from Redis",
-          campaignParts: redisParsed,
-          source: "redis",
-        });
-      }
-
-      return res.status(200).json({
-        message: "No draft found",
-        campaignParts: {},
-        source: "empty",
-      });
-    }
+          const cachedData = await Redis.get(redisKey);
+          if (cachedData) {
+            return res.status(200).json({
+              message: "Draft campaign from Redis",
+              campaignParts: cachedData,
+              source: "redis",
+            });
+          }
+    
+          return res.status(200).json({
+            message: "No draft found",
+            campaignParts: {},
+            source: "empty",
+          });
+        }
 
     const cachedEditData = await Redis.get(redisKey);
-    const parsedEditData = safeParse(cachedEditData);
-
-    if (parsedEditData) {
-        return res.status(200).json({
-          message: "Campaign data from Redis",
-          campaignParts: parsedEditData, // ✅ object
-          source: "redis",
-        });
-     }
-
+        if (cachedEditData) {
+          return res.status(200).json({
+            message: "Campaign data from Redis",
+            campaignParts:cachedEditData,
+            source: "redis",
+          });
+        }
     const result = await client.query(
       `SELECT * FROM ins.fn_get_campaigndetailsjson($1::BIGINT, $2::BIGINT)`,
       [userId, campaignId]
@@ -244,7 +224,7 @@ export const getCampaign = async (req, res) => {
     const fullData = result.rows[0];
 
     // Cache DB data in Redis for next time 1h->3600 sec
-    await Redis.setEx(redisKey, 3600, JSON.stringify(fullData));
+    await Redis.setEx(redisKey, 3600,fullData);
 
     return res.status(200).json({
       message: "Campaign data from DB",
@@ -280,22 +260,19 @@ export const deleteCampaignFile = async (req, res) => {
       : `getCampaign:${userId}`;
 
     // ---------------- 2 Update Redis ----------------
-   // 2️⃣ Fetch & parse Redis data
-    const redisData = await Redis.get(redisKey);
-    let campaignData = redisData ? JSON.parse(redisData) : null;
-
-    if (campaignData?.p_campaignfilejson?.length) {
-      const requestFileName = filePathToDelete.split("/").pop();
-
-      campaignData.p_campaignfilejson =
-        campaignData.p_campaignfilejson.filter(file => {
-          const redisFileName = file.filepath.split("/").pop();
-          return redisFileName !== requestFileName;
-        });
-
-      // Save updated data back to Redis
-      await Redis.setEx(redisKey, 3600, JSON.stringify(campaignData));
-    }
+   let campaignData = await Redis.get(redisKey);
+       let updatedFiles = [];
+   
+       if (campaignData && Array.isArray(campaignData.p_campaignfilejson)) {
+         campaignData.p_campaignfilejson = campaignData.p_campaignfilejson.filter(file => {
+           const redisFileName = file.filepath.split("/").pop();
+           const requestFileName = filePathToDelete.split("/").pop();
+           return redisFileName !== requestFileName;
+         });
+   
+         updatedFiles = campaignData.p_campaignfilejson;
+         await Redis.setEx(redisKey, 3600, campaignData); // update Redis
+       }
     // ---------------- 2️⃣ Convert public URL to relative path ----------------
     const supabaseFilePath = filePathToDelete
       .split(`/storage/v1/object/public/${bucketName}/`)[1]
@@ -467,13 +444,15 @@ export const upsertCampaign = async (req, res) => {
         p_contenttypejson: p_contenttypejson.length
          ? p_contenttypejson
          : existingDraft.p_contenttypejson || [],
-        p_campaignfilejson: campaignFiles.length
-         ? [...(existingDraft.p_campaignfilejson || []), ...campaignFiles]
-         : existingDraft.p_campaignfilejson || [],
+        p_campaignfilejson: [
+        ...(existingDraft.p_campaignfilejson || []),
+        ...(p_campaignfilejson || []),
+        ...(campaignFiles || []),
+      ],
         updated_at: new Date(),
     };
 
-    await Redis.setEx(redisKey, 86400, JSON.stringify(draftData));
+    await Redis.setEx(redisKey, 86400,draftData);
 
     // ---------------- DRAFT SAVE ONLY ----------------
     if (!isFinalSubmit) {

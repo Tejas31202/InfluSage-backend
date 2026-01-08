@@ -319,10 +319,6 @@ export default { client, redisClient };
 //   .then(() => console.log(" Connected to Redis"))
 //   .catch((err) => console.error(" Redis connection error:", err));
  
-// export default {
-//   client,
-//   Redis,
-// };
  
  
  
