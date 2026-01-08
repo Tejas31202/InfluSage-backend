@@ -662,7 +662,7 @@ export const getFeedbackList = async (req, res) => {
 export const getCampaignApplicationStatus = async (req, res) => {
   try {
     const applicationStatus = await client.query(`
-     select * from  ins.fn_get_influencermycampaignstatus()`)
+     select * from  ins.fn_get_campaignapplicationstatus()`)
     const applicationStatusRes = applicationStatus.rows;
     return res.status(200).json({
       Message: " Campaign Application Status Get Sucessfully",
