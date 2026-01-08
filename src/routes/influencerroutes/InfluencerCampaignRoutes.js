@@ -10,6 +10,8 @@ import {
   withdrawApplication,
   browseCampaigns,
   deleteApplyNowPortfolioFile,
+  getFeedbackList,
+  getCampaignApplicationStatus
 } from '../../controller/influencercontroller/InfluencerCampaignController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 import { upload } from '../../middleware/MulterMiddleware.js';
@@ -76,5 +78,16 @@ routes.post(
   authenticateUser(["Influencer"]),
   deleteApplyNowPortfolioFile
 );
+routes.get(
+  "/vendor-feedback-list",
+  authenticateUser(["Influencer"]),
+  getFeedbackList
+)
+
+routes.get(
+  "/Campaign-ApplicationStatus",
+  authenticateUser(["Influencer"]),
+  getCampaignApplicationStatus
+)
 
 export default routes;

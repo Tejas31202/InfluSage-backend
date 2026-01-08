@@ -1,7 +1,7 @@
 import { client } from '../../config/Db.js';
 import Redis from "../../utils/RedisWrapper.js";
 import { createClient } from '@supabase/supabase-js';
-import {io} from '../../../app.js';
+import { io } from '../../../app.js';
 
 // Create Supabase client once at the top
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -69,9 +69,9 @@ export const createTicketAndUpdateStatus = async (req, res) => {
 
     await client.query("BEGIN");
     await client.query(
-          "SELECT set_config('app.current_user_id', $1, true)",
-          [String(p_userid)]
-        );
+      "SELECT set_config('app.current_user_id', $1, true)",
+      [String(p_userid)]
+    );
     const result = await client.query(
       `CALL ins.usp_upsert_usersupportticket(
       $1::bigint,
@@ -93,28 +93,49 @@ export const createTicketAndUpdateStatus = async (req, res) => {
     await client.query("COMMIT");
     const { p_status, p_message } = result.rows[0];
 
+
     if (p_status === 1) {
+      try {
+        const p_role = "SENDER";
+        const notification = await client.query(
+          `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean, $3::text)`,
+          [p_userid, null, p_role]
+        );
+        const notifyData =
+          notification.rows[0]?.fn_get_notificationlist || [];
+        if (notifyData.length > 0) {
+          const latest = notifyData[0];
+          const toUserId = latest.receiverid;
+          if (toUserId) {
+            io.to(`notification_${toUserId}`).emit(
+              "receiveNotification",
+              latest
+            );
+            console.log(`Notification sent to user_${toUserId}`);
+          }
+        }
+      } catch (error) {
+        console.error("Notification error:", error);
+      }
       return res.status(200).json({
-        message: p_message,
-        p_status,
+        status: true,
+        message: p_message || "Contract created/updated successfully",
+        source: "db",
       });
     }
-
     if (p_status === 0) {
       return res.status(400).json({
         message: p_message,
         p_status,
       });
     }
-
     if (p_status === -1) {
       console.error("Stored Procedure Failure:", p_message);
       return res.status(500).json({
-        message:"Something went wrong. Please try again later.",
+        message: "Something went wrong. Please try again later.",
         p_status,
       });
     }
-
     // Fallback (unknown p_status)
     return res.status(500).json({
       message: "Unknown database response",
@@ -131,13 +152,13 @@ export const createTicketAndUpdateStatus = async (req, res) => {
 
 export const viewAllTicketByUserId = async (req, res) => {
   try {
-    const p_userid= req.user?.id || req.query.userId;
-  
-    if (!p_userid ) {
+    const p_userid = req.user?.id || req.query.userId;
+
+    if (!p_userid) {
       return res.status(400).json({ message: "p_userid  is required." });
     }
-    const {p_statuslabelid,p_search}=req.query;
-  
+    const { p_statuslabelid, p_search } = req.query;
+
     const result = await client.query(
       `SELECT * FROM ins.fn_get_usersubjectlist(
       $1::bigint,
@@ -145,9 +166,9 @@ export const viewAllTicketByUserId = async (req, res) => {
       $3::text
       );`,
       [
-        p_userid ,
+        p_userid,
         p_statuslabelid,
-        p_search||null
+        p_search || null
       ]
     );
     const viewTicket = result.rows[0].fn_get_usersubjectlist;
@@ -166,11 +187,11 @@ export const viewAllTicketByUserId = async (req, res) => {
 
 export const openChatByTicketId = async (req, res) => {
   try {
-    const p_userid  = req.user?.id || req.query.p_userid;
-    const p_usersupportticketid  = req.params.p_usersupportticketid;
-    const {p_limit,p_offset}=req.query;
+    const p_userid = req.user?.id || req.query.p_userid;
+    const p_usersupportticketid = req.params.p_usersupportticketid;
+    const { p_limit, p_offset } = req.query;
 
-    if(!p_usersupportticketid){
+    if (!p_usersupportticketid) {
       return res.status(400).json({ message: "p_usersupportticketid is required." });
     }
     const result = await client.query(
@@ -183,17 +204,17 @@ export const openChatByTicketId = async (req, res) => {
       [
         p_usersupportticketid,
         p_userid,
-        p_limit||20,
-        p_offset||1
+        p_limit || 20,
+        p_offset || 1
       ]
     );
-    
+
     const data = result.rows[0].fn_get_usersupportticketmessages;
-      io.to(`user_${p_userid}`).emit("sidebarTicketUpdate", {
-        ticketId: p_usersupportticketid,
-        readbyadmin: true,
-        readbyuser: true,
-      });
+    io.to(`user_${p_userid}`).emit("sidebarTicketUpdate", {
+      ticketId: p_usersupportticketid,
+      readbyadmin: true,
+      readbyuser: true,
+    });
     return res.status(200).json({
       message: "Chat opened successfully for the selected ticket.",
       data: data,
@@ -242,7 +263,7 @@ export const sendSupportMessage = async (req, res) => {
     const p_senderid = req.user?.id || req.body.p_senderid;
     const { p_usersupportticketid, p_messages, p_replyid } = req.body;
 
-    if (!p_senderid || !p_usersupportticketid ) {
+    if (!p_senderid || !p_usersupportticketid) {
       return res.status(400).json({
         message: "p_senderid , p_usersupportticketid are required.",
       });
@@ -252,7 +273,7 @@ export const sendSupportMessage = async (req, res) => {
       return res.status(400).json({
         message: "Either a p_messages or an attachment is required.",
       });
-     }
+    }
 
     const validate = await client.query(
       `select * from ins.fn_get_usersupportticketaccess($1::bigint,$2::bigint);`,
@@ -260,8 +281,8 @@ export const sendSupportMessage = async (req, res) => {
     );
 
     const data = validate.rows[0].fn_get_usersupportticketaccess
-    if (!data.status) { 
-        return res.status(403).json({success:data.status,message: data.message });
+    if (!data.status) {
+      return res.status(403).json({ success: data.status, message: data.message });
     }
 
     // ----------------- FILE HANDLING -----------------
@@ -271,9 +292,8 @@ export const sendSupportMessage = async (req, res) => {
     // // Single file
     if (req.file) {
       const f = req.file;
-      const fileName = `${req.user?.role}Id_${p_senderid}_${Date.now()}_${
-        f.originalname
-      }`;
+      const fileName = `${req.user?.role}Id_${p_senderid}_${Date.now()}_${f.originalname
+        }`;
 
       const { error } = await supabase.storage
         .from(process.env.SUPABASE_BUCKET)
@@ -294,9 +314,9 @@ export const sendSupportMessage = async (req, res) => {
     const p_filepath = filePaths.length > 0 ? filePaths[0] : null;
     await client.query("BEGIN");
     await client.query(
-          "SELECT set_config('app.current_user_id', $1, true)",
-          [String(userId)]
-        );
+      "SELECT set_config('app.current_user_id', $1, true)",
+      [String(userId)]
+    );
     // ----------------- DB CALL -----------------
     const result = await client.query(
       `CALL ins.usp_insert_usersupportticketmessage(
@@ -376,11 +396,11 @@ export const sendSupportMessage = async (req, res) => {
         message: "Unexpected database response",
       });
     }
-    } catch (error) {
-      console.error("Error in sendSupportMessage:", error);
-      return res.status(500).json({
+  } catch (error) {
+    console.error("Error in sendSupportMessage:", error);
+    return res.status(500).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
-    }
-  };
+  }
+};

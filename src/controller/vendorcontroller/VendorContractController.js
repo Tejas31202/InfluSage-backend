@@ -1,4 +1,5 @@
 import { client } from '../../config/Db.js';
+import { io } from '../../../app.js';
 
 export const getAllSelectedInfluencer = async (req, res) => {
   const vendor_id = req.user?.id;
@@ -38,7 +39,6 @@ export const getAllSelectedInfluencer = async (req, res) => {
 export const createOrEditContract = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
-
     if (!userId) {
       return res.status(401).json({
         status: false,
@@ -58,6 +58,7 @@ export const createOrEditContract = async (req, res) => {
         message: "p_campaignapplicationid is required.",
       });
     }
+
     if (!p_contractjson || !p_contenttypejson) {
       return res.status(400).json({
         status: false,
@@ -88,34 +89,47 @@ export const createOrEditContract = async (req, res) => {
         null,
       ]
     );
-    await client.query("COMMIT");
 
+    await client.query("COMMIT");
     const row = result.rows[0] || {};
     const p_status = Number(row.p_status);
     const p_message = row.p_message;
-
-    if (p_message === "You cannot create a contract until campaign in published state.") {
-      return res.status(404).json({
-        status: false,
-        message: p_message,
-        p_status: false,
-      });
-    }
-
+    const p_role = "SENDER";
     if (p_status === 1) {
+      try {
+        const notification = await client.query(
+          `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean, $3::text)`,
+          [userId, null, p_role]
+        );
+        const notifyData =
+          notification.rows[0]?.fn_get_notificationlist || [];
+        if (notifyData.length > 0) {
+          const latest = notifyData[0];
+          const toUserId = latest.receiverid;
+          if (toUserId) {
+            io.to(`notification_${toUserId}`).emit(
+              "receiveNotification",
+              latest
+            );
+            console.log(`Notification sent to user_${toUserId}`);
+          }
+        }
+      } catch (error) {
+        console.error("Notification error:", error);
+      }
       return res.status(200).json({
         status: true,
         message: p_message || "Contract created/updated successfully",
         source: "db",
       });
-    } else if (p_status === 0) {
+    }
+    else if (p_status === 0) {
       return res.status(400).json({
         status: false,
         message: p_message || "Failed to create/update contract",
         source: "db",
       });
     }
-    // Case 3: p_status = -1 → SP failed
     else if (p_status === -1) {
       console.error("Stored Procedure Failure:", p_message);
       return res.status(500).json({

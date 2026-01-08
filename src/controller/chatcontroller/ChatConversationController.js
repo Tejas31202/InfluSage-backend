@@ -40,7 +40,7 @@ export const startConversation = async (req, res) => {
     const row = result.rows[0] || {};
     const p_status = Number(row.p_status);
     const p_message = row.p_message;
-    const p_role = 'RECEIVER';
+    const p_role = 'SENDER';
 
     if (p_status === 1) {
       // Fetch notifications

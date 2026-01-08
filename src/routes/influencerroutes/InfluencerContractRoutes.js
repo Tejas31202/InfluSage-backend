@@ -5,7 +5,8 @@ import {
     uploadContentLink,
     getInfluencerContractDetail,
     getInfluencerUploadedContentLink,
-    getContractContentTypes
+    getContractContentTypes,
+    addVendorFeedback
 } from '../../controller/influencercontroller/InfluencerContractController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 
@@ -37,6 +38,12 @@ routes.get(
   "/contracts/:p_contractid/content-types",
   authenticateUser(["Influencer"]),
   getContractContentTypes
+);
+
+routes.post(
+  "/add-feedback",
+  authenticateUser(["Influencer"]),
+  addVendorFeedback
 );
 
 export default routes;

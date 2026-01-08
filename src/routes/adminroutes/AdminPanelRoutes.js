@@ -12,9 +12,11 @@ import {
     campaignBlockReason,
     userBlockReason,
     blockInfluencerAndCampaignApplication,
-    adminRejectInfluencerOrCampaign
+    adminRejectInfluencerOrCampaign,
+    getMessageManagement
 } from '../../controller/admincontroller/AdminPanelController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
+import { auth } from 'googleapis/build/src/apis/abusiveexperiencereport/index.js';
 const routes = express.Router();
 
 routes.get(
@@ -84,5 +86,11 @@ routes.post(
   authenticateUser(["Admin"]),
   adminRejectInfluencerOrCampaign
 );
+
+routes.get(
+  "/dashboard/message/management",
+  authenticateUser(["Admin"]),
+  getMessageManagement
+)
 
 export default routes;

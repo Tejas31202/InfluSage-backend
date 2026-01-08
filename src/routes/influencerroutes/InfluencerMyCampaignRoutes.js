@@ -1,20 +1,23 @@
 import express from 'express';
 import {
     getClientsList,
-    getInfluencerMyCampaign,
+    getInfluencerMyContract,
     getInfluencerMyCampaignDetails,
-    getInfluencerMyCampaignStatus
-} from '../../controller/influencercontroller/InfluencerMycampaignController.js';
+    getInfluencerMyCampaignStatus,
+    getInfluencerMyContractStatus
+} from '../../controller/influencercontroller/InfluencerMyCampaignController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 
 const routes = express.Router();
 
 routes.get("/client-list", authenticateUser(["Influencer"]), getClientsList);
 
+routes.get("/contract/status",authenticateUser(["Influencer"]),getInfluencerMyContractStatus);
+
 routes.get(
-  "/influencer-campaigns",
+  "/influencer-contract",
   authenticateUser(["Influencer"]),
-  getInfluencerMyCampaign
+  getInfluencerMyContract
 );
 
 routes.get(

@@ -33,19 +33,16 @@ export const getClientsList = async (req, res) => {
   }
 };
 //..................Get All Influencer Campaign..................
-export const getInfluencerMyCampaign = async (req, res) => {
+export const getInfluencerMyContract = async (req, res) => {
   const p_userid = req.user?.id || req.body.p_userid;
-
   try {
     if (!p_userid) {
       return res.status(400).json({ message: "User Id Require" });
     }
-
     const {
       p_statuslabelid,
       p_providers,
       p_clients,
-      p_status,
       p_maxbudget,
       p_minbudget,
       p_startdate,
@@ -56,46 +53,41 @@ export const getInfluencerMyCampaign = async (req, res) => {
       p_pagesize,
       p_search,
     } = req.query;
-
     const result = await client.query(
-      `SELECT * FROM ins.fn_get_influencermycampaign(
+      `SELECT * FROM ins.fn_get_influencermycontract(
             $1::bigint,
             $2::smallint,
             $3::json,
             $4::json,
-            $5::json,
+            $5::numeric,
             $6::numeric,
-            $7::numeric,
+            $7::date,
             $8::date,
-            $9::date,
+            $9::text,
             $10::text,
-            $11::text,
+            $11::integer,
             $12::integer,
-            $13::integer,
-            $14::text)`,
+            $13::text)`,
       [
         p_userid,
         p_statuslabelid || null,
         p_providers || null,
         p_clients || null,
-        p_status || null,
         p_maxbudget || null,
         p_minbudget || null,
         p_startdate || null,
         p_enddate || null,
-        p_sortby || null,
+        p_sortby || "createddate"||"paymentamount",
         p_sortorder || "DESC",
         p_pagenumber || 1,
         p_pagesize || 20,
-        p_search || null,
+        p_search || null
       ]
     );
-
-    const influencerCampaign = result.rows[0].fn_get_influencermycampaign;
-
+    const influencerContract = result.rows[0].fn_get_influencermycontract || {};
     return res.status(200).json({
       message: "Influencer campaigns fetched successfully",
-      data: influencerCampaign,
+      data: influencerContract,
       source: "db",
     });
   } catch (error) {
@@ -158,7 +150,7 @@ export const getInfluencerMyCampaignStatus = async (req, res) => {
       {
         Message: "Influencer MyCampaign status Fetched Successfully",
         data: result,
-        source:"db"
+        source: "db"
       }
     )
   } catch (error) {
@@ -169,3 +161,26 @@ export const getInfluencerMyCampaignStatus = async (req, res) => {
     });
   }
 }
+
+export const getInfluencerMyContractStatus = async (req, res) => {
+  try {
+    const status = await client.query(
+      `SELECT * FROM ins.fn_get_influencermycontractstatus();`
+    )
+    const result = status.rows;
+
+    return res.status(200).json({
+        Message: "Influencer My Contract status Fetched Successfully.",
+        data: result,
+        source: "db"
+      })
+  } catch (error) {
+    console.error("Error in getInfluencerMyContractStatus:", error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
+  }
+}
+
+

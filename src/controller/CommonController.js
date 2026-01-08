@@ -1,8 +1,6 @@
 import { client } from '../config/Db.js';
 import Redis from '../utils/RedisWrapper.js';
 
-//This Code Important Never Delet This
-
 export const getRoles = async (req, res) => {
   try {
     const result = await client.query(`SELECT * from ins.fn_get_roles();`);
@@ -259,5 +257,23 @@ export const getCityiesByState = async (req, res) => {
   }
 }
 
-
+export const getTermsAndConditions = async (req, res) => {
+  try {
+    const result = await client.query(
+      `SELECT * FROM ins.fn_get_configvalue($1::varchar);`,
+      ["termsAndConditions"]
+    );
+    const data = result.rows[0]?.fn_get_configvalue;
+    return res.status(200).json({
+      message: "Terms and conditions retrieved successfully",
+      data: data,
+    });
+  } catch (error) {
+    console.error("Error in getTermsAndConditions:", error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message,
+    });
+  }
+};
 
