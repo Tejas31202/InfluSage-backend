@@ -176,7 +176,7 @@ export const getContractDetailByContractId = async (req, res) => {
       error: error.message,
     });
   }
-}
+};
 
 export const getAllContractList = async (req, res) => {
   try {
@@ -203,7 +203,7 @@ export const getAllContractList = async (req, res) => {
       error: error.message,
     });
   }
-}
+};
 
 export const getAllContentLinks = async (req, res) => {
   try {
@@ -229,5 +229,32 @@ export const getAllContentLinks = async (req, res) => {
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
+  }
+};
+
+export const getVendorContractFeedback = async (req, res) => {
+  const p_userid = req.user?.id;
+  if(!p_userid) return res.status(400).json({Message:"User Id Required"})
+  const { p_contractid, p_influencerid } = req.query;
+  if (!p_contractid || !p_influencerid) return res.status(400).json({ Message: "Contract Id And Influencer Id Required" });
+  try {
+    const contractid = BigInt(p_contractid);
+    const influencerid = BigInt(p_influencerid);
+
+    const contractFeedback = await client.query(`
+    select * from ins.fn_get_vendorcontractfeedback($1::bigint,$2::bigint)`, [contractid, influencerid]);
+
+    const contractFeedbackRes = contractFeedback.rows[0].fn_get_vendorcontractfeedback || [];
+    return res.status(200).json({
+      Message: " Vendor Contract FeedBack Getting Sucessfully",
+      data: contractFeedbackRes,
+      source: 'db'
+    })
+  } catch (error) {
+    console.error("Error While Contract Feedback Getting. please Try Again Later", error)
+    return res.status(500).json({
+      Message: "Internal Server Error",
+      error: error.message
+    })
   }
 };

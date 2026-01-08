@@ -5,6 +5,7 @@ import {
   getContractDetailByContractId,
   getAllContractList,
   getAllContentLinks,
+  getVendorContractFeedback
 } from '../../controller/vendorcontroller/VendorContractController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 
@@ -39,6 +40,12 @@ routes.get(
   authenticateUser(["Vendor"]),
   getAllContentLinks
 );
+
+routes.get(
+  "/contract-feedback",
+  authenticateUser(["Vendor"]),
+  getVendorContractFeedback
+)
 
 export default routes;
 
