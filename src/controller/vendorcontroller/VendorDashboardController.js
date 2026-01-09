@@ -130,3 +130,25 @@ export const getVendorDashboardFeedbackList = async (req, res) => {
     })
   }
 }
+
+export const getCampaignStatusTrend = async (req, res) => {
+  const p_userid = req.user?.id;
+  if (!p_userid) return res.status(400).json({ message: "User Id Required For Get Campaign Status Trend" });
+  const p_filtertype = req.query.p_filtertype || 'year'
+  try {
+    const campaignStatusTrend = await client.query(`
+      select * from ins.fn_get_campaignstatustrend($1::bigint,$2::varchar)`, [p_userid, p_filtertype]);
+    const campaignStatusTrendRes = campaignStatusTrend.rows[0].fn_get_campaignstatustrend || [];
+    return res.status(200).json({
+      message: "Campaign Status Trend retrieved successfully",
+      data: campaignStatusTrendRes,
+      source: 'db'
+    })
+  } catch (error) {
+    console.error("Error While Getting Campaign Status Trend", error);
+    return res.status(500).json({
+      message: "Internal server Error",
+      error: error.message
+    })
+  }
+}
