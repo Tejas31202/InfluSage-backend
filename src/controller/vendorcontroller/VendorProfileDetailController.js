@@ -117,26 +117,18 @@ export const getUserNameByEmail = async (req, res) => {
 export const getVendorProfile = async (req, res) => {
   const vendorId = req.params.userId;
   const redisKey = `vendorprofile:${vendorId}`;
-    const safeParse = (data) => {
-    try {
-      return JSON.parse(data);
-    } catch {
-      return null;
-    }
-  };
+  
   try {
     const cachedData = await Redis.get(redisKey);
 
     if (cachedData) {
-      const parsed = safeParse(cachedData); // already parsed
-
-
+      // cachedData is already a parsed object from redisWrapper
       const profileParts = {
-        p_profile: parsed.profilejson || {},
-        p_categories: parsed.categoriesjson || {},
-        p_providers: parsed.providersjson || {},
-        p_objectives: parsed.objectivesjson || {},
-        p_paymentaccounts: parsed.paymentjson || {},
+        p_profile: cachedData.profilejson || {},
+        p_categories: cachedData.categoriesjson || {},
+        p_providers: cachedData.providersjson || {},
+        p_objectives: cachedData.objectivesjson || {},
+        p_paymentaccounts: cachedData.paymentjson || {},
       };
       const profileCompletion = calculateProfileCompletion(
         Object.values(profileParts)
@@ -185,11 +177,10 @@ export const getVendorProfile = async (req, res) => {
 
 export const completeVendorProfile = async (req, res) => {
   const userId = req.user?.id || req.body.userid;
-
   const redisKey = `vendorprofile:${userId}`;
 
   try {
-    // 1 Parse JSON fields from req.body (safe) 
+    // Parse JSON fields from req.body (safe)
     const {
       profilejson = null,
       categoriesjson = null,
@@ -198,49 +189,39 @@ export const completeVendorProfile = async (req, res) => {
       paymentjson = null,
     } = req.body || {};
 
-    // Step 1: Handle uploaded photo
+    // Handle uploaded profile photo
     let updatedProfileJson = profilejson ? JSON.parse(profilejson) : {};
-
-    // 2 Handle Profile Photo Upload (Debug + Safe Upload)
     if (req.file) {
       const file = req.file;
 
-      // Quick check for file buffer
       if (!file.buffer || file.buffer.length === 0) {
         return res.status(400).json({ message: "No valid file buffer found" });
       }
+
       const fileName = file.originalname;
       const profileFolderPath = `Vendor/${userId}/Profile`;
       const supabasePath = `${profileFolderPath}/${fileName}`;
 
-      // List & remove old profile photos (optional cleanup)
+      // Remove old profile photos
       const { data: existingFiles, error: listError } = await supabase.storage
         .from(process.env.SUPABASE_BUCKET)
         .list(profileFolderPath, { limit: 100 });
 
       if (!listError && existingFiles?.length > 0) {
-        const oldFilePaths = existingFiles.map(
-          (f) => `${profileFolderPath}/${f.name}`
-        );
+        const oldFilePaths = existingFiles.map(f => `${profileFolderPath}/${f.name}`);
         await supabase.storage.from(process.env.SUPABASE_BUCKET).remove(oldFilePaths);
       }
 
       // Upload new photo
       const { error: uploadError } = await supabase.storage
         .from(process.env.SUPABASE_BUCKET)
-        .upload(supabasePath, file.buffer, {
-          contentType: file.mimetype,
-          upsert: true,
-        });
+        .upload(supabasePath, file.buffer, { contentType: file.mimetype, upsert: true });
 
       if (uploadError) {
-        return res
-          .status(500)
-          .json({ message: "Image upload failed", error: uploadError.message });
+        return res.status(500).json({ message: "Image upload failed", error: uploadError.message });
       }
 
-      // Get public URL for uploaded image
-      const { data: publicUrlData } = supabase.storage
+      const { data: publicUrlData } = await supabase.storage
         .from(process.env.SUPABASE_BUCKET)
         .getPublicUrl(supabasePath);
 
@@ -250,168 +231,93 @@ export const completeVendorProfile = async (req, res) => {
 
       updatedProfileJson.photopath = publicUrlData.publicUrl;
     }
-    const safeParse = (data) => {
-      try {
-        return data ? JSON.parse(data) : null;
-      } catch {
-        return null;
-      }
-    };
 
-    const mergedData = {
+    // Merge request data
+   const mergedData = {
       ...(req.body.profilejson && { profilejson: updatedProfileJson }),
-      ...(categoriesjson && { categoriesjson: safeParse(categoriesjson) }),
-      ...(providersjson && { providersjson: safeParse(providersjson) }),
-      ...(req.body.objectivesjson && {
-        objectivesjson: safeParse(objectivesjson),
-      }),
-      ...(paymentjson && { paymentjson: safeParse(paymentjson) }),
+      ...(categoriesjson && { categoriesjson: JSON.parse(categoriesjson) }),
+      ...(providersjson && { providersjson: JSON.parse(providersjson) }),
+      ...(objectivesjson && { objectivesjson: JSON.parse(objectivesjson) }),
+      ...(paymentjson && { paymentjson: JSON.parse(paymentjson) }),
     };
-
-    // 5 Check existing profile from DB
+    // Check DB for existing profile
     const dbCheck = await client.query(
       `SELECT * FROM ins.fn_get_vendorprofile($1::BIGINT)`,
       [userId]
     );
     const existingUser = dbCheck.rows[0];
 
-    // 6 Logic based on existing profile
-    if (
-      existingUser?.p_categories !== null &&
-      existingUser?.p_objectives !== null
-    ) {
-      // CASE A: User already has provider  + objectives → update in DB
-      try {
-        //for db how much time taken for execute query
-        const dbStart = Date.now();
-        await client.query("BEGIN");
-        await client.query(
-          "SELECT set_config('app.current_user_id', $1, true)",
-          [String(userId)]
-        );
-        const result = await client.query(
-          `CALL ins.usp_upsert_vendorprofile(
+    // CASE A: Already exists in DB → update DB
+    if (existingUser?.p_categories !== null && existingUser?.p_objectives !== null) {
+      await client.query("BEGIN");
+      await client.query("SELECT set_config('app.current_user_id', $1, true)", [String(userId)]);
+      const result = await client.query(
+        `CALL ins.usp_upsert_vendorprofile(
           $1::BIGINT, $2::JSON, $3::JSON, $4::JSON, $5::JSON, $6::JSON, $7::SMALLINT, $8::TEXT
         )`,
-          [
-            userId,
-            JSON.stringify(mergedData.profilejson),
-            JSON.stringify(mergedData.categoriesjson),
-            JSON.stringify(mergedData.providersjson),
-            JSON.stringify(mergedData.objectivesjson),
-            JSON.stringify(mergedData.paymentjson),
-            null,
-            null,
-          ]
-        );
-        //for db how much time taken for execute
-        console.log("DB query:", Date.now() - dbStart, "ms");
+        [
+          userId,
+          JSON.stringify(mergedData.profilejson),
+          JSON.stringify(mergedData.categoriesjson),
+          JSON.stringify(mergedData.providersjson),
+          JSON.stringify(mergedData.objectivesjson),
+          JSON.stringify(mergedData.paymentjson),
+          null,
+          null,
+        ]
+      );
+      await client.query("COMMIT");
+      const { p_status, p_message } = result.rows[0] || {};
 
-        await client.query("COMMIT");
-        const { p_status, p_message } = result.rows[0] || {};
-
-        //  NEW p_status logic
-        if (p_status === 1) return res.status(200).json({ message: p_message, p_status });
-
-        if (p_status === 0) return res.status(400).json({ message: p_message, p_status });
-
-        if (p_status === -1) return res.status(500).json({ message: "something went wrong" });
-
-        return res.status(500).json({
-          message: "Unknown database response",
-          p_status,
-        });
-      } catch (err) {
-        await client.query("ROLLBACK");
-        throw err;
-      }
-    } else {
-      // 1 Try to fetch Redis partials
-      let redisData = {};
-      const existingRedis = await Redis.get(redisKey);
-      if (existingRedis) {
-        try {
-          redisData = JSON.parse(existingRedis);
-        } catch (e) {
-          console.warn("Redis data corrupted:", e);
-        }
-      }
-      // 2 Merge Redis + current request body (request takes priority)
-      const finalData = {
-        ...redisData,
-        ...mergedData,
-      };
-      // 3 Check completeness AFTER merging
-      const allPartsPresent =
-        finalData.profilejson &&
-        finalData.categoriesjson &&
-        finalData.providersjson &&
-        finalData.objectivesjson &&
-        finalData.paymentjson;
-      // 4 Now update mergedData to be finalData going forward
-      mergedData.profilejson = finalData.profilejson;
-      mergedData.categoriesjson = finalData.categoriesjson;
-      mergedData.providersjson = finalData.providersjson;
-      mergedData.objectivesjson = finalData.objectivesjson;
-      mergedData.paymentjson = finalData.paymentjson;
-      //  CASE B: User new or incomplete → check Redis
-      if (!allPartsPresent) {
-        const existingRedis = await Redis.get(redisKey);
-        let redisData = existingRedis ? JSON.parse(existingRedis) : {};
-        redisData = { ...redisData, ...mergedData };
-
-        await Redis.setEx(redisKey, 86400, JSON.stringify(redisData));
-        return res.status(200).json({
-          message: "Partial data saved in Redis (first-time user)",
-          source: "redis",
-        });
-      }
-
-      //  CASE C: All parts present → insert into DB
-      try {
-        await client.query("BEGIN");
-        await client.query(
-          "SELECT set_config('app.current_user_id', $1, true)",
-          [String(userId)]
-        );
-        const result = await client.query(
-          `CALL ins.usp_upsert_vendorprofile(
-          $1::BIGINT, $2::JSON, $3::JSON, $4::JSON, $5::JSON, $6::JSON, $7::SMALLINT, $8::TEXT
-        )`,
-          [
-            userId,
-            JSON.stringify(mergedData.profilejson),
-            JSON.stringify(mergedData.categoriesjson),
-            JSON.stringify(mergedData.providersjson),
-            JSON.stringify(mergedData.objectivesjson),
-            JSON.stringify(mergedData.paymentjson),
-            null,
-            null,
-          ]
-        );
-        await client.query("COMMIT");
-        const { p_status, p_message } = result.rows[0] || {};
-
-        if (p_status === 1) {
-          await Redis.del(redisKey);
-          return res.status(200).json({ message: p_message, p_status });
-        }
-
-        if (p_status === 0)
-          return res.status(400).json({ message: p_message, p_status });
-
-        if (p_status === -1)
-          return res.status(500).json({ message: p_message, p_status });
-
-        return res.status(500).json({
-          message: "Unknown database response",
-          p_status,
-        });
-      } catch (err) {
-        await client.query("ROLLBACK");
-        throw err;
-      }
+      if (p_status === 1) return res.status(200).json({ message: p_message, p_status });
+      if (p_status === 0) return res.status(400).json({ message: p_message, p_status });
+      return res.status(500).json({ message: "Unknown database response", p_status });
     }
+
+    // CASE B: New or incomplete user → handle Redis
+    const existingRedis = await Redis.get(redisKey); // already parsed object
+    const finalData = { ...(existingRedis || {}), ...mergedData };
+
+    const allPartsPresent =
+      finalData.profilejson &&
+      finalData.categoriesjson &&
+      finalData.providersjson &&
+      finalData.objectivesjson &&
+      finalData.paymentjson;
+
+    if (!allPartsPresent) {
+      await Redis.setEx(redisKey, 86400, finalData); // redisWrapper handles stringify
+      return res.status(200).json({
+        message: "Partial data saved in Redis (first-time user)",
+        source: "redis",
+      });
+    }
+
+    // CASE C: All parts present → insert into DB
+    await client.query("BEGIN");
+    await client.query("SELECT set_config('app.current_user_id', $1, true)", [String(userId)]);
+    const result = await client.query(
+      `CALL ins.usp_upsert_vendorprofile(
+        $1::BIGINT, $2::JSON, $3::JSON, $4::JSON, $5::JSON, $6::JSON, $7::SMALLINT, $8::TEXT
+      )`,
+      [
+        userId,
+        JSON.stringify(finalData.profilejson),
+        JSON.stringify(finalData.categoriesjson),
+        JSON.stringify(finalData.providersjson),
+        JSON.stringify(finalData.objectivesjson),
+        JSON.stringify(finalData.paymentjson),
+        null,
+        null,
+      ]
+    );
+    await client.query("COMMIT");
+
+    const { p_status, p_message } = result.rows[0] || {};
+    if (p_status === 1) await Redis.del(redisKey);
+    if (p_status === 1) return res.status(200).json({ message: p_message, p_status });
+    if (p_status === 0) return res.status(400).json({ message: p_message, p_status });
+    return res.status(500).json({ message: p_message || "Unknown error", p_status });
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error in completeVendorProfile:", error);
