@@ -106,7 +106,7 @@ export const verifyOtpAndRegister = async (req, res) => {
     const { otp } = req.body;
 
     const storedOtp = await Redis.get(`otp:${email}`);
-    if (!storedOtp || storedOtp !== otp) {
+    if (!storedOtp || String(storedOtp) !== String(otp)) {
       return res.status(400).json({ message: "Invalid or expired OTP" });
     }
 
