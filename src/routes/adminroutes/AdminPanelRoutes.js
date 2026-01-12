@@ -1,19 +1,21 @@
 import express from 'express';
 
-import { 
-    getUserStatusList,
-    getCampaignStatusList,
-    getDashboardCountList,
-    getRequestedUserList,
-    getRequestedCampaignList,
-    insertApprovedOrRejectedApplication,
-    getUserDetails,
-    getCampaignDetails,
-    campaignBlockReason,
-    userBlockReason,
-    blockInfluencerAndCampaignApplication,
-    adminRejectInfluencerOrCampaign,
-    getMessageManagement
+import {
+  getUserStatusList,
+  getCampaignStatusList,
+  getDashboardCountList,
+  getRequestedUserList,
+  getRequestedCampaignList,
+  insertApprovedOrRejectedApplication,
+  getUserDetails,
+  getCampaignDetails,
+  campaignBlockReason,
+  userBlockReason,
+  blockInfluencerAndCampaignApplication,
+  adminRejectInfluencerOrCampaign,
+  getMessageManagement,
+  getShippingCampaignList,
+  insertShippingAddress
 } from '../../controller/admincontroller/AdminPanelController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 import { auth } from 'googleapis/build/src/apis/abusiveexperiencereport/index.js';
@@ -91,6 +93,18 @@ routes.get(
   "/dashboard/message/management",
   authenticateUser(["Admin"]),
   getMessageManagement
+)
+
+routes.get(
+  "/dashboard/shippingcampaignlist",
+  authenticateUser(["Admin"]),
+  getShippingCampaignList
+)
+
+routes.post(
+  "/dashboard/insertShippingAddress",
+  authenticateUser(["Admin"]),
+  insertShippingAddress
 )
 
 export default routes;

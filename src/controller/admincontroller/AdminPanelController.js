@@ -726,3 +726,98 @@ export const getMessageManagement = async (req, res) => {
     });
   }
 }
+
+export const getShippingCampaignList = async (req, res) => {
+  try {
+    const p_pagenumber = Number.parseInt(req.query.p_pagenumber) || 1;
+    const p_pagesize = Number.parseInt(req.query.p_pagesize) || 20;
+    const p_search = req.query.p_search || null;
+    const shippingCampaignList = await client.query(`
+       SELECT * FROM ins.fn_get_shippingcampaignlist($1::int,$2::int,$3::text)`,
+      [
+        p_pagenumber,
+        p_pagesize,
+        p_search
+      ]);
+    const shippingCampaignListRes = shippingCampaignList.rows[0].fn_get_shippingcampaignlist;
+    console.log(shippingCampaignListRes);
+    return res.status(200).json({
+      Message: "Shipping Campaign List Getting Sucessfully",
+      data: shippingCampaignListRes,
+      source: 'db'
+    })
+  } catch (error) {
+    console.error("Error Gettign Shipping Campaign List", error)
+    return res.status(500).json({
+      Message: "Internal Server Error",
+      error: error.message
+    })
+  }
+}
+
+export const insertShippingAddress = async (req, res) => {
+  const p_adminid = req.user?.id || req.body.p_adminid;
+  if (!p_adminid) return res.status(400).json({ message: "Admin ID Required For Insert Shipping Address" });
+
+  try {
+    const {p_userid ,p_address,p_isreusable} = req.body
+    if (!p_userid || !p_address) return res.status(400).json({ message: "User Id And Address Required" })
+
+    await client.query("BEGIN");
+    await client.query("SELECT set_config('app.current_user_id', $1, true)", [
+      String(p_adminid),
+    ]);
+
+    const result = await client.query(`
+     CALL ins.usp_upsert_shippingaddress($1::bigint,$2::bigint,$3::varchar,$4::BOOLEAN,$5::smallint,$6::text)`,
+      [
+        p_adminid,
+        p_userid,
+        p_address,
+        p_isreusable,
+        null,
+        null
+      ]);
+
+    const { p_status, p_message } = result.rows[0] || {};
+    console.log("status:-",p_status);
+    console.log("Message:-",p_message)
+    await client.query("COMMIT");
+    if (p_status === 1) {
+      return res.status(200).json(
+        {
+          message: p_message,
+          p_status: p_status
+        }
+      );
+    } else if (p_status === 0) {
+      return res.status(400).json(
+        {
+          message: p_message || "Validation failed",
+          p_status: p_status
+        }
+      );
+    } else if (p_status === -1) {
+      console.error("Stored Procedure Failure:", p_message);
+      return res.status(500).json(
+        {
+          message: p_message,
+          p_status: p_status
+        }
+      );
+    } else {
+      return res.status(500).json(
+        {
+          message: "Unexpected database response",
+          p_status: p_status
+        }
+      );
+    }
+  } catch (error) {
+    console.error("Error In Updating Shipping Address", error)
+    return res.status(500).json({
+      message: "Internal Server Error",
+      error: error.message
+    })
+  }
+}
