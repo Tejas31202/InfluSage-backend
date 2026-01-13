@@ -6,6 +6,7 @@ import {
   getCancleReasonList,
   insertCampiginCancleApplication,
   pausedCampaignApplication,
+  getCampaignInvitationList
 } from '../../controller/vendorcontroller/VendorMyCampaignController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
 import authorizeOwnership from '../../middleware/AuthorizationOwnership.js';
@@ -36,5 +37,11 @@ routes.get(
   authorizeOwnership({ idParam: "p_campaignid" }),
   getSingleCampaign
 );
+
+routes.get(
+  "/mycampaign/invitationlist",
+  authenticateUser(["Vendor"]),
+  getCampaignInvitationList
+)
 
 export default routes;

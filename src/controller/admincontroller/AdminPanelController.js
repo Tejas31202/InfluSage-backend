@@ -740,7 +740,6 @@ export const getShippingCampaignList = async (req, res) => {
         p_search
       ]);
     const shippingCampaignListRes = shippingCampaignList.rows[0].fn_get_shippingcampaignlist;
-    console.log(shippingCampaignListRes);
     return res.status(200).json({
       Message: "Shipping Campaign List Getting Sucessfully",
       data: shippingCampaignListRes,
@@ -767,7 +766,6 @@ export const insertShippingAddress = async (req, res) => {
     await client.query("SELECT set_config('app.current_user_id', $1, true)", [
       String(p_adminid),
     ]);
-
     const result = await client.query(`
      CALL ins.usp_upsert_shippingaddress($1::bigint,$2::bigint,$3::varchar,$4::BOOLEAN,$5::smallint,$6::text)`,
       [
@@ -780,8 +778,6 @@ export const insertShippingAddress = async (req, res) => {
       ]);
 
     const { p_status, p_message } = result.rows[0] || {};
-    console.log("status:-",p_status);
-    console.log("Message:-",p_message)
     await client.query("COMMIT");
     if (p_status === 1) {
       return res.status(200).json(

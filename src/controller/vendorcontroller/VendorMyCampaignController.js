@@ -156,10 +156,10 @@ export const getCancleReasonList = async (req, res) => {
 //..............Insert Campaign a
 export const insertCampiginCancleApplication = async (req, res) => {
   const userId = req.user?.id || req.body.userId;
-  const { p_campaignid, p_objectiveid } = req.body||{};
+  const { p_campaignid, p_objectiveid } = req.body || {};
 
-  if(! p_campaignid || !p_objectiveid){
-    res.status(400).json({message:"required fields are :  p_campaignid and  p_objectiveid"})
+  if (!p_campaignid || !p_objectiveid) {
+    res.status(400).json({ message: "required fields are :  p_campaignid and  p_objectiveid" })
   }
   try {
     await client.query("BEGIN");
@@ -189,21 +189,21 @@ export const insertCampiginCancleApplication = async (req, res) => {
         message: p_message || "Cancellation reason submitted successfully",
         source: "db",
       });
-    } 
+    }
     else if (p_status === 0) {
       return res.status(400).json({
         message: p_message || "Validation failed",
         p_status,
         source: "db",
       });
-    } 
+    }
     else if (p_status === -1) {
       console.error("Stored Procedure Failure:", p_message);
       return res.status(500).json({
         message: "Something went wrong. Please try again later.",
         p_status: false,
       });
-    } 
+    }
     else {
       return res.status(500).json({
         message: "Unexpected database response",
@@ -259,3 +259,34 @@ export const pausedCampaignApplication = async (req, res) => {
     });
   }
 };
+
+export const getCampaignInvitationList = async (req, res) => {
+  const p_userid = req.user?.id || req.query.p_userid;
+  if (!p_userid) return res.status(400).json({ message: "User Id Required For Campaign Invitation List" });
+  try {
+    const p_campaignid = req.query.p_campaignid;
+    if (!p_campaignid) return res.status(400).json({ message: "Campaign Id Required" })
+    const p_limit = Number(req.query.p_limit) || 20;
+    console.log("limit:-", p_limit)
+    const p_offset = Number(req.query.p_offset) || 0;
+    console.log("offset:-",p_offset)
+
+    const invitationList = await client.query(`
+      select * from ins.fn_get_campaigninvitationlist($1::bigint,$2::bigint,$3::integer,$4::integer)`,
+      [p_userid, p_campaignid, p_limit, p_offset]
+    );
+    const invitationListRes = invitationList.rows[0].fn_get_campaigninvitationlist;
+    console.log("Invitation List Result", invitationListRes);
+    return res.status(200).json({
+      message: "Campaign Invitation List Sucessfully Getting",
+      data: invitationListRes,
+      source: 'db'
+    })
+  } catch (error) {
+    console.error("Error While Getting Campaign Invitation List", error);
+    return res.status(500).json({
+      message: "Internal Server Error",
+      error: error.message
+    })
+  }
+}

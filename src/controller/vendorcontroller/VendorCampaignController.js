@@ -114,7 +114,7 @@ export const finalizeCampaign = async (req, res) => {
 export const getCampaign = async (req, res) => {
   try {
     const userId = req.user?.id || req.query.p_userid;
-    const campaignId = req.params.campaignId || "01";
+    const campaignId = req.query.campaignId || "01";
     if (!userId) return res.status(400).json({ message: "User ID required" });
 
     const redisKey = campaignId === "01" ? `getCampaign:${userId}` : `getCampaign:${userId}:${campaignId}`;
