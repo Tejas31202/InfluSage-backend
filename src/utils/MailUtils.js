@@ -1,30 +1,42 @@
 import dotenv from "dotenv";
 dotenv.config();
-import nodemailer from 'nodemailer';
+import nodemailer from "nodemailer";
+import { getSenderEmail } from "../controller/CommonController.js";
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+export async function sendingMail(to, subject, htmlContent) {
+  const senderEmail = await getSenderEmail();   
 
-export async function sendingMail(to, subject,htmlContent) {
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: senderEmail,              
+      pass: process.env.EMAIL_PASS,    
+    },
+  });
+
   await transporter.sendMail({
-    from: process.env.EMAIL_USER,
+    from: senderEmail,                 
     to,
     subject,
-    html:htmlContent,
+    html: htmlContent,
   });
 }
 
-export async function sendingMailFormatForAdmin(to,subject,html){
+export async function sendingMailFormatForAdmin(to, subject, html) {
+  const senderEmail = await getSenderEmail();
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: senderEmail,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
   await transporter.sendMail({
-    from: process.env.EMAIL_USER,
+    from: senderEmail,
     to,
     subject,
-    html
-  })
+    html,
+  });
 }
- 

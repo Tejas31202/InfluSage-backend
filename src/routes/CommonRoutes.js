@@ -11,7 +11,9 @@ import {
   getCountries,
   getStatesByCountry,
   getCityiesByState,
-  getTermsAndConditions
+  getTermsAndConditions,
+  getStats,
+  getSenderEmail,
 } from '../controller/CommonController.js';
 import authenticateUser from '../middleware/AuthMiddleware.js';
 
@@ -28,6 +30,8 @@ routes.get("/countries",getCountries);
 routes.get("/states/:countryId",getStatesByCountry);
 routes.get("/cities/:stateId",getCityiesByState);
 routes.get("/terms-conditions",getTermsAndConditions);
+routes.get("/stats",getStats);
+routes.get("/sender-email",getSenderEmail);
 
 routes.get(
   "/user-profile-info",

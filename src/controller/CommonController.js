@@ -253,3 +253,24 @@ export const getTermsAndConditions = async (req, res) => {
   }
 };
 
+export const getStats = async (req, res) => {
+  const campaigns = await client.query("SELECT COUNT(*) FROM ins.campaigns");
+  const users = await client.query("SELECT COUNT(*) FROM ins.users");
+
+  return res.json({
+    status: true,
+    data: {
+      totalCampaigns: campaigns.rows[0].count,
+      totalUsers: users.rows[0].count
+    }
+  });
+};
+
+export const getSenderEmail = async () => {
+  const result = await client.query(
+    `SELECT * FROM ins.fn_get_configvalue($1::varchar);`,
+    ["senderEmail"]
+  );
+
+  return result.rows[0]?.fn_get_configvalue;
+};
