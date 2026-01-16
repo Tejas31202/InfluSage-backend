@@ -1,12 +1,13 @@
 import { client } from '../../config/Db.js';
 import { io } from '../../../app.js';
+import { HTTP, SP_STATUS } from '../../utils/Constants.js';
 
 export const getAllSelectedInfluencer = async (req, res) => {
   const vendor_id = req.user?.id;
   const { campaign_id } = req.query;
 
   if (!campaign_id || !vendor_id) {
-    return res.status(400).json({
+    return res.status(HTTP.BAD_REQUEST).json({
       message: "campaign_id and vendor_id are required",
     });
   }
@@ -17,19 +18,19 @@ export const getAllSelectedInfluencer = async (req, res) => {
     );
 
     if (selectedInfluencer.rows.length === 0) {
-      return res.status(404).json({ message: "Selected Influencer Not Found" });
+      return res.status(HTTP.NOT_FOUND).json({ message: "Selected Influencer Not Found" });
     }
 
     const Result = selectedInfluencer.rows[0].fn_get_selectedinfluencers;
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "Selected influencers retrieved successfully.",
       data: Result,
       source: "db",
     });
   } catch (error) {
     console.error("error in getAllSelectedInfluencer", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -40,7 +41,7 @@ export const createOrEditContract = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
     if (!userId) {
-      return res.status(401).json({
+      return res.status(HTTP.UNAUTHORIZED).json({
         status: false,
         message: "Unauthorized: user not found",
       });
@@ -53,14 +54,14 @@ export const createOrEditContract = async (req, res) => {
     } = req.body;
 
     if (!p_campaignapplicationid) {
-      return res.status(400).json({
+      return res.status(HTTP.BAD_REQUEST).json({
         status: false,
         message: "p_campaignapplicationid is required.",
       });
     }
 
     if (!p_contractjson || !p_contenttypejson) {
-      return res.status(400).json({
+      return res.status(HTTP.BAD_REQUEST).json({
         status: false,
         message: "p_contractjson and p_contenttypejson are required.",
       });
@@ -95,7 +96,7 @@ export const createOrEditContract = async (req, res) => {
     const p_status = Number(row.p_status);
     const p_message = row.p_message;
     const p_role = "SENDER";
-    if (p_status === 1) {
+    if (p_status === SP_STATUS.SUCCESS) {
       try {
         const notification = await client.query(
           `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean, $3::text)`,
@@ -117,35 +118,35 @@ export const createOrEditContract = async (req, res) => {
       } catch (error) {
         console.error("Notification error:", error);
       }
-      return res.status(200).json({
+      return res.status(HTTP.OK).json({
         status: true,
         message: p_message || "Contract created/updated successfully",
         source: "db",
       });
     }
-    else if (p_status === 0) {
-      return res.status(400).json({
+    else if (p_status === SP_STATUS.VALIDATION_FAIL) {
+      return res.status(HTTP.BAD_REQUEST).json({
         status: false,
         message: p_message || "Failed to create/update contract",
         source: "db",
       });
     }
-    else if (p_status === -1) {
+    else if (p_status === SP_STATUS.ERROR) {
       console.error("Stored Procedure Failure:", p_message);
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: "Something went wrong. Please try again later.",
       });
     }
     else {
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: p_message || "Unexpected database response",
       });
     }
   } catch (error) {
     console.error("createOrEditContract error:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -158,20 +159,20 @@ export const getContractDetailByContractId = async (req, res) => {
     const p_contractid = req.params.p_contractid;
 
     if (!p_userid || !p_contractid) {
-      return res.status(400).json({ message: "p_userid and p_contractid are required." });
+      return res.status(HTTP.BAD_REQUEST).json({ message: "p_userid and p_contractid are required." });
     }
     const result = await client.query(
       `SELECT * FROM ins.fn_get_contractdetails($1::bigint,$2::bigint);`,
       [p_contractid, p_userid]
     );
     const data = result.rows[0].fn_get_contractdetails;
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "contract detail fetched successfully",
       data: data,
     });
   } catch (error) {
     console.error("error in getSubjectListByRole:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -184,7 +185,7 @@ export const getAllContractList = async (req, res) => {
     const p_campaignid = req.params.p_campaignid;
 
     if (!p_userid) {
-      return res.status(400).json({ message: "p_userid is required." });
+      return res.status(HTTP.BAD_REQUEST).json({ message: "p_userid is required." });
     }
     const result = await client.query(
       `SELECT * FROM ins.fn_get_contractlist($1::bigint,$2::bigint);`,
@@ -192,13 +193,13 @@ export const getAllContractList = async (req, res) => {
     );
     const data = result.rows[0].fn_get_contractlist;
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "contract list fetched successfully",
       data: data,
     });
   } catch (error) {
     console.error("error in getAllContractList:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -210,7 +211,7 @@ export const getAllContentLinks = async (req, res) => {
     const p_userid = req.user?.id || req.query.p_userid;
     const p_campaignid = req.params.p_campaignid;
     if (!p_userid) {
-      return res.status(400).json({ message: "p_userid is required." });
+      return res.status(HTTP.BAD_REQUEST).json({ message: "p_userid is required." });
     }
     const result = await client.query(
       `SELECT * FROM ins.fn_get_contentlink(
@@ -219,13 +220,13 @@ export const getAllContentLinks = async (req, res) => {
       [p_userid, p_campaignid]
     );
     const data = result.rows[0].fn_get_contentlink;
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "All content links fetched successfully",
       data: data,
     });
   } catch (error) {
     console.error("error in getAllContentLinks:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -234,9 +235,9 @@ export const getAllContentLinks = async (req, res) => {
 
 export const getVendorContractFeedback = async (req, res) => {
   const p_userid = req.user?.id;
-  if(!p_userid) return res.status(400).json({Message:"User Id Required"})
+  if(!p_userid) return res.status(HTTP.BAD_REQUEST).json({Message:"User Id Required"})
   const { p_contractid, p_influencerid } = req.query;
-  if (!p_contractid || !p_influencerid) return res.status(400).json({ Message: "Contract Id And Influencer Id Required" });
+  if (!p_contractid || !p_influencerid) return res.status(HTTP.BAD_REQUEST).json({ Message: "Contract Id And Influencer Id Required" });
   try {
     const contractid = BigInt(p_contractid);
     const influencerid = BigInt(p_influencerid);
@@ -245,14 +246,14 @@ export const getVendorContractFeedback = async (req, res) => {
     select * from ins.fn_get_vendorcontractfeedback($1::bigint,$2::bigint)`, [contractid, influencerid]);
 
     const contractFeedbackRes = contractFeedback.rows[0].fn_get_vendorcontractfeedback || [];
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       Message: " Vendor Contract FeedBack Getting Sucessfully",
       data: contractFeedbackRes,
       source: 'db'
     })
   } catch (error) {
     console.error("Error While Contract Feedback Getting. please Try Again Later", error)
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       Message: "Internal Server Error",
       error: error.message
     })

@@ -1,6 +1,7 @@
 import { client } from '../../config/Db.js';
 import { createClient } from "@supabase/supabase-js";
 import Redis from '../../utils/RedisWrapper.js';
+import { HTTP, SP_STATUS } from '../../utils/Constants.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
@@ -14,13 +15,13 @@ export const finalizeCampaign = async (req, res) => {
     const campaignId = req.body.p_campaignid || null;
     const p_statusname = req.body.p_statusname;
 
-    if (!userId) return res.status(400).json({ message: "User ID is required" });
+    if (!userId) return res.status(HTTP.BAD_REQUEST).json({ message: "User ID is required" });
 
     const redisKey = campaignId ? `getCampaign:${userId}:${campaignId}` : `getCampaign:${userId}`;
     let cachedData = await Redis.get(redisKey);
     cachedData = typeof cachedData === "string" ? JSON.parse(cachedData) : cachedData;
 
-    if (!cachedData) return res.status(404).json({
+    if (!cachedData) return res.status(HTTP.NOT_FOUND).json({
       message: "No campaign data found in Redis to finalize",
       source: "redis",
     });
@@ -53,7 +54,7 @@ export const finalizeCampaign = async (req, res) => {
     const p_message = row.p_message;
     const finalCampaignId = row.p_campaignid;
 
-    if (p_status === 1) {
+    if (p_status === SP_STATUS.SUCCESS) {
       // ---------------- Move Files ----------------
       const baseTempFolder = `Vendor/${userId}/Campaigns/_temp`;
       const finalFolderBase = `Vendor/${userId}/Campaigns/${finalCampaignId}`;
@@ -92,7 +93,7 @@ export const finalizeCampaign = async (req, res) => {
       await supabase.storage.from(process.env.SUPABASE_BUCKET).remove([`${baseTempFolder}/campaign_profile`, `${baseTempFolder}/campaign_portfolio`]);
       await Redis.del(redisKey);
 
-      return res.status(200).json({
+      return res.status(HTTP.OK).json({
         status: true,
         message: p_message || "Campaign finalized successfully",
         campaignId: finalCampaignId,
@@ -100,13 +101,13 @@ export const finalizeCampaign = async (req, res) => {
       });
     }
 
-    else if (p_status === 0) return res.status(400).json({ status: false, message: p_message || "Validation failed", source: "db" });
-    else if (p_status === -1) return res.status(500).json({ status: false, message: p_message || "Something went wrong while finalizing campaign" });
-    else return res.status(500).json({ status: false, message: "Unexpected database response" });
+    else if (p_status === SP_STATUS.VALIDATION_FAIL) return res.status(HTTP.BAD_REQUEST).json({ status: false, message: p_message || "Validation failed", source: "db" });
+    else if (p_status === SP_STATUS.ERROR) return res.status(HTTP.INTERNAL_ERROR).json({ status: false, message: p_message || "Something went wrong while finalizing campaign" });
+    else return res.status(HTTP.INTERNAL_ERROR).json({ status: false, message: "Unexpected database response" });
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("finalizeCampaign error:", error);
-    return res.status(500).json({ message: "Something went wrong. Please try again later.", error: error.message });
+    return res.status(HTTP.INTERNAL_ERROR).json({ message: "Something went wrong. Please try again later.", error: error.message });
   }
 };
 
@@ -115,24 +116,24 @@ export const getCampaign = async (req, res) => {
   try {
     const userId = req.user?.id || req.query.p_userid;
     const campaignId = req.query.campaignId || "01";
-    if (!userId) return res.status(400).json({ message: "User ID required" });
+    if (!userId) return res.status(HTTP.BAD_REQUEST).json({ message: "User ID required" });
 
     const redisKey = campaignId === "01" ? `getCampaign:${userId}` : `getCampaign:${userId}:${campaignId}`;
     let cachedData = await Redis.get(redisKey);
     cachedData = typeof cachedData === "string" ? JSON.parse(cachedData) : cachedData;
 
-    if (cachedData) return res.status(200).json({ message: campaignId === "01" ? "Draft campaign from Redis" : "Campaign data from Redis", campaignParts: cachedData, source: "redis" });
+    if (cachedData) return res.status(HTTP.OK).json({ message: campaignId === "01" ? "Draft campaign from Redis" : "Campaign data from Redis", campaignParts: cachedData, source: "redis" });
 
     const result = await client.query(`SELECT * FROM ins.fn_get_campaigndetailsjson($1::BIGINT, $2::BIGINT)`, [userId, campaignId]);
-    if (result.rows.length === 0) return res.status(404).json({ message: "Campaign not found" });
+    if (result.rows.length === 0) return res.status(HTTP.NOT_FOUND).json({ message: "Campaign not found" });
 
     const fullData = result.rows[0];
     await Redis.setEx(redisKey, 3600, fullData);
 
-    return res.status(200).json({ message: "Campaign data from DB", campaignParts: fullData, source: "db" });
+    return res.status(HTTP.OK).json({ message: "Campaign data from DB", campaignParts: fullData, source: "db" });
   } catch (error) {
     console.error("Error in getCampaign:", error);
-    return res.status(500).json({ message: "Something went wrong. Please try again later.", error: error.message });
+    return res.status(HTTP.INTERNAL_ERROR).json({ message: "Something went wrong. Please try again later.", error: error.message });
   }
 };
 
@@ -144,7 +145,7 @@ export const deleteCampaignFile = async (req, res) => {
     const filePathToDelete = req.body.filepath;
     const bucketName = process.env.SUPABASE_BUCKET;
 
-    if (!userId || !filePathToDelete) return res.status(400).json({ status: false, message: "userId and filepath are required" });
+    if (!userId || !filePathToDelete) return res.status(HTTP.BAD_REQUEST).json({ status: false, message: "userId and filepath are required" });
 
     const redisKey = campaignId ? `getCampaign:${userId}:${campaignId}` : `getCampaign:${userId}`;
     let campaignData = await Redis.get(redisKey);
@@ -157,15 +158,15 @@ export const deleteCampaignFile = async (req, res) => {
     }
 
     const supabaseFilePath = filePathToDelete.split(`/storage/v1/object/public/${bucketName}/`)[1]?.trim();
-    if (!supabaseFilePath) return res.status(400).json({ status: false, message: "Invalid Supabase file path format" });
+    if (!supabaseFilePath) return res.status(HTTP.BAD_REQUEST).json({ status: false, message: "Invalid Supabase file path format" });
 
     const { error: deleteError } = await supabase.storage.from(bucketName).remove([supabaseFilePath]);
-    if (deleteError) return res.status(500).json({ status: false, message: "Error deleting file from Supabase", error: deleteError.message });
+    if (deleteError) return res.status(HTTP.INTERNAL_ERROR).json({ status: false, message: "Error deleting file from Supabase", error: deleteError.message });
 
-    return res.status(200).json({ status: true, message: "File deleted successfully from Supabase and Redis", deletedFile: supabaseFilePath, campaignFiles: campaignData?.p_campaignfilejson || [] });
+    return res.status(HTTP.OK).json({ status: true, message: "File deleted successfully from Supabase and Redis", deletedFile: supabaseFilePath, campaignFiles: campaignData?.p_campaignfilejson || [] });
   } catch (error) {
     console.error("error in deleteCampaignFile:", error);
-    return res.status(500).json({ message: "Something went wrong. Please try again later.", error: error.message });
+    return res.status(HTTP.INTERNAL_ERROR).json({ message: "Something went wrong. Please try again later.", error: error.message });
   }
 };
 
@@ -173,10 +174,10 @@ export const deleteCampaignFile = async (req, res) => {
 export const getCampaignObjectives = async (req, res) => {
   try {
     const result = await client.query("SELECT * from ins.fn_get_campaignobjectives()");
-    return res.status(200).json({ objectives: result.rows, source: "db" });
+    return res.status(HTTP.OK).json({ objectives: result.rows, source: "db" });
   } catch (error) {
     console.error("Error fetching GetCampaignObjectives:", error);
-    return res.status(500).json({ message: "Something went wrong. Please try again later.", error: error.message });
+    return res.status(HTTP.INTERNAL_ERROR).json({ message: "Something went wrong. Please try again later.", error: error.message });
   }
 };
 
@@ -184,10 +185,10 @@ export const getCampaignObjectives = async (req, res) => {
 export const getProvidorContentTypes = async (req, res) => {
   try {
     const result = await client.query("SELECT * from ins.fn_get_providercontenttypes();");
-    return res.status(200).json({ providorType: result.rows, source: "db" });
+    return res.status(HTTP.OK).json({ providorType: result.rows, source: "db" });
   } catch (error) {
     console.error("Error fetching getProvidorContentTypes:", error);
-    return res.status(500).json({ message: "Something went wrong. Please try again later.", error: error.message });
+    return res.status(HTTP.INTERNAL_ERROR).json({ message: "Something went wrong. Please try again later.", error: error.message });
   }
 };
 
@@ -199,7 +200,7 @@ export const upsertCampaign = async (req, res) => {
     const isFinalSubmit = req.body.isFinalSubmit || false;
     const p_statusname = req.body.p_statusname || null;
 
-    if (!p_userid) return res.status(400).json({ message: "User ID is required" });
+    if (!p_userid) return res.status(HTTP.BAD_REQUEST).json({ message: "User ID is required" });
 
     const parseIfJson = (data) => { try { return data ? JSON.parse(data) : {}; } catch { return {}; } };
     const cleanArray = (arr) => (Array.isArray(arr) ? arr.filter(Boolean) : []);
@@ -256,7 +257,7 @@ export const upsertCampaign = async (req, res) => {
 
     await Redis.setEx(redisKey, 86400, draftData);
 
-    if (!isFinalSubmit) return res.status(200).json({ status: true, message: "Draft stored in Redis successfully", campaignParts: draftData, source: "redis" });
+    if (!isFinalSubmit) return res.status(HTTP.OK).json({ status: true, message: "Draft stored in Redis successfully", campaignParts: draftData, source: "redis" });
 
     // ---------------- DB SAVE ----------------
     await client.query("BEGIN");
@@ -272,17 +273,17 @@ export const upsertCampaign = async (req, res) => {
     const p_message = row.p_message;
     const finalCampaignId = row.p_campaignid;
 
-    if (p_status === 1) await Redis.del(redisKey);
+    if (p_status === SP_STATUS.SUCCESS) await Redis.del(redisKey);
 
-    return p_status === 1
-      ? res.status(200).json({ status: true, message: p_message || "Campaign saved successfully", campaignId: finalCampaignId, source: "db" })
-      : p_status === 0
-      ? res.status(400).json({ status: false, message: p_message || "Validation failed", source: "db" })
-      : res.status(500).json({ status: false, message: "Something went wrong while saving campaign" });
+    return p_status === SP_STATUS.SUCCESS
+      ? res.status(HTTP.OK).json({ status: true, message: p_message || "Campaign saved successfully", campaignId: finalCampaignId, source: "db" })
+      : p_status === SP_STATUS.VALIDATION_FAIL
+        ? res.status(HTTP.BAD_REQUEST).json({ status: false, message: p_message || "Validation failed", source: "db" })
+        : res.status(HTTP.INTERNAL_ERROR).json({ status: false, message: "Something went wrong while saving campaign" });
 
   } catch (error) {
     console.error("error in upsertCampaign:", error);
-    return res.status(500).json({ message: "Something went wrong. Please try again later.", error: error.message });
+    return res.status(HTTP.INTERNAL_ERROR).json({ message: "Something went wrong. Please try again later.", error: error.message });
   }
 };
 
@@ -479,7 +480,7 @@ export const upsertCampaign = async (req, res) => {
 //   const redisKey = `vendorprofile:${userId}`;
 
 //   try {
-//     // 1 Parse JSON fields from req.body (safe) 
+//     // 1 Parse JSON fields from req.body (safe)
 //     const {
 //       profilejson = null,
 //       categoriesjson = null,

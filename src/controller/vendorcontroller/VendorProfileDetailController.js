@@ -4,6 +4,8 @@ import path from 'path';
 
 
 import { createClient } from '@supabase/supabase-js';
+import { HTTP, SP_STATUS } from '../../utils/Constants.js';
+import { error } from 'console';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
@@ -31,7 +33,7 @@ export const getCompanySizes = async (req, res) => {
     const cachedData = await Redis.get(redisKey);
 
     if (cachedData) {
-      return res.status(200).json({
+      return res.status(HTTP.OK).json({
         companySizes: cachedData,
         source: "redis",
       });
@@ -41,13 +43,13 @@ export const getCompanySizes = async (req, res) => {
 
     await Redis.setEx(redisKey, 3600, result.rows);
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       companySizes: result.rows,
       source: "db",
     });
   } catch (error) {
     console.error("Error fetching company sizes:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -61,8 +63,8 @@ export const getInfluencerTiers = async (req, res) => {
     const cachedData = await Redis.get(redisKey);
 
     if (cachedData) {
-      return res.status(200).json({
-        influencerTiers:cachedData,
+      return res.status(HTTP.OK).json({
+        influencerTiers: cachedData,
         source: "redis",
       });
     }
@@ -73,13 +75,13 @@ export const getInfluencerTiers = async (req, res) => {
 
     await Redis.setEx(redisKey, 3600, result.rows); // TTL 60 mins
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       influencerTiers: result.rows,
       source: "db",
     });
   } catch (error) {
     console.error("Error fetching influencer tiers:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -98,16 +100,16 @@ export const getUserNameByEmail = async (req, res) => {
     const user = result.rows[0];
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(HTTP.NOT_FOUND).json({ message: "User not found" });
     }
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       firstname: user.firstname,
       lastname: user.lastname,
     });
   } catch (error) {
     console.error("Error fetching user name:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -117,7 +119,7 @@ export const getUserNameByEmail = async (req, res) => {
 export const getVendorProfile = async (req, res) => {
   const vendorId = req.params.userId;
   const redisKey = `vendorprofile:${vendorId}`;
-  
+
   try {
     const cachedData = await Redis.get(redisKey);
 
@@ -133,7 +135,7 @@ export const getVendorProfile = async (req, res) => {
       const profileCompletion = calculateProfileCompletion(
         Object.values(profileParts)
       );
-      return res.status(200).json({
+      return res.status(HTTP.OK).json({
         message: "Partial profile from Redis",
         profileParts,
         profileCompletion,
@@ -146,7 +148,7 @@ export const getVendorProfile = async (req, res) => {
       [vendorId]
     );
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: "Vendor not found." });
+      return res.status(HTTP.NOT_FOUND).json({ message: "Vendor not found." });
     }
     const {
       p_profile,
@@ -155,7 +157,7 @@ export const getVendorProfile = async (req, res) => {
       p_objectives,
       p_paymentaccounts,
     } = result.rows[0];
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "get vendor profile from db",
       profileParts: {
         p_profile,
@@ -168,7 +170,7 @@ export const getVendorProfile = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching vendor profile:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -195,7 +197,7 @@ export const completeVendorProfile = async (req, res) => {
       const file = req.file;
 
       if (!file.buffer || file.buffer.length === 0) {
-        return res.status(400).json({ message: "No valid file buffer found" });
+        return res.status(HTTP.BAD_REQUEST).json({ message: "No valid file buffer found" });
       }
 
       const fileName = file.originalname;
@@ -218,7 +220,7 @@ export const completeVendorProfile = async (req, res) => {
         .upload(supabasePath, file.buffer, { contentType: file.mimetype, upsert: true });
 
       if (uploadError) {
-        return res.status(500).json({ message: "Image upload failed", error: uploadError.message });
+        return res.status(HTTP.INTERNAL_ERROR).json({ message: "Image upload failed", error: uploadError.message });
       }
 
       const { data: publicUrlData } = await supabase.storage
@@ -226,14 +228,14 @@ export const completeVendorProfile = async (req, res) => {
         .getPublicUrl(supabasePath);
 
       if (!publicUrlData?.publicUrl) {
-        return res.status(500).json({ message: "Could not get public URL" });
+        return res.status(HTTP.INTERNAL_ERROR).json({ message: "Could not get public URL" });
       }
 
       updatedProfileJson.photopath = publicUrlData.publicUrl;
     }
 
     // Merge request data
-   const mergedData = {
+    const mergedData = {
       ...(req.body.profilejson && { profilejson: updatedProfileJson }),
       ...(categoriesjson && { categoriesjson: JSON.parse(categoriesjson) }),
       ...(providersjson && { providersjson: JSON.parse(providersjson) }),
@@ -269,9 +271,9 @@ export const completeVendorProfile = async (req, res) => {
       await client.query("COMMIT");
       const { p_status, p_message } = result.rows[0] || {};
 
-      if (p_status === 1) return res.status(200).json({ message: p_message, p_status });
-      if (p_status === 0) return res.status(400).json({ message: p_message, p_status });
-      return res.status(500).json({ message: "Unknown database response", p_status });
+      if (p_status === SP_STATUS.SUCCESS) return res.status(HTTP.OK).json({ message: p_message, p_status });
+      if (p_status === SP_STATUS.VALIDATION_FAIL) return res.status(HTTP.BAD_REQUEST).json({ message: p_message, p_status });
+      return res.status(HTTP.INTERNAL_ERROR).json({ message: "Unknown database response", p_status });
     }
 
     // CASE B: New or incomplete user → handle Redis
@@ -287,7 +289,7 @@ export const completeVendorProfile = async (req, res) => {
 
     if (!allPartsPresent) {
       await Redis.setEx(redisKey, 86400, finalData); // redisWrapper handles stringify
-      return res.status(200).json({
+      return res.status(HTTP.OK).json({
         message: "Partial data saved in Redis (first-time user)",
         source: "redis",
       });
@@ -314,18 +316,25 @@ export const completeVendorProfile = async (req, res) => {
     await client.query("COMMIT");
 
     const { p_status, p_message } = result.rows[0] || {};
-    if (p_status === 1) await Redis.del(redisKey);
-    if (p_status === 1) return res.status(200).json({ message: p_message, p_status });
-    if (p_status === 0) return res.status(400).json({ message: p_message, p_status });
-    return res.status(500).json({ message: p_message || "Unknown error", p_status });
-  } catch (error) {
-    await client.query("ROLLBACK");
-    console.error("Error in completeVendorProfile:", error);
-    return res.status(500).json({
-      message: "Something went wrong. Please try again later.",
-      error: error.message,
-    });
-  }
+    if (p_status === SP_STATUS.SUCCESS) await Redis.del(redisKey);
+    if (p_status === SP_STATUS.SUCCESS) return res.status(HTTP.OK).json({ message: p_message, p_status });
+    if (p_status === SP_STATUS.VALIDATION_FAIL) return res.status(HTTP.BAD_REQUEST).json({ message: p_message, p_status });
+    if (p_status === SP_STATUS.ERROR) {
+      console.error("Stored Procedure Failure:", p_message);
+      return res.status(HTTP.INTERNAL_ERROR).json({
+        message: "Something went wrong. Please try again later.",
+        p_status: false,
+      });
+    }
+  return res.status(HTTP.INTERNAL_ERROR).json({ message: p_message || "Unknown error", p_status });
+} catch (error) {
+  await client.query("ROLLBACK");
+  console.error("Error in completeVendorProfile:", error);
+  return res.status(500).json({
+    message: "Something went wrong. Please try again later.",
+    error: error.message,
+  });
+}
 };
 
 export const getObjectives = async (req, res) => {
@@ -333,8 +342,8 @@ export const getObjectives = async (req, res) => {
   try {
     const cachedData = await Redis.get(redisKey);
     if (cachedData) {
-      return res.status(200).json({
-        objectives:cachedData,
+      return res.status(HTTP.OK).json({
+        objectives: cachedData,
         source: "redis",
       });
     }
@@ -342,13 +351,13 @@ export const getObjectives = async (req, res) => {
 
     await Redis.setEx(redisKey, 86400, result.rows);
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       objectives: result.rows,
       source: "db",
     });
   } catch (error) {
     console.error("Error fetching objectives:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });

@@ -1,4 +1,5 @@
 import { client } from '../../config/Db.js';
+import { HTTP, SP_STATUS } from '../../utils/Constants.js';
 import Redis from '../../utils/RedisWrapper.js';
 
 // const Redis = redis.createClient({ url: process.env.REDIS_URL });
@@ -29,17 +30,17 @@ export const getOffersForCampaign = async (req, res) => {
 
     //Check Db Return Data OR Not
     if (!result.rows) {
-      return res.status(404).json({ message: "campaign offer not found." });
+      return res.status(HTTP.NOT_FOUND).json({ message: "campaign offer not found." });
     }
     const offers = result.rows[0].fn_get_campaignoffer;
     //Return Data From Db
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       data: offers,
       source: "db",
     });
   } catch (error) {
     console.error("Error fetching campaigns offers:", error.message);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -62,17 +63,17 @@ export const getViewAllOffersForSingleCampaign = async (req, res) => {
     );
     //Check Db Return Data OR Not
     if (!result.rows) {
-      return res.status(404).json({ message: "campaign offer not found." });
+      return res.status(HTTP.NOT_FOUND).json({ message: "campaign offer not found." });
     }
     const offers = result.rows[0].fn_get_appliedcampaignapplications;
     //Return Data From Db
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       data: offers,
       source: "db",
     });
   } catch (error) {
     console.error("Error fetching view campaigns offers:", error.message);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -83,7 +84,7 @@ export const updateApplicationStatus = async (req, res) => {
   const userId = req.user?.id || req.body.userId;
 
   if (!userId) {
-    return res.status(401).json({
+    return res.status(HTTP.UNAUTHORIZED).json({
       status: false,
       message: "Unauthorized: user not found",
     });
@@ -92,7 +93,7 @@ export const updateApplicationStatus = async (req, res) => {
 
   if (!p_applicationid || !p_statusname) {
     return res
-      .status(400)
+      .status(HTTP.BAD_REQUEST)
       .json({ error: "Required fields: p_applicationid and p_statusname." });
   }
 
@@ -117,33 +118,33 @@ export const updateApplicationStatus = async (req, res) => {
     const p_message = row.p_message;
 
     // ----------------- HANDLE p_status -----------------
-    if (p_status === 1) {
-      return res.status(200).json({
+    if (p_status === SP_STATUS.SUCCESS) {
+      return res.status(HTTP.OK).json({
         status: true,
         message: p_message || "Application status updated successfully",
         source: "db",
       });
-    } else if (p_status === 0) {
-      return res.status(400).json({
+    } else if (p_status === SP_STATUS.VALIDATION_FAIL) {
+      return res.status(HTTP.BAD_REQUEST).json({
         status: false,
         message: p_message || "Validation failed",
         source: "db",
       });
-    } else if (p_status === -1) {
+    } else if (p_status === SP_STATUS.ERROR) {
       console.error("Stored Procedure Failure:", p_message);
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: "Something went wrong. Please try again later.",
       });
     } else {
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: "Unexpected database response",
       });
     }
   } catch (error) {
     console.error("Error in update application status :", error.message);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -160,22 +161,22 @@ export const getOfferDetails = async (req, res) => {
     );
 
     if (!result.rows) {
-      return res.status(404).json({ message: "offer detail not found." });
+      return res.status(HTTP.NOT_FOUND).json({ message: "offer detail not found." });
     }
 
     const offer = result.rows[0].fn_get_offerdetails[0];
 
     if (!offer) {
-      return res.status(404).json({ message: "offer detail not found." });
+      return res.status(HTTP.NOT_FOUND).json({ message: "offer detail not found." });
     }
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       data: offer,
       source: "db",
     }); 
   } catch (error) {
     console.error("Error in get offer detail :", error.message);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -197,19 +198,19 @@ export const getCampaignDetail = async (req, res) => {
 
     //Check Db Return Data OR Not
     if (!result.rows) {
-      return res.status(404).json({ message: "campaign offer not found." });
+      return res.status(HTTP.NOT_FOUND).json({ message: "campaign offer not found." });
     }
 
     const campaign = result.rows[0];
 
     //Return Data From Db
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       data: campaign,
       source: "db",
     });
   } catch (error) {
     console.error("Error get campaign detail error:", error.message);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
