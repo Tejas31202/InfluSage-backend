@@ -2,6 +2,7 @@ import { client } from '../../config/Db.js';
 import Redis from "../../utils/RedisWrapper.js";
 import { createClient } from '@supabase/supabase-js';
 import { io } from '../../../app.js';
+import { HTTP, SP_STATUS } from '../../utils/Constants.js';
 
 // Create Supabase client once at the top
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -16,7 +17,7 @@ export const getSubjectListByRole = async (req, res) => {
     const p_userid = req.user?.id || req.query.p_userid;
 
     if (!p_userid) {
-      return res.status(400).json({ message: "User ID (p_userid) is required." });
+      return res.status(HTTP.BAD_REQUEST).json({ message: "User ID (p_userid) is required." });
     }
 
     const result = await client.query(
@@ -25,13 +26,13 @@ export const getSubjectListByRole = async (req, res) => {
     );
     const subjectList = result.rows[0].fn_get_subjectlist;
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "Subject list fetched successfully",
       subjectList: subjectList,
     });
   } catch (error) {
     console.error("error in getSubjectListByRole:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -45,14 +46,14 @@ export const createTicketAndUpdateStatus = async (req, res) => {
     const { p_usersupportticketid, p_objectiveid, p_statusname } = req.body;
 
     if (!p_userid) {
-      return res.status(400).json({
+      return res.status(HTTP.BAD_REQUEST).json({
         message: "p_userid is required.",
       });
     }
     // Case 1: Creating a new ticket → requires objective + status
     if (!p_usersupportticketid) {
       if (!p_objectiveid || !p_statusname) {
-        return res.status(400).json({
+        return res.status(HTTP.BAD_REQUEST).json({
           message: "To create a ticket, p_objectiveid and p_statusname are required.",
         });
       }
@@ -61,7 +62,7 @@ export const createTicketAndUpdateStatus = async (req, res) => {
     // Case 2: Updating ticket status → requires ticketId + status
     if (p_usersupportticketid) {
       if (!p_statusname) {
-        return res.status(400).json({
+        return res.status(HTTP.BAD_REQUEST).json({
           message: "To update status, p_usersupportticketid and p_statusname are required.",
         });
       }
@@ -94,7 +95,7 @@ export const createTicketAndUpdateStatus = async (req, res) => {
     const { p_status, p_message } = result.rows[0];
 
 
-    if (p_status === 1) {
+    if (p_status === SP_STATUS.SUCCESS) {
       try {
         const p_role = "SENDER";
         const notification = await client.query(
@@ -117,33 +118,33 @@ export const createTicketAndUpdateStatus = async (req, res) => {
       } catch (error) {
         console.error("Notification error:", error);
       }
-      return res.status(200).json({
+      return res.status(HTTP.OK).json({
         status: true,
         message: p_message || "Contract created/updated successfully",
         source: "db",
       });
     }
-    if (p_status === 0) {
-      return res.status(400).json({
+    if (p_status === SP_STATUS.VALIDATION_FAIL) {
+      return res.status(HTTP.BAD_REQUEST).json({
         message: p_message,
         p_status,
       });
     }
-    if (p_status === -1) {
+    if (p_status === SP_STATUS.ERROR) {
       console.error("Stored Procedure Failure:", p_message);
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         message: "Something went wrong. Please try again later.",
         p_status,
       });
     }
     // Fallback (unknown p_status)
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Unknown database response",
       p_status,
     });
   } catch (error) {
     console.error("error in createTicketAndUpdateStatus:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -155,7 +156,7 @@ export const viewAllTicketByUserId = async (req, res) => {
     const p_userid = req.user?.id || req.query.userId;
 
     if (!p_userid) {
-      return res.status(400).json({ message: "p_userid  is required." });
+      return res.status(HTTP.BAD_REQUEST).json({ message: "p_userid  is required." });
     }
     const { p_statuslabelid, p_search } = req.query;
 
@@ -172,13 +173,13 @@ export const viewAllTicketByUserId = async (req, res) => {
       ]
     );
     const viewTicket = result.rows[0].fn_get_usersubjectlist;
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "Ticket list fetched successfully.",
       viewTicket: viewTicket,
     });
   } catch (error) {
     console.error("error in viewAllTicketByUserId:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -192,7 +193,7 @@ export const openChatByTicketId = async (req, res) => {
     const { p_limit, p_offset } = req.query;
 
     if (!p_usersupportticketid) {
-      return res.status(400).json({ message: "p_usersupportticketid is required." });
+      return res.status(HTTP.BAD_REQUEST).json({ message: "p_usersupportticketid is required." });
     }
     const result = await client.query(
       `SELECT * FROM ins.fn_get_usersupportticketmessages(
@@ -215,13 +216,13 @@ export const openChatByTicketId = async (req, res) => {
       readbyadmin: true,
       readbyuser: true,
     });
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "Chat opened successfully for the selected ticket.",
       data: data,
     });
   } catch (error) {
     console.error("error in openChatByTicketId:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -236,13 +237,13 @@ export const getTicketStatus = async (req, res) => {
 
     const status = result.rows;
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "Successfully retrieved ticket statuses",
       status: status,
     });
   } catch (error) {
     console.error("error in getTicketStatus:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -253,7 +254,7 @@ export const sendSupportMessage = async (req, res) => {
   const userId = req.user?.id || req.body.userId;
 
   if (!userId) {
-    return res.status(401).json({
+    return res.status(HTTP.UNAUTHORIZED).json({
       status: false,
       message: "Unauthorized: user not found",
     });
@@ -264,13 +265,13 @@ export const sendSupportMessage = async (req, res) => {
     const { p_usersupportticketid, p_messages, p_replyid } = req.body;
 
     if (!p_senderid || !p_usersupportticketid) {
-      return res.status(400).json({
+      return res.status(HTTP.BAD_REQUEST).json({
         message: "p_senderid , p_usersupportticketid are required.",
       });
     }
 
     if (!p_messages && !req.file) {
-      return res.status(400).json({
+      return res.status(HTTP.BAD_REQUEST).json({
         message: "Either a p_messages or an attachment is required.",
       });
     }
@@ -282,7 +283,7 @@ export const sendSupportMessage = async (req, res) => {
 
     const data = validate.rows[0].fn_get_usersupportticketaccess
     if (!data.status) {
-      return res.status(403).json({ success: data.status, message: data.message });
+      return res.status(HTTP.FORBIDDEN).json({ success: data.status, message: data.message });
     }
 
     // ----------------- FILE HANDLING -----------------
@@ -302,7 +303,7 @@ export const sendSupportMessage = async (req, res) => {
           upsert: false,
         });
 
-      if (error) return res.status(500).json({ message: "File upload failed" });
+      if (error) return res.status(HTTP.INTERNAL_ERROR).json({ message: "File upload failed" });
 
       const { data: publicUrlData } = supabase.storage
         .from(process.env.SUPABASE_BUCKET)
@@ -345,7 +346,7 @@ export const sendSupportMessage = async (req, res) => {
     const p_message = row.p_message;
 
     // ----------------- HANDLE p_status -----------------
-    if (p_status === 1) {
+    if (p_status === SP_STATUS.SUCCESS) {
       // SOCKET EMIT
       io.to(`ticket_${p_usersupportticketid}`).emit("receiveSupportMessage", {
         ticketId: p_usersupportticketid,
@@ -373,32 +374,32 @@ export const sendSupportMessage = async (req, res) => {
         });
       }
 
-      return res.status(200).json({
+      return res.status(HTTP.OK).json({
         status: true,
         message: p_message || "Message sent successfully",
         filePaths: p_filepath,
       });
-    } else if (p_status === 0) {
-      return res.status(400).json({
+    } else if (p_status === SP_STATUS.VALIDATION_FAIL) {
+      return res.status(HTTP.BAD_REQUEST).json({
         status: false,
         message: p_message || "Validation failed",
         filePaths: p_filepath,
       });
-    } else if (p_status === -1) {
+    } else if (p_status === SP_STATUS.ERROR) {
       console.error("Stored Procedure Failure:", p_message);
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: "Something went wrong. Please try again later.",
       });
     } else {
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: "Unexpected database response",
       });
     }
   } catch (error) {
     console.error("Error in sendSupportMessage:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });

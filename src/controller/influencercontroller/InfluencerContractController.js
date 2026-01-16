@@ -1,11 +1,12 @@
 import { client } from '../../config/Db.js';
 import { io } from '../../../app.js';
+import { HTTP, SP_STATUS } from '../../utils/Constants.js';
 
 export const influencerApproveOrRejectContract = async (req, res) => {
   const userId = req.user?.id || req.body.userId;
 
   if (!userId) {
-    return res.status(401).json({
+    return res.status(HTTP.UNAUTHORIZED).json({
       status: false,
       message: "Unauthorized: user not found",
     });
@@ -15,12 +16,12 @@ export const influencerApproveOrRejectContract = async (req, res) => {
     const { p_contractid, p_statusname } = req.body;
 
     if (!p_influencerid) {
-      return res.status(400).json({ message: "p_influencerid is required" });
+      return res.status(HTTP.BAD_REQUEST).json({ message: "p_influencerid is required" });
     }
 
     if (!p_contractid || !p_statusname) {
       return res
-        .status(400)
+        .status(HTTP.BAD_REQUEST)
         .json({ message: "p_contractid and p_statusname are required" });
     }
 
@@ -47,7 +48,7 @@ export const influencerApproveOrRejectContract = async (req, res) => {
     const p_role = "SENDER";
 
     // ----------------- HANDLE p_status -----------------
-    if (p_status === 1) {
+    if (p_status === SP_STATUS.SUCCESS) {
       try {
         const notification = await client.query(
           `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean, $3::text)`,
@@ -72,33 +73,33 @@ export const influencerApproveOrRejectContract = async (req, res) => {
       } catch (error) {
         console.error("Notification error:", error);
       }
-      return res.status(200).json({
+      return res.status(HTTP.OK).json({
         message: p_message,
         p_status,
       });
     }
-    else if (p_status === 0) {
-      return res.status(400).json({
+    else if (p_status === SP_STATUS.VALIDATION_FAIL) {
+      return res.status(HTTP.BAD_REQUEST).json({
         message: p_message || "Validation failed",
         p_status,
       });
     }
-    else if (p_status === -1) {
+    else if (p_status === SP_STATUS.ERROR) {
       console.error("Stored Procedure Failure:", p_message);
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         message: "Something went wrong. Please try again later.",
         p_status: false,
       });
     }
     else {
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         message: "Unexpected database response",
         p_status: false,
       });
     }
   } catch (error) {
     console.error("error in influencerApproveOrRejectContract:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -108,7 +109,7 @@ export const influencerApproveOrRejectContract = async (req, res) => {
 export const uploadContentLink = async (req, res) => {
   const userId = req.user?.id || req.body.userId;
   if (!userId) {
-    return res.status(401).json({
+    return res.status(HTTP.UNAUTHORIZED).json({
       status: false,
       message: "Unauthorized: user not found",
     });
@@ -118,12 +119,12 @@ export const uploadContentLink = async (req, res) => {
     const { p_contractid, p_contentlinkjson } = req.body;
 
     if (!p_influencerid) {
-      return res.status(400).json({ message: "p_influencerid is required" });
+      return res.status(HTTP.BAD_REQUEST).json({ message: "p_influencerid is required" });
     }
 
     if (!p_contentlinkjson) {
       return res
-        .status(400)
+        .status(HTTP.BAD_REQUEST)
         .json({ message: "p_contractid and p_contentlinkjson are required" });
     }
 
@@ -155,7 +156,7 @@ export const uploadContentLink = async (req, res) => {
     const p_message = row.p_message;
     const p_role = "SENDER";
 
-    if (p_status === 1) {
+    if (p_status === SP_STATUS.SUCCESS) {
       try {
         const notification = await client.query(
           `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean, $3::text)`,
@@ -198,32 +199,32 @@ export const uploadContentLink = async (req, res) => {
       } catch (error) {
         console.error("Notification error:", error);
       }
-      return res.status(200).json({
+      return res.status(HTTP.OK).json({
         status: true,
         message: p_message || "Content link uploaded successfully",
       });
-    } else if (p_status === 0) {
-      return res.status(400).json({
+    } else if (p_status === SP_STATUS.VALIDATION_FAIL) {
+      return res.status(HTTP.BAD_REQUEST).json({
         status: false,
         message: p_message || "Failed to upload content link",
       });
     }
-    else if (p_status === -1) {
+    else if (p_status === SP_STATUS.ERROR) {
       console.error("Stored Procedure Failure:", p_message);
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: "Something went wrong. Please try again later.",
       });
     }
     else {
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: p_message || "Unexpected database response",
       });
     }
   } catch (error) {
     console.error("error in uploadContentLink:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -236,7 +237,7 @@ export const getInfluencerContractDetail = async (req, res) => {
     const p_campaignid = req.params.p_campaignid;
     if (!p_influencerid) {
       return res
-        .status(400)
+        .status(HTTP.BAD_REQUEST)
         .json({ message: "p_influencerid is required." });
     }
 
@@ -249,18 +250,18 @@ export const getInfluencerContractDetail = async (req, res) => {
 
     const data = result.rows[0]?.fn_get_influencercontractdetails;
     if (data) {
-      return res.status(200).json({
+      return res.status(HTTP.OK).json({
         message: "contract detail fetched successfully",
         data: data[0],
       });
     }
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "No Contract Created",
       data: data,
     });
   } catch (error) {
     console.error("error in getInfluencerContractDetail:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -273,7 +274,7 @@ export const getInfluencerUploadedContentLink = async (req, res) => {
     const p_campaignid = req.params.p_campaignid;
     if (!p_influencerid) {
       return res
-        .status(400)
+        .status(HTTP.BAD_REQUEST)
         .json({ message: "p_influencerid is required." });
     }
 
@@ -285,13 +286,13 @@ export const getInfluencerUploadedContentLink = async (req, res) => {
     );
 
     const data = result.rows[0].fn_get_influencercontentlink;
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "content links fetched successfully",
       data: data,
     });
   } catch (error) {
     console.error("error in getInfluencerUploadedContentLink:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -302,7 +303,7 @@ export const getContractContentTypes = async (req, res) => {
   const { p_contractid } = req.params;
   const p_influencerid = req.user?.id || req.query.p_influencerid;
   if (!p_influencerid) {
-    return res.status(400).json({ error: "influencerId is required" });
+    return res.status(HTTP.BAD_REQUEST).json({ error: "influencerId is required" });
   }
 
   try {
@@ -311,11 +312,11 @@ export const getContractContentTypes = async (req, res) => {
       [p_contractid, p_influencerid]
     )
     const responseData = contractContentTypes.rows[0].fn_get_contractcontenttype[0];
-    return res.status(200).json(responseData);
+    return res.status(HTTP.OK).json(responseData);
 
   } catch (error) {
     console.error("Error fetching contract content types:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -326,14 +327,14 @@ export const addVendorFeedback =async(req,res)=>{
  
   const p_userid  = req.user?.id || req.body.userId;
   if (!p_userid ) {
-    return res.status(401).json({
+    return res.status(HTTP.UNAUTHORIZED).json({
       status: false,
       message: "Unauthorized: user not found",
     });
   }
   const { p_contractid, p_rating, p_text } = req.body||{};
   if (!p_contractid) {
-    return res.status(400).json({message: "p_contractid is required." });
+    return res.status(HTTP.BAD_REQUEST).json({message: "p_contractid is required." });
   }
   try {
     await client.query("BEGIN");
@@ -366,7 +367,7 @@ export const addVendorFeedback =async(req,res)=>{
     const p_status = Number(feedbackRow.p_status);
     const p_message = feedbackRow.p_message;
 
-    if (p_status === 1) {
+    if (p_status === SP_STATUS.SUCCESS) {
       try {
         const p_role = "SENDER";
         // console.log("Notification role:", p_role);
@@ -390,32 +391,32 @@ export const addVendorFeedback =async(req,res)=>{
       } catch (error) {
         console.error("Notification error:", error);
       }
-      return res.status(200).json({
+      return res.status(HTTP.OK).json({
         status: true,
         message: p_message,
         source: "db"
       });
-    } else if (p_status === 0) {
-      return res.status(400).json({
+    } else if (p_status === SP_STATUS.VALIDATION_FAIL) {
+      return res.status(HTTP.BAD_REQUEST).json({
         status: false,
         message: p_message,
         source: "db",
       });
-    } else if (p_status === -1) {
+    } else if (p_status === SP_STATUS.ERROR) {
       console.error("Stored Procedure Failure:", p_message);
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: p_status,
         message: "Something went wrong. Please try again later.",
       });
     } else {
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: "Unexpected database response",
       });
     }
   } catch (error) {
     console.error("error in addVendorFeedback:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });

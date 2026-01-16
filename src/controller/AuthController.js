@@ -5,7 +5,7 @@ import dotenv from "dotenv";
 import axios from "axios";
 import jwt from "jsonwebtoken";
 dotenv.config();
-
+import { HTTP, SP_STATUS } from '../utils/Constants.js';
 const JWT_SECRET = process.env.JWT_SECRET;
 
 
@@ -39,21 +39,21 @@ async function createUser({ firstName, lastName, email, passwordhash, roleId }) 
       const p_status = Number(row.p_status);
       const p_message = row.p_message;
     
-      if (p_status === 1) {
+      if (p_status === SP_STATUS.SUCCESS) {
         return { message: p_message, p_status };
       }
   
-      if (p_status === 0) {
+      if (p_status === SP_STATUS.VALIDATION_FAIL) {
         return { message: p_message, p_status };
       }
   
-      if (p_status === -1) {
+      if (p_status === SP_STATUS.ERROR) {
         console.error("Stored Procedure Failure:", p_message);
         return { message: "Something went wrong. Please try again later.", p_status: -1 };
       }
   } catch (error) {
     console.error("Error in createUser:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -101,7 +101,7 @@ export const loginUser = async (req, res) => {
 
     const dbResponse = result.rows[0];
     if (!dbResponse) {
-      return res.status(500).json({ message: "Invalid DB response" });
+      return res.status(HTTP.INTERNAL_ERROR).json({ message: "Invalid DB response" });
     }
 
     const user = dbResponse.p_loginuser;
@@ -109,7 +109,7 @@ export const loginUser = async (req, res) => {
     const p_message = dbResponse.p_message;
 
     if (!user || user.code === "NOTREGISTERED") {
-      return res.status(404).json({
+      return res.status(HTTP.NOT_FOUND).json({
         message: user?.message || "User not found",
         code: user?.code || "NOTREGISTERED",
       });
@@ -117,25 +117,25 @@ export const loginUser = async (req, res) => {
 
     if (!user.passwordhash) {
       return res
-        .status(400)
+        .status(HTTP.BAD_REQUEST)
         .json({ message: "Password not set. Please set your password." });
     }
 
     if (!p_status) {
-      return res.status(400).json({ message: p_message });
+      return res.status(HTTP.BAD_REQUEST).json({ message: p_message });
     }
 
     const isMatch = await bcrypt.compare(password, user.passwordhash);
     if (!isMatch) {
-      return res.status(401).json({ message: "Incorrect password" });
+      return res.status(HTTP.UNAUTHORIZED).json({ message: "Incorrect password" });
     }
 
     const loginResponse = await handleUserLogin(user);
 
-    return res.status(200).json(loginResponse);
+    return res.status(HTTP.OK).json(loginResponse);
   } catch (error) {
     console.error("[ERROR] loginUser:", error);
-    return res.status(500).json({ message: "Server error during login" });
+    return res.status(HTTP.INTERNAL_ERROR).json({ message: "Server error during login" });
   }
 };
 
@@ -162,7 +162,7 @@ export const loginUser = async (req, res) => {
 //     res.redirect(redirectUrl);
 //   } catch (err) {
 //     console.error("[ERROR] getGoogleLoginPage:", err);
-//     res.status(500).json({ message: "Server error generating Google login" });
+//     res.status(HTTP.INTERNAL_ERROR).json({ message: "Server error generating Google login" });
 //   }
 // }
 
@@ -190,7 +190,7 @@ export async function getGoogleLoginPage(req, res) {
     res.redirect(redirectUrl);
   } catch (err) {
     console.error("[ERROR] getGoogleLoginPage:", err);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: err.message,
     });
@@ -205,7 +205,7 @@ export async function getGoogleLoginCallback(req, res) {
   const selectedRole = req.cookies["selected_role"];
 
   if (!code) {
-    return res.status(401).json({ message: "Invalid Google login attempt" });
+    return res.status(HTTP.UNAUTHORIZED).json({ message: "Invalid Google login attempt" });
   }
 
   try {
@@ -226,7 +226,7 @@ export async function getGoogleLoginCallback(req, res) {
 
     const { p_status, p_message, user } = await getUserByEmail(data.email);
 
-    if (p_status === 1) {
+    if (p_status === SP_STATUS.SUCCESS) {
       if (!user || user.code === "NOTREGISTERED") {
         const redirectUrl = `${process.env.FRONTEND_URL}/roledefault?email=${encodeURIComponent(
           data.email
@@ -277,17 +277,17 @@ return res.redirect(redirectUrl);
     }
 
 
-    if (p_status === 0) {
-      return res.status(400).json({ status: false, message: p_message });
+    if (p_status === SP_STATUS.VALIDATION_FAIL) {
+      return res.status(HTTP.BAD_REQUEST).json({ status: false, message: p_message });
     }
 
-    if (p_status === -1) {
+    if (p_status === SP_STATUS.ERROR) {
       console.error("USP Error:", p_message);
-      return res.status(500).json({ message: "Database error during login" });
+      return res.status(HTTP.INTERNAL_ERROR).json({ message: "Database error during login" });
     }
   } catch (err) {
     console.error("[ERROR] Google callback:", err);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: err.message,
     });
@@ -303,7 +303,7 @@ export async function setPasswordAfterGoogleSignup(req, res) {
     const { email, firstName, lastName, roleId, password, fullName } = req.body;
 
     if (!email || !password || !roleId) {
-      return res.status(400).json({ message: "Missing required fields" });
+      return res.status(HTTP.BAD_REQUEST).json({ message: "Missing required fields" });
     }
 
     if ((!firstName || !lastName) && fullName) {
@@ -315,9 +315,9 @@ export async function setPasswordAfterGoogleSignup(req, res) {
     // Check if user already exists
     const { p_status, user } = await getUserByEmail(email);
 
-    if (p_status === 1 && user && user.code !== "NOTREGISTERED") {
+    if (p_status === SP_STATUS.SUCCESS && user && user.code !== "NOTREGISTERED") {
       return res
-        .status(400)
+        .status(HTTP.BAD_REQUEST)
         .json({ message: "User already exists, please login" });
     }
 
@@ -365,7 +365,7 @@ export async function setPasswordAfterGoogleSignup(req, res) {
     });
   } catch (err) {
     console.error("[ERROR] setPasswordAfterGoogleSignup:", err);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: err.message,
     });
@@ -394,7 +394,7 @@ export async function getFacebookLoginPage(req, res) {
     return res.redirect(redirectUrl);
   } catch (err) {
     console.error("[ERROR] getFacebookLoginPage:", err);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: err.message,
     });
@@ -448,7 +448,7 @@ export async function getFacebookLoginCallback(req, res) {
     // 🔹 SAME AS GOOGLE → Check user by email
     const { p_status, p_message, user } = await getUserByEmail(data.email);
 
-    if (p_status === 1) {
+    if (p_status === SP_STATUS.SUCCESS) {
       // 🔸 Not registered → role selection
       if (!user || user.code === "NOTREGISTERED") {
         const redirectUrl =
@@ -486,22 +486,22 @@ export async function getFacebookLoginCallback(req, res) {
       return res.redirect(redirectUrl);
     }
 
-    if (p_status === 0) {
-      return res.status(400).json({
+    if (p_status === SP_STATUS.VALIDATION_FAIL) {
+      return res.status(HTTP.BAD_REQUEST).json({
         status: false,
         message: p_message,
       });
     }
 
-    if (p_status === -1) {
+    if (p_status === SP_STATUS.ERROR) {
       console.error("USP Error:", p_message);
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         message: "Database error during login",
       });
     }
   } catch (err) {
     console.error("[ERROR] Facebook callback:", err);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: err.message,
     });
@@ -572,7 +572,7 @@ export async function getFacebookLoginCallback(req, res) {
 //     res.redirect(redirectUrl);
 //   } catch (err) {
 //     console.error("[ERROR] getGoogleLoginPage:", err);
-//     res.status(500).json({ message: "Server error generating Google login" });
+//     res.status(HTTP.INTERNAL_ERROR).json({ message: "Server error generating Google login" });
 //   }
 // }
 
@@ -583,7 +583,7 @@ export async function getFacebookLoginCallback(req, res) {
 
 //   if (!code) {
 //     console.error("[ERROR] Invalid Google login attempt");
-//     return res.status(401).json({ message: "Invalid Google login attempt" });
+//     return res.status(HTTP.UNAUTHORIZED).json({ message: "Invalid Google login attempt" });
 //   }
 
 //   try {
@@ -632,7 +632,7 @@ export async function getFacebookLoginCallback(req, res) {
 //   } catch (err) {
 //     console.error("[ERROR] Google login callback failed:", err);
 //     return res
-//       .status(500)
+//       .status(HTTP.INTERNAL_ERROR)
 //       .json({ message: "Server error during Google login" });
 //   }
 // }
@@ -643,13 +643,13 @@ export async function getFacebookLoginCallback(req, res) {
 //     const { email, firstName, lastName, roleId, password } = req.body;
 
 //     if (!email || !password || !roleId) {
-//       return res.status(400).json({ message: "Missing required fields" });
+//       return res.status(HTTP.BAD_REQUEST).json({ message: "Missing required fields" });
 //     }
 
 //     const existingUser = await getUserByEmail(email);
 //     if (existingUser) {
 //       return res
-//         .status(400)
+//         .status(HTTP.BAD_REQUEST)
 //         .json({ message: "User already exists, please login" });
 //     }
 
@@ -686,7 +686,7 @@ export async function getFacebookLoginCallback(req, res) {
 //   } catch (err) {
 //     console.error("[ERROR] setPasswordAfterGoogleSignup failed:", err);
 //     return res
-//       .status(500)
+//       .status(HTTP.INTERNAL_ERROR)
 //       .json({ message: "Server error while creating user" });
 //   }
 // }
@@ -713,7 +713,7 @@ export async function getFacebookLoginCallback(req, res) {
 //     res.redirect(redirectUrl);
 //   } catch (err) {
 //     console.error("[ERROR] getFacebookLoginPage:", err);
-//     res.status(500).json({ message: "Server error generating Facebook login" });
+//     res.status(HTTP.INTERNAL_ERROR).json({ message: "Server error generating Facebook login" });
 //   }
 // }
 
@@ -747,7 +747,7 @@ export async function getFacebookLoginCallback(req, res) {
 //     const fbUser = userRes.data;
 //     if (!fbUser.email) {
 //       return res
-//         .status(400)
+//         .status(HTTP.BAD_REQUEST)
 //         .json({ message: "Facebook login failed: no email found" });
 //     }
 

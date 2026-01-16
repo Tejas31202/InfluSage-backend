@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { client } from '../../config/Db.js';
 import { io } from '../../../app.js';
+import { HTTP, SP_STATUS } from '../../utils/Constants.js';
 
 // Create Supabase client once at the top
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -12,7 +13,7 @@ export const startConversation = async (req, res) => {
   const p_userid = req.user?.id;
 
   if (!p_campaignapplicationid) {
-    return res.status(400).json({
+    return res.status(HTTP.BAD_REQUEST).json({
       message: "campaignapplicationid  Id Require",
     });
   }
@@ -42,7 +43,7 @@ export const startConversation = async (req, res) => {
     const p_message = row.p_message;
     const p_role = 'SENDER';
 
-    if (p_status === 1) {
+    if (p_status === SP_STATUS.SUCCESS) {
       // Fetch notifications
       const notifRes = await client.query(
         `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean, $3::text)`,
@@ -61,13 +62,13 @@ export const startConversation = async (req, res) => {
 
       io.to(`user_${toUserId}`).emit("receiveNotification", notifyData);
 
-      return res.status(200).json({
+      return res.status(HTTP.OK).json({
         status: true,
         message: p_message || "Conversation started successfully",
         source: "db",
       });
-    } else if (p_status === 0) {
-      return res.status(400).json({
+    } else if (p_status === SP_STATUS.VALIDATION_FAIL) {
+      return res.status(HTTP.BAD_REQUEST).json({
         status: false,
         message: p_message || "Failed to start conversation",
         source: "db",
@@ -75,14 +76,14 @@ export const startConversation = async (req, res) => {
     }
 
     else {
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: p_message || "Unexpected database response",
       });
     }
   } catch (error) {
     console.error("error in startConversation:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -93,7 +94,7 @@ export const insertMessage = async (req, res) => {
   const userId = req.user?.id || req.body.userId;
 
   if (!userId) {
-    return res.status(401).json({
+    return res.status(HTTP.UNAUTHORIZED).json({
       status: false,
       message: "Unauthorized: user not found",
     });
@@ -148,7 +149,7 @@ export const insertMessage = async (req, res) => {
 
   if (!p_conversationid || !p_roleid) {
     return res
-      .status(400)
+      .status(HTTP.BAD_REQUEST)
       .json({ message: "Action, conversationId, and roleId are required" });
   }
 
@@ -187,7 +188,7 @@ export const insertMessage = async (req, res) => {
     const p_message = row.p_message;
     const newMessageId = tempId;
 
-    if (p_status === 1) {
+    if (p_status === SP_STATUS.SUCCESS) {
       const entityId = userId;
       const entityType = "user";
       let entityDetails = null;
@@ -229,21 +230,21 @@ export const insertMessage = async (req, res) => {
         filePaths: p_filepaths ? p_filepaths.split(",") : [],
         source: "db",
       });
-    } else if (p_status === 0) {
-      return res.status(400).json({
+    } else if (p_status === SP_STATUS.VALIDATION_FAIL) {
+      return res.status(HTTP.BAD_REQUEST).json({
         status: false,
         message: p_message,
         source: "db",
       });
-    } else if (p_status === -1) {
+    } else if (p_status === SP_STATUS.ERROR) {
       console.error("Stored Procedure Failure:", p_message);
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: p_status,
         message: "Unexpected database error",
         source: "db",
       });
     } else {
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: p_status,
         message: "Unknown database response",
         source: "db",
@@ -251,7 +252,7 @@ export const insertMessage = async (req, res) => {
     }
   } catch (error) {
     console.error("Failed to upsert message:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -264,7 +265,7 @@ export const getConversationsdetails = async (req, res) => {
     const { p_search = "" } = req.query || {};
 
     if (!p_userid) {
-      return res.status(400).json({ message: "User ID is required." });
+      return res.status(HTTP.BAD_REQUEST).json({ message: "User ID is required." });
     }
 
     const result = await client.query(
@@ -273,18 +274,18 @@ export const getConversationsdetails = async (req, res) => {
     );
 
     if (!result?.rows?.length || !result.rows[0]?.fn_get_conversationdetails) {
-      return res.status(404).json({ message: "No conversations found" });
+      return res.status(HTTP.NOT_FOUND).json({ message: "No conversations found" });
     }
 
     const conversations = result.rows[0].fn_get_conversationdetails;
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "Conversations fetched successfully",
       data: conversations,
     });
   } catch (error) {
     console.error("Error fetching conversations:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -295,7 +296,7 @@ export const getMessages = async (req, res) => {
   try {
     const { p_conversationid, p_roleid, p_limit, p_offset } = req.query;
     if (!p_conversationid) {
-      return res.status(400).json({ message: "Conversation ID is required." });
+      return res.status(HTTP.BAD_REQUEST).json({ message: "Conversation ID is required." });
     }
 
     // Parse limit and offset, but allow null
@@ -303,10 +304,10 @@ export const getMessages = async (req, res) => {
     const offset = p_offset !== undefined && p_offset !== "" ? parseInt(p_offset, 0) : null;
 
     if (isNaN(limit) && limit !== null) {
-      return res.status(400).json({ message: "Invalid limit value" });
+      return res.status(HTTP.BAD_REQUEST).json({ message: "Invalid limit value" });
     }
     if (isNaN(offset) && offset !== null) {
-      return res.status(400).json({ message: "Invalid offset value" });
+      return res.status(HTTP.BAD_REQUEST).json({ message: "Invalid offset value" });
     }
 
     const result = await client.query(
@@ -322,17 +323,17 @@ export const getMessages = async (req, res) => {
     const messages = result.rows[0]?.fn_get_messages;
 
     if (!messages || messages.length === 0) {
-      return res.status(404).json({ message: "No messages found." });
+      return res.status(HTTP.NOT_FOUND).json({ message: "No messages found." });
     }
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "Messages fetched successfully",
       data: messages,
       source: "db",
     });
   } catch (error) {
     console.error("Failed to get messages", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -343,7 +344,7 @@ export const updateUndoMessage = async (req, res) => {
   const userId = req.user?.id || req.body.userId;
 
   if (!userId) {
-    return res.status(401).json({
+    return res.status(HTTP.UNAUTHORIZED).json({
       status: false,
       message: "Unauthorized: user not found",
     });
@@ -352,7 +353,7 @@ export const updateUndoMessage = async (req, res) => {
     const { p_messageid, p_roleid, p_action } = req.body;
     if (!p_messageid || !p_roleid || !p_action) {
       return res
-        .status(400)
+        .status(HTTP.BAD_REQUEST)
         .json({ message: "Message ID, Role ID, and Action are required." });
     }
 
@@ -377,34 +378,34 @@ export const updateUndoMessage = async (req, res) => {
     const p_message = row.p_message;
 
     // ----------------- HANDLE p_status -----------------
-    if (p_status === 1) {
-      return res.status(200).json({
+    if (p_status === SP_STATUS.SUCCESS) {
+      return res.status(HTTP.OK).json({
         message: p_message || "Message updated successfully",
         p_status,
       });
     }
-    else if (p_status === 0) {
-      return res.status(400).json({
+    else if (p_status === SP_STATUS.VALIDATION_FAIL) {
+      return res.status(HTTP.BAD_REQUEST).json({
         message: p_message || "Validation failed",
         p_status,
       });
     }
-    else if (p_status === -1) {
+    else if (p_status === SP_STATUS.ERROR) {
       console.error("Stored Procedure Failure:", p_message);
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         message: "Something went wrong. Please try again later.",
         p_status: false,
       });
     }
     else {
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         message: "Unexpected database response",
         p_status: false,
       });
     }
   } catch (error) {
     console.error("Failed to update message:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -416,7 +417,7 @@ export const unreadMessageList = async (req, res) => {
 
   try {
     if (!userId) {
-      return res.status(400).json({ message: "please enter userId" });
+      return res.status(HTTP.BAD_REQUEST).json({ message: "please enter userId" });
     }
 
     const result = await client.query(
@@ -425,7 +426,7 @@ export const unreadMessageList = async (req, res) => {
     );
     const lists = result.rows?.[0]?.fn_get_unreadmessagelist ?? [];
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "Unread message list fetched successfully",
       data: lists,
       source: "db",
@@ -433,7 +434,7 @@ export const unreadMessageList = async (req, res) => {
 
   } catch (error) {
     console.error("Failed to fetch unread messages:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });

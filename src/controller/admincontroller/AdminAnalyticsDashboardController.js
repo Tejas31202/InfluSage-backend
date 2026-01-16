@@ -1,11 +1,12 @@
 import { client } from '../../config/Db.js';
+import { HTTP, SP_STATUS } from '../../utils/Constants.js';
 
 export const getAdminAnalyticsNewContents = async (req, res) => {
   try {
     const p_adminid = req.user?.id || req.query.p_adminid;
 
     if (!p_adminid) {
-      return res.status(400).json({
+      return res.status(HTTP.BAD_REQUEST).json({
         message: "p_adminid is required.",
       });
     }
@@ -41,13 +42,13 @@ export const getAdminAnalyticsNewContents = async (req, res) => {
 
     const data = result.rows[0].fn_get_contractcontentlinklist;
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "New contents retrieved successfully",
       data: data,
     });
   } catch (error) {
     console.error("Error in getAdminAnalyticsNewContents:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message
     });
@@ -60,13 +61,13 @@ export const getStatusFilterForAnalytics = async (req, res) => {
       `SELECT * FROM ins.fn_get_analyticcampaignstatus();`,
     );
     const data = result.rows;
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "Status Filters retrieved successfully",
       data
     });
   } catch (error) {
     console.error("Error in getStatusFilterForAnalytics:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -77,7 +78,7 @@ export const getAllContentHistories = async (req, res) => {
   try {
     const p_adminid = req.user?.id || req.query.p_adminid;
     if (!p_adminid) {
-      return res.status(400).json({ message: "p_adminid is required." })
+      return res.status(HTTP.BAD_REQUEST).json({ message: "p_adminid is required." })
     }
     const {
       p_statusid,
@@ -113,13 +114,13 @@ export const getAllContentHistories = async (req, res) => {
     );
 
     const data = result.rows[0].fn_get_analytichistory;
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "All content history retrieved successfully.",
       data: data,
     });
   } catch (error) {
     console.error("error in getAllContentHistories:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -132,11 +133,11 @@ export const getInfluencerContentHistory = async (req, res) => {
     const p_contractcontentlinkid = req.params.p_contractcontentlinkid;
 
     if (!p_adminid) {
-      return res.status(400).json({ message: "p_adminid is required." });
+      return res.status(HTTP.BAD_REQUEST).json({ message: "p_adminid is required." });
     }
 
     if (!p_contractcontentlinkid) {
-      return res.status(400).json({ message: "p_contractcontentlinkid is required." });
+      return res.status(HTTP.BAD_REQUEST).json({ message: "p_contractcontentlinkid is required." });
     }
 
     const {p_pagenumber,p_pagesize} = req.query;
@@ -153,13 +154,13 @@ export const getInfluencerContentHistory = async (req, res) => {
 
     const data = result.rows[0].fn_get_analytichistorydetails || [];
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "Content history retrieved successfully.",
       data:data,
     });
   } catch (error) {
     console.error("Error in getInfluencerContentHistory:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -175,7 +176,7 @@ export const insertAnalyticsRecord = async (req, res) => {
     } = req.body || {};
 
     if (!p_contentlinkid || !p_metricsjson) {
-      return res.status(400).json({
+      return res.status(HTTP.BAD_REQUEST).json({
         message: "Required fields:p_contentlinkid and p_metricsjson"
       });
     }
@@ -199,34 +200,34 @@ export const insertAnalyticsRecord = async (req, res) => {
 
     const { p_status, p_message } = result.rows[0];
 
-    if (p_status === 1) {
-      return res.status(200).json({
+    if (p_status === SP_STATUS.SUCCESS) {
+      return res.status(HTTP.OK).json({
         message: p_message,
         p_status,
       });
     }
-    else if (p_status === 0) {
-      return res.status(400).json({
+    else if (p_status === SP_STATUS.VALIDATION_FAIL) {
+      return res.status(HTTP.BAD_REQUEST).json({
         message: p_message || "Validation failed",
         p_status,
       });
     }
-    else if (p_status === -1) {
+    else if (p_status === SP_STATUS.ERROR) {
       console.error("Stored Procedure Failure:", p_message);
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         message: "Something went wrong. Please try again later.",
         p_status: false,
       });
     }
     else {
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         message: "Unexpected database response",
         p_status: false,
       });
     }
   } catch (error) {
     console.error("Error in insert AnalyticsRecord:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -238,11 +239,11 @@ export const getLastInsertAnlyticsData = async (req, res) => {
   const p_userplatformanalyticid = req.query.p_userplatformanalyticid;
 
   if (!p_adminid)
-    return res.status(400).json({ Message: "Admin ID Required." });
+    return res.status(HTTP.BAD_REQUEST).json({ Message: "Admin ID Required." });
 
   if (!p_userplatformanalyticid)
     return res
-      .status(400)
+      .status(HTTP.BAD_REQUEST)
       .json({ Message: "p_userplatformanalyticid Required." });
 
   try {
@@ -253,14 +254,14 @@ export const getLastInsertAnlyticsData = async (req, res) => {
 
     const userPlatformAnalytics = result.rows[0].fn_get_userplatformanalytic[0];
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       Message: "Successfully fetched userPlatformAnalytics data ",
       data: userPlatformAnalytics,
       source: "db",
     });
   } catch (error) {
     console.error("error in getLastInsertAnlyticsData", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -271,7 +272,7 @@ export const getUpdatedContentsAnalyticList = async (req, res) => {
   const p_adminid = req.user?.id;
 
   if (!p_adminid)
-    return res.status(400).json({ Message: "Admin Id Required." });
+    return res.status(HTTP.BAD_REQUEST).json({ Message: "Admin Id Required." });
 
   const {
     p_providers,
@@ -306,14 +307,14 @@ export const getUpdatedContentsAnalyticList = async (req, res) => {
 
     const result = analyticsList.rows;
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "Successfully fetched updated contents analytics list",
       data: result[0].fn_get_analyticlist,
       source: "db",
     });
   } catch (error) {
     console.error("Error getUpdatedContentsAnalyticList", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });

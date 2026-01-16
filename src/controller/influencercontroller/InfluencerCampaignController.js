@@ -2,6 +2,7 @@ import { client } from '../../config/Db.js';
 import { createClient } from '@supabase/supabase-js';
 import Redis from '../../utils/RedisWrapper.js';
 import { io } from '../../../app.js'
+import { HTTP, SP_STATUS } from '../../utils/Constants.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
@@ -19,15 +20,15 @@ export const getCampaignDetails = async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: "Campaign not found." });
+      return res.status(HTTP.NOT_FOUND).json({ message: "Campaign not found." });
     }
 
     const campaignDetails = result.rows[0].fn_get_campaignbrowsedetails;
 
-    return res.status(200).json({ data: campaignDetails, source: "db" });
+    return res.status(HTTP.OK).json({ data: campaignDetails, source: "db" });
   } catch (error) {
     console.error("Error in getCampignDetails:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -67,7 +68,7 @@ export const applyNowCampaign = async (req, res) => {
 
           if (listError) {
             console.error("Supabase list error:", listError);
-            return res.status(500).json({ message: "Error checking existing files" });
+            return res.status(HTTP.INTERNAL_ERROR).json({ message: "Error checking existing files" });
           }
 
           const fileExists = existingFiles?.some((f) => f.name === newFileName);
@@ -103,7 +104,7 @@ export const applyNowCampaign = async (req, res) => {
           uploadedFiles.push({ filepath: publicUrlData.publicUrl });
         } catch (err) {
           console.error("Upload error:", err);
-          return res.status(500).json({ message: "Unexpected upload error" });
+          return res.status(HTTP.INTERNAL_ERROR).json({ message: "Unexpected upload error" });
         }
       }
       if (applycampaignjson.filepaths && Array.isArray(applycampaignjson.filepaths)) {
@@ -138,7 +139,7 @@ export const applyNowCampaign = async (req, res) => {
     const p_role = 'SENDER';
     const p_message = row?.p_message;
 
-    if (p_status === 1) {
+    if (p_status === SP_STATUS.SUCCESS) {
       try {
         const notification = await client.query(
           `select * from ins.fn_get_notificationlist($1::bigint,$2::boolean,$3::text)`,
@@ -163,30 +164,30 @@ export const applyNowCampaign = async (req, res) => {
 
       await Redis.del(redisKey);
 
-      return res.status(200).json({
+      return res.status(HTTP.OK).json({
         status: true,
         message: p_message || "Application saved successfully",
         source: "db",
       });
     }
 
-    else if (p_status === 0) {
-      return res.status(400).json({
+    else if (p_status === SP_STATUS.VALIDATION_FAIL) {
+      return res.status(HTTP.BAD_REQUEST).json({
         status: false,
         message: p_message || "Validation failed",
       });
     }
 
-    else if (p_status === -1) {
+    else if (p_status === SP_STATUS.ERROR) {
       console.error("Stored Procedure Failure:", p_message);
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: "Something went wrong. Please try again later.",
       });
     }
 
     else {
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: "Unexpected database response",
       });
@@ -194,7 +195,7 @@ export const applyNowCampaign = async (req, res) => {
 
   } catch (error) {
     console.error("Error in applyNowCampaign:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -204,7 +205,7 @@ export const applyNowCampaign = async (req, res) => {
 export const getUsersAppliedCampaigns = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
-    if (!userId) return res.status(400).json({ Message: "User ID Is Required To Get Applied Campaigns" })
+    if (!userId) return res.status(HTTP.BAD_REQUEST).json({ Message: "User ID Is Required To Get Applied Campaigns" })
     const {
       p_statusid = null,
       p_sortby = "createddate",
@@ -226,15 +227,15 @@ export const getUsersAppliedCampaigns = async (req, res) => {
       [userId, p_statusid, p_sortby, p_sortorder, p_pagenumber, p_pagesize, p_search]
     );
     if (!result.rows || result.rows.length === 0) {
-      return res.status(404).json({ message: "No applied campaigns found." });
+      return res.status(HTTP.NOT_FOUND).json({ message: "No applied campaigns found." });
     }
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       data: result.rows[0].fn_get_campaignapplication,
       source: "db",
     });
   } catch (error) {
     console.error("Error in getUsersAppliedCampaigns:", error.message);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -247,7 +248,7 @@ export const saveCampaign = async (req, res) => {
     const campaignId = req.params.campaignId;
 
     if (!campaignId || !userId) {
-      return res.status(400).json({
+      return res.status(HTTP.BAD_REQUEST).json({
         status: false,
         message: "User ID and Campaign ID are required.",
       });
@@ -274,30 +275,30 @@ export const saveCampaign = async (req, res) => {
     const p_status = Number(row?.p_status);
     const p_message = row?.p_message;
 
-    if (p_status === 1) {
-      return res.status(200).json({
+    if (p_status === SP_STATUS.SUCCESS) {
+      return res.status(HTTP.OK).json({
         status: true,
         message: p_message || "Campaign saved successfully",
       });
     }
 
-    else if (p_status === 0) {
-      return res.status(400).json({
+    else if (p_status === SP_STATUS.VALIDATION_FAIL) {
+      return res.status(HTTP.BAD_REQUEST).json({
         status: false,
         message: p_message || "Validation failed",
       });
     }
 
-    else if (p_status === -1) {
+    else if (p_status === SP_STATUS.ERROR) {
       console.error("Stored Procedure Failure:", p_message);
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: "Something went wrong. Please try again later.",
       });
     }
 
     else {
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: "Unexpected database response",
       });
@@ -305,7 +306,7 @@ export const saveCampaign = async (req, res) => {
 
   } catch (error) {
     console.error("Error saving campaign:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -316,7 +317,7 @@ export const getSaveCampaign = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
     if (!userId) {
-      return res.status(400).json({ message: "User Id Required." });
+      return res.status(HTTP.BAD_REQUEST).json({ message: "User Id Required." });
     }
 
     const { sortby, sortorder, pagenumber, pagesize, p_search } = req.query;
@@ -341,15 +342,15 @@ export const getSaveCampaign = async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: "Campaign not found." });
+      return res.status(HTTP.NOT_FOUND).json({ message: "Campaign not found." });
     }
 
     const savedcampaign = result.rows[0]?.fn_get_campaignsave;
 
-    return res.status(200).json({ data: savedcampaign, source: "db" });
+    return res.status(HTTP.OK).json({ data: savedcampaign, source: "db" });
   } catch (error) {
     console.error("Error in getSaveCampaign:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -364,7 +365,7 @@ export const getSingleApplyCampaign = async (req, res) => {
 
     const cachedData = await Redis.get(redisKey);
     if (cachedData) {
-      return res.status(200).json({
+      return res.status(HTTP.OK).json({
         data: cachedData,
         source: "redis",
       });
@@ -376,16 +377,16 @@ export const getSingleApplyCampaign = async (req, res) => {
     );
 
     if (!result.rows || result.rows.length === 0) {
-      return res.status(404).json({ message: "No applied campaigns found." });
+      return res.status(HTTP.NOT_FOUND).json({ message: "No applied campaigns found." });
     }
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       data: result.rows[0]?.fn_get_campaignapplicationdetails,
       source: "db",
     });
   } catch (error) {
     console.error("Error in getSingleApplyCampaign:", error.message);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -399,7 +400,7 @@ export const getUserCampaignWithDetails = async (req, res) => {
 
     if (!userId || !campaignId) {
       return res
-        .status(400)
+        .status(HTTP.BAD_REQUEST)
         .json({ message: "UserId and CampaignId are required." });
     }
 
@@ -435,10 +436,10 @@ export const getUserCampaignWithDetails = async (req, res) => {
       }
     }
 
-    return res.status(200).json({ data: responseData });
+    return res.status(HTTP.OK).json({ data: responseData });
   } catch (error) {
     console.error("Error in getUserCampaignWithDetails:", error.message);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -493,7 +494,7 @@ export const browseCampaigns = async (req, res) => {
     return res.json(result.rows[0].fn_get_campaignbrowse);
   } catch (error) {
     console.error("Error browsing campaigns:", error.message);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -504,7 +505,7 @@ export const withdrawApplication = async (req, res) => {
   const userId = req.user?.id || req.body.userId;
 
   if (!userId) {
-    return res.status(401).json({
+    return res.status(HTTP.UNAUTHORIZED).json({
       status: false,
       message: "Unauthorized: user not found",
     });
@@ -513,7 +514,7 @@ export const withdrawApplication = async (req, res) => {
 
   if (!p_applicationid || !p_statusname) {
     return res
-      .status(400)
+      .status(HTTP.BAD_REQUEST)
       .json({ error: "Required field: p_applicationid, p_statusname" });
   }
 
@@ -541,33 +542,33 @@ export const withdrawApplication = async (req, res) => {
     const p_message = row.p_message;
 
     // ----------------- HANDLE p_status -----------------
-    if (p_status === 1) {
-      return res.status(200).json({
+    if (p_status === SP_STATUS.SUCCESS) {
+      return res.status(HTTP.OK).json({
         status: true,
         message: p_message || "Application withdrawn successfully",
         source: "db",
       });
-    } else if (p_status === 0) {
-      return res.status(400).json({
+    } else if (p_status === SP_STATUS.VALIDATION_FAIL) {
+      return res.status(HTTP.BAD_REQUEST).json({
         status: false,
         message: p_message || "Validation failed",
         source: "db",
       });
-    } else if (p_status === -1) {
+    } else if (p_status === SP_STATUS.ERROR) {
       console.error("Stored Procedure Failure:", p_message);
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: "Something went wrong. Please try again later.",
       });
     } else {
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: "Unexpected database response",
       });
     }
   } catch (error) {
     console.error("Error in withdrawApplication:", error.message);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -581,7 +582,7 @@ export const deleteApplyNowPortfolioFile = async (req, res) => {
 
   try {
     if (!filePath) {
-      return res.status(400).json({ message: "filePath is required" });
+      return res.status(HTTP.BAD_REQUEST).json({ message: "filePath is required" });
     }
 
     let campaignData = await Redis.get(redisKey) || {};
@@ -603,20 +604,20 @@ export const deleteApplyNowPortfolioFile = async (req, res) => {
 
     if (deleteError) {
       console.error("Supabase file delete error:", deleteError);
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: "Failed to delete file from cloud storage",
       });
     }
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       status: true,
       message: "Portfolio file deleted successfully from Supabase",
       portfolioFiles: campaignData?.applycampaignjson?.filepaths || [],
     });
   } catch (error) {
     console.error("error in deleteApplyNowPortfolioFile:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -625,7 +626,7 @@ export const deleteApplyNowPortfolioFile = async (req, res) => {
 
 export const getFeedbackList = async (req, res) => {
   const {p_campaignid,p_limit ,p_offset } = req.query||{};
-  if (!p_campaignid) return res.status(400).json({ Message: "Campaign Id required For Feedback List" });
+  if (!p_campaignid) return res.status(HTTP.BAD_REQUEST).json({ Message: "Campaign Id required For Feedback List" });
   try {
 
     const feedbackList = await client.query(`
@@ -637,14 +638,14 @@ export const getFeedbackList = async (req, res) => {
       ]);
 
     const feedbackListRes = feedbackList.rows[0].fn_get_vendorfeedbacklist;
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       Message: "Feedback List Get Successfully",
       data: feedbackListRes,
       source: 'db'
     })
   } catch (error) {
     console.error("Error While Getting Feedback List", error)
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       Message: "Something Went Wrong. Please Try Again Later",
       error: error.message
     })
@@ -657,14 +658,14 @@ export const getCampaignApplicationStatus = async (req, res) => {
     const applicationStatus = await client.query(`
      select * from  ins.fn_get_campaignapplicationstatus()`)
     const applicationStatusRes = applicationStatus.rows;
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       Message: " Campaign Application Status Get Sucessfully",
       data: applicationStatusRes,
       source: 'db'
     })
   } catch (error) {
     console.error("Error While Getting Campaign Application status", error)
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       Message: "Something Went Wrong. Please Try Again Later",
       error: error.message
     })

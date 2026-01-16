@@ -1,5 +1,6 @@
 import { client } from '../config/Db.js';
 import bcrypt from 'bcrypt';
+import { HTTP, SP_STATUS } from '../utils/Constants.js';
 
 export const changePassword = async (req, res) => {
   try {
@@ -7,13 +8,13 @@ export const changePassword = async (req, res) => {
     const email = req.user?.email;
     if (!p_userid || !email) {
       return res
-        .status(400)
+        .status(HTTP.BAD_REQUEST)
         .json({ message: "p_userid and email are required" });
     }
 
     const { oldPassword, newPassword, confirmPassword } = req.body || {};
     if (!oldPassword || !newPassword || !confirmPassword) {
-      res.status(400).json({
+      res.status(HTTP.BAD_REQUEST).json({
         message: "oldPassword,newPassword,confirmPassword are requied.",
       });
     }
@@ -31,17 +32,17 @@ export const changePassword = async (req, res) => {
       dbPasswordHash
     );
     if (!isOldPasswordValid) {
-      return res.status(400).json({ message: "current password is incorrect" });
+      return res.status(HTTP.BAD_REQUEST).json({ message: "current password is incorrect" });
     }
 
     if (oldPassword === newPassword) {
-      return res.status(400).json({
+      return res.status(HTTP.BAD_REQUEST).json({
         message: "New password must be different from your current password",
       });
     }
 
     if (newPassword !== confirmPassword) {
-      return res.status(400).json({
+      return res.status(HTTP.BAD_REQUEST).json({
         message: "New password and confirm password do not match",
       });
     }
@@ -61,35 +62,35 @@ export const changePassword = async (req, res) => {
     );
 
     const { p_status, p_message } = result.rows[0];
-    if (p_status === 1) {
-      return res.status(200).json({
+    if (p_status === SP_STATUS.SUCCESS) {
+      return res.status(HTTP.OK).json({
         status: true,
         message: p_message,
         source: "db",
       });
-    } else if (p_status === 0) {
-      return res.status(400).json({
+    } else if (p_status === SP_STATUS.VALIDATION_FAIL) {
+      return res.status(HTTP.BAD_REQUEST).json({
         status: false,
         message: p_message,
         source: "db",
       });
     }
     // Case 3: p_status = -1 → SP failed
-    else if (p_status === -1) {
+    else if (p_status === SP_STATUS.ERROR) {
       console.error("Stored Procedure Failure:", p_message);
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: "Something went wrong. Please try again later.",
       });
     } else {
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: p_message || "Unexpected database response",
       });
     }
   } catch (error) {
     console.error("Error in changePassword:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -98,14 +99,14 @@ export const changePassword = async (req, res) => {
 
 export const getdeleteAccountReason = async (req, res) => {
   const p_userid = req.user.id;
-  if (!p_userid) return res.status(400).json({ Message: "User Id Required For get Delete Reasons." })
+  if (!p_userid) return res.status(HTTP.BAD_REQUEST).json({ Message: "User Id Required For get Delete Reasons." })
   try {
     const delAccountReason = await client.query(`select * from ins.fn_get_deleteaccountreasons()`);
     const reasonRes = delAccountReason.rows;
-    return res.status(200).json({ Message: "Sucessfully get reason for del account.", data: reasonRes })
+    return res.status(HTTP.OK).json({ Message: "Sucessfully get reason for del account.", data: reasonRes })
   } catch (error) {
     console.log("Error in Getting Delete Account Reason", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -114,7 +115,7 @@ export const getdeleteAccountReason = async (req, res) => {
 
 export const deleteAccount = async (req, res) => {
   const p_userid = req.user?.id || req.body?.user_id;
-  if (!p_userid) return res.status(400).json({ message: "User Id Required For Delete Account" });
+  if (!p_userid) return res.status(HTTP.BAD_REQUEST).json({ message: "User Id Required For Delete Account" });
   try {
     const delAccount = await client.query(
       `CALL ins.usp_delete_user($1::BIGINT,$2::SMALLINT,$3::TEXT)`,
@@ -122,34 +123,34 @@ export const deleteAccount = async (req, res) => {
     );
     const { p_status, p_message } = delAccount.rows[0];
     if (p_status === 1) {
-      return res.status(200).json({
+      return res.status(HTTP.OK).json({
         status: true,
         message: p_message,
         source: "db",
       });
-    } else if (p_status === 0) {
-      return res.status(400).json({
+    } else if (p_status === SP_STATUS.VALIDATION_FAIL) {
+      return res.status(HTTP.BAD_REQUEST).json({
         status: false,
         message: p_message,
         source: "db",
       });
     }
     // Case 3: p_status = -1 → SP failed
-    else if (p_status === -1) {
+    else if (p_status === SP_STATUS.ERROR) {
       console.error("Stored Procedure Failure:", p_message);
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: "Something went wrong. Please try again later.",
       });
     } else {
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: p_message || "Unexpected database response",
       });
     }
   } catch (error) {
     console.error("Error in changePassword:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });

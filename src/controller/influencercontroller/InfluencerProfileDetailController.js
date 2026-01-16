@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import Redis from "../../utils/RedisWrapper.js";
 import path from "path";
 import fs from "fs";
+import { HTTP, SP_STATUS } from "../../utils/Constants.js";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
@@ -32,7 +33,7 @@ export const completeUserProfile = async (req, res) => {
   }
 
   if (!userId) {
-    return res.status(400).json({ message: "User not authenticated" });
+    return res.status(HTTP.BAD_REQUEST).json({ message: "User not authenticated" });
   }
   const redisKey = `profile:${userId}`;
 
@@ -89,7 +90,7 @@ export const completeUserProfile = async (req, res) => {
         });
       if (uploadError)
         return res
-          .status(500)
+          .status(HTTP.INTERNAL_ERROR)
           .json({ message: "Failed to upload profile photo" });
 
       const { data: publicUrlData } = supabase.storage
@@ -126,7 +127,7 @@ export const completeUserProfile = async (req, res) => {
             });
           if (uploadError)
             return res
-              .status(500)
+              .status(HTTP.INTERNAL_ERROR)
               .json({ message: "Failed to upload portfolio files" });
         }
 
@@ -210,7 +211,7 @@ export const completeUserProfile = async (req, res) => {
         await client.query("COMMIT");
         await Redis.del(redisKey);
 
-        return res.status(200).json({
+        return res.status(HTTP.OK).json({
           message:result.rows[0].p_message,
           status:result.rows[0].p_status
         });
@@ -223,10 +224,10 @@ export const completeUserProfile = async (req, res) => {
       case "APPROVALPENDING":
         // Save only in Redis
         // return await saveToRedis(finalData, `User ${userpcode} — data saved in Redis.`);
-        return res.status(403).json({
+        return res.status(HTTP.FORBIDDEN).json({
           message: `User ${userpcode} is not allowed to proceed.`,
         });
-      // added code 403
+      // added code HTTP.FORBIDDEN
 
       case "REJECTED":
       case "PENDINGPROFILE":
@@ -235,7 +236,7 @@ export const completeUserProfile = async (req, res) => {
         if (!isFullyCompleted) {
           // Incomplete → save in Redis and respond
           await saveToRedis(finalData);
-          return res.status(200).json({
+          return res.status(HTTP.OK).json({
             message: "Profile incomplete, saved temporarily in Redis",
             source: "redis",
             profileCompletion:
@@ -268,25 +269,25 @@ export const completeUserProfile = async (req, res) => {
         );
         await client.query("COMMIT");
         const { p_status, p_message } = result.rows[0];
-        if (p_status === 1) {
+        if (p_status === SP_STATUS.SUCCESS) {
           await Redis.del(redisKey);
-          return res.status(200).json({
+          return res.status(HTTP.OK).json({
             status: true,
             message: p_message,
           });
-        } else if (p_status === 0) {
-          return res.status(400).json({
+        } else if (p_status === SP_STATUS.VALIDATION_FAIL) {
+          return res.status(HTTP.BAD_REQUEST).json({
             status: false,
             message: p_message,
           });
-        } else if (p_status === -1) {
+        } else if (p_status === SP_STATUS.ERROR) {
           console.error("Stored Procedure Failure:", p_message);
-          return res.status(500).json({
+          return res.status(HTTP.INTERNAL_ERROR).json({
             status: false,
             message: "Something went wrong. Please try again later.",
           });
         } else {
-          return res.status(500).json({
+          return res.status(HTTP.INTERNAL_ERROR).json({
             status: false,
             message: p_message || "Unexpected database response",
           });
@@ -294,14 +295,14 @@ export const completeUserProfile = async (req, res) => {
 
         // if (p_status) {
         //   await Redis.del(redisKey);
-        //   return res.status(200).json({
+        //   return res.status(HTTP.OK).json({
         //     message: p_message,
         //     source: "db",
         //     data: result.rows[0],
         //   });
         // }
 
-        // return res.status(400).json({
+        // return res.status(HTTP.BAD_REQUEST).json({
         //   message: p_message,
         //   source: "db",
         // });
@@ -310,7 +311,7 @@ export const completeUserProfile = async (req, res) => {
         // Unknown p_code → Save only in Redis
         // return await saveToRedis(finalData, "Unknown p_code — saved in Redis.");
         await saveToRedis(finalData);
-        return res.status(200).json({
+        return res.status(HTTP.OK).json({
           message: "Unknown p_code — saved in Redis",
           source: "redis",
         });
@@ -318,7 +319,7 @@ export const completeUserProfile = async (req, res) => {
   } catch (error) {
     console.error("error in complateUserProfile:", error);
     await client.query("ROLLBACK").catch(() => {}); // fail-safe rollback
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -403,7 +404,7 @@ export const getUserProfile = async (req, res) => {
     // 6. Profile completion
     const profileCompletion = calculateProfileCompletion(merged);
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "Profile fetched successfully",
       profileParts: merged,
       profileCompletion,
@@ -412,7 +413,7 @@ export const getUserProfile = async (req, res) => {
 
   } catch (error) {
     console.error("Error in getUserProfile:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -433,16 +434,16 @@ export const getUserNameByEmail = async (req, res) => {
     const user = result.rows[0];
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(HTTP.NOT_FOUND).json({ message: "User not found" });
     }
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       firstname: user.firstname,
       lastname: user.lastname,
     });
   } catch (error) {
     console.error("Error in getUserNameByEmail:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -456,7 +457,7 @@ export const deletePortfolioFile = async (req, res) => {
 
     if (!userId || !filePathToDelete) {
       return res
-        .status(400)
+        .status(HTTP.BAD_REQUEST)
         .json({ message: "userId and filepath are required" });
     }
 
@@ -510,14 +511,14 @@ export const deletePortfolioFile = async (req, res) => {
     }
 
     // 🔹 4️⃣ Final response
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       status: true,
       message: "Portfolio file deleted successfully",
       portfolioFiles: profileData?.portfoliojson || [],
     });
   } catch (error) {
     console.error("error in deletePortfolioFile:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -560,7 +561,7 @@ export const deletePortfolioFile = async (req, res) => {
 //   }
 
 //   if (!userId) {
-//     return res.status(400).json({ message: "User not authenticated" });
+//     return res.status(HTTP.BAD_REQUEST).json({ message: "User not authenticated" });
 //   }
 //   const redisKey = `profile:${userId}`;
 
@@ -614,7 +615,7 @@ export const deletePortfolioFile = async (req, res) => {
 //         });
 //       if (uploadError)
 //         return res
-//           .status(500)
+//           .status(HTTP.INTERNAL_ERROR)
 //           .json({ message: "Failed to upload profile photo" });
 
 //       const { data: publicUrlData } = supabase.storage
@@ -651,7 +652,7 @@ export const deletePortfolioFile = async (req, res) => {
 //             });
 //           if (uploadError)
 //             return res
-//               .status(500)
+//               .status(HTTP.INTERNAL_ERROR)
 //               .json({ message: "Failed to upload portfolio files" });
 //         }
 
@@ -730,7 +731,7 @@ export const deletePortfolioFile = async (req, res) => {
 //         await client.query("COMMIT");
 //         await Redis.del(redisKey);
 
-//         return res.status(200).json({
+//         return res.status(HTTP.OK).json({
 //           message:result.rows[0].p_message,
 //           status:result.rows[0].p_status
 //         });
@@ -739,10 +740,10 @@ export const deletePortfolioFile = async (req, res) => {
 //       case "APPROVALPENDING":
 //         // Save only in Redis
 //         // return await saveToRedis(finalData, `User ${userpcode} — data saved in Redis.`);
-//         return res.status(403).json({
+//         return res.status(HTTP.FORBIDDEN).json({
 //           message: `User ${userpcode} is not allowed to proceed.`,
 //         });
-//       // added code 403
+//       // added code HTTP.FORBIDDEN
 
 //       case "REJECTED":
 //       case "PENDINGPROFILE":
@@ -751,7 +752,7 @@ export const deletePortfolioFile = async (req, res) => {
 //         if (!isFullyCompleted) {
 //           // Incomplete → save in Redis and respond
 //           await saveToRedis(finalData);
-//           return res.status(200).json({
+//           return res.status(HTTP.OK).json({
 //             message: "Profile incomplete, saved temporarily in Redis",
 //             source: "redis",
 //             profileCompletion:
@@ -784,25 +785,25 @@ export const deletePortfolioFile = async (req, res) => {
 //         );
 //         await client.query("COMMIT");
 //         const { p_status, p_message } = result.rows[0];
-//         if (p_status === 1) {
+//         if (p_status === SP_STATUS.SUCCESS) {
 //           await Redis.del(redisKey);
-//           return res.status(200).json({
+//           return res.status(HTTP.OK).json({
 //             status: true,
 //             message: p_message,
 //           });
-//         } else if (p_status === 0) {
-//           return res.status(400).json({
+//         } else if (p_status === SP_STATUS.VALIDATION_FAIL) {
+//           return res.status(HTTP.BAD_REQUEST).json({
 //             status: false,
 //             message: p_message,
 //           });
-//         } else if (p_status === -1) {
+//         } else if (p_status === SP_STATUS.ERROR) {
 //           console.error("Stored Procedure Failure:", p_message);
-//           return res.status(500).json({
+//           return res.status(HTTP.INTERNAL_ERROR).json({
 //             status: false,
 //             message: "Something went wrong. Please try again later.",
 //           });
 //         } else {
-//           return res.status(500).json({
+//           return res.status(HTTP.INTERNAL_ERROR).json({
 //             status: false,
 //             message: p_message || "Unexpected database response",
 //           });
@@ -812,7 +813,7 @@ export const deletePortfolioFile = async (req, res) => {
 //         // Unknown p_code → Save only in Redis
 //         // return await saveToRedis(finalData, "Unknown p_code — saved in Redis.");
 //         await saveToRedis(finalData);
-//         return res.status(200).json({
+//         return res.status(HTTP.OK).json({
 //           message: "Unknown p_code — saved in Redis",
 //           source: "redis",
 //         });
@@ -820,7 +821,7 @@ export const deletePortfolioFile = async (req, res) => {
 //   } catch (error) {
 //     console.error("error in complateUserProfile:", error);
 //     await client.query("ROLLBACK").catch(() => {}); // fail-safe rollback
-//     return res.status(500).json({
+//     return res.status(HTTP.INTERNAL_ERROR).json({
 //       message: "Something went wrong. Please try again later.",
 //       error: error.message,
 //     });
@@ -912,7 +913,7 @@ export const deletePortfolioFile = async (req, res) => {
 //     // 6. Calculate profile completion
 //     const profileCompletion = calculateProfileCompletion(merged);
 
-//     return res.status(200).json({
+//     return res.status(HTTP.OK).json({
 //       message: "Profile fetched successfully",
 //       profileParts: merged,
 //       profileCompletion,
@@ -920,7 +921,7 @@ export const deletePortfolioFile = async (req, res) => {
 //     });
 //   } catch (error) {
 //     console.error("Error in getUserProfile:", error);
-//     return res.status(500).json({
+//     return res.status(HTTP.INTERNAL_ERROR).json({
 //       message: "Something went wrong. Please try again later.",
 //       error: error.message,
 //     });
@@ -940,16 +941,16 @@ export const deletePortfolioFile = async (req, res) => {
 //     const user = result.rows[0];
 
 //     if (!user) {
-//       return res.status(404).json({ message: "User not found" });
+//       return res.status(HTTP.NOT_FOUND).json({ message: "User not found" });
 //     }
 
-//     return res.status(200).json({
+//     return res.status(HTTP.OK).json({
 //       firstname: user.firstname,
 //       lastname: user.lastname,
 //     });
 //   } catch (error) {
 //     console.error("Error in getUserNameByEmail:", error);
-//     return res.status(500).json({
+//     return res.status(HTTP.INTERNAL_ERROR).json({
 //       message: "Something went wrong. Please try again later.",
 //       error: error.message,
 //     });
@@ -963,7 +964,7 @@ export const deletePortfolioFile = async (req, res) => {
 
 //     if (!userId || !filePathToDelete) {
 //       return res
-//         .status(400)
+//         .status(HTTP.BAD_REQUEST)
 //         .json({ message: "userId and filepath are required" });
 //     }
 
@@ -1018,14 +1019,14 @@ export const deletePortfolioFile = async (req, res) => {
 //     }
 
 //     // 🔹 4️⃣ Final response
-//     return res.status(200).json({
+//     return res.status(HTTP.OK).json({
 //       status: true,
 //       message: "Portfolio file deleted successfully",
 //       portfolioFiles: profileData?.portfoliojson || [],
 //     });
 //   } catch (error) {
 //     console.error("error in deletePortfolioFile:", error);
-//     return res.status(500).json({
+//     return res.status(HTTP.INTERNAL_ERROR).json({
 //       message: "Something went wrong. Please try again later.",
 //       error: error.message,
 //     });
