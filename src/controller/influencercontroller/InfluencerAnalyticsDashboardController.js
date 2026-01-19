@@ -199,31 +199,31 @@ export const getInfluencerRecentContent = async (req, res) => {
   }
 };
 
-export const getInfluencerAudienceDemographic = async (req, res) => {
-  const p_userid = req.user?.id;
-  if (!p_userid)
-    return res.status(HTTP.BAD_REQUEST).json({ message: "Influencer Id Required" });
+// export const getInfluencerAudienceDemographic = async (req, res) => {
+//   const p_userid = req.user?.id;
+//   if (!p_userid)
+//     return res.status(HTTP.BAD_REQUEST).json({ message: "Influencer Id Required" });
 
-  try {
-    const result = await client.query(
-      `SELECT ins.getInfluencerAudienceDemographic($1::BIGINT) as audience`,
-      [p_userid]
-    );
-    return res
-      .status(HTTP.OK)
-      .json({
-        status: true,
-        message: "Audience Demographic fetched",
-        data: result.rows[0].audience,
-      });
-  } catch (error) {
-    console.error("Error in getInfluencerAudienceDemographic:", error);
-    return res.status(HTTP.INTERNAL_ERROR).json({
-      message: "Something went wrong. Please try again later.",
-      error: error.message,
-    });
-  }
-};
+//   try {
+//     const result = await client.query(
+//       `SELECT ins.getInfluencerAudienceDemographic($1::BIGINT) as audience`,
+//       [p_userid]
+//     );
+//     return res
+//       .status(HTTP.OK)
+//       .json({
+//         status: true,
+//         message: "Audience Demographic fetched",
+//         data: result.rows[0].audience,
+//       });
+//   } catch (error) {
+//     console.error("Error in getInfluencerAudienceDemographic:", error);
+//     return res.status(HTTP.INTERNAL_ERROR).json({
+//       message: "Something went wrong. Please try again later.",
+//       error: error.message,
+//     });
+//   }
+// };
 
 export const getInfluencerTopPerformingContent = async (req, res) => {
   try {
