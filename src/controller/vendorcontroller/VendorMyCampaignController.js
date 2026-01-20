@@ -268,16 +268,16 @@ export const getCampaignInvitationList = async (req, res) => {
     const p_campaignid = req.query.p_campaignid;
     if (!p_campaignid) return res.status(HTTP.BAD_REQUEST).json({ message: "Campaign Id Required" })
     const p_limit = Number(req.query.p_limit) || 20;
-    console.log("limit:-", p_limit)
+    // console.log("limit:-", p_limit)
     const p_offset = Number(req.query.p_offset) || 0;
-    console.log("offset:-",p_offset)
+    // console.log("offset:-",p_offset)
 
     const invitationList = await client.query(`
       select * from ins.fn_get_campaigninvitationlist($1::bigint,$2::bigint,$3::integer,$4::integer)`,
       [p_userid, p_campaignid, p_limit, p_offset]
     );
     const invitationListRes = invitationList.rows[0].fn_get_campaigninvitationlist;
-    console.log("Invitation List Result", invitationListRes);
+    // console.log("Invitation List Result", invitationListRes);
     return res.status(HTTP.OK).json({
       message: "Campaign Invitation List Sucessfully Getting",
       data: invitationListRes,

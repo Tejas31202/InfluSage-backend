@@ -14,6 +14,8 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 // Redis.connect().catch(console.error);
 
 //New Code With Changes
+const MAX_PROFILEPHOTO_SIZE = 5 * 1024 * 1024; // 5 MB
+const MAX_PORTFOLIO_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
 export const completeUserProfile = async (req, res) => {
   const userId = req.user?.id || req.body?.userId;
 
@@ -66,6 +68,13 @@ export const completeUserProfile = async (req, res) => {
     // Handle photo upload
     if (req.files?.photo?.[0]) {
       const file = req.files.photo[0];
+
+      if (file.size > MAX_PROFILEPHOTO_SIZE) {
+        return res
+          .status(HTTP.BAD_REQUEST)
+          .json({ message: "Profile photo is too large. The maximum size allowed is 5 MB" });
+      }
+
       const fileName = file.originalname;
       const profileFolderPath = `Influencer/${userId}/Profile`;
       const supabasePath = `${profileFolderPath}/${fileName}`;
@@ -110,6 +119,12 @@ export const completeUserProfile = async (req, res) => {
       const uploadedFiles = [];
 
       for (const file of req.files.portfolioFiles) {
+        if (file.size > MAX_PORTFOLIO_FILE_SIZE) {
+          return res
+            .status(HTTP.BAD_REQUEST)
+            .json({ message: `Portfolio file ${file.originalname} is too large. The maximum size allowed is 25 MB` });
+        }
+        
         const fileName = file.originalname;
         const supabasePath = `Influencer/${userId}/Portfolio/${fileName}`;
 

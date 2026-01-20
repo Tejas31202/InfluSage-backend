@@ -88,10 +88,10 @@ export const vendorInsertFeedback = async (req, res) => {
 
         notifyData.forEach(latest => {
           const toUserId = latest.receiverid;
-          console.log("Notification receiver toUserId:", toUserId); // log receiver
+          // console.log("Notification receiver toUserId:", toUserId); // log receiver
           if (toUserId) {
             io.to(`notification_${toUserId}`).emit("receiveNotification", latest);
-            console.log(`Feedback notification sent to user_${toUserId}`);
+            // console.log(`Feedback notification sent to user_${toUserId}`);
           }
         });
       } catch (error) {

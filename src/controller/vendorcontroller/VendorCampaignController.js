@@ -9,6 +9,8 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ---------------- FINALIZE Campaign ----------------
+const MAX_PROFILEPHOTO_SIZE = 5 * 1024 * 1024; // 5 MB
+const MAX_PORTFOLIO_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
 export const finalizeCampaign = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.p_userid;
@@ -223,6 +225,11 @@ export const upsertCampaign = async (req, res) => {
     if (req.files?.photo?.[0]) {
       const file = req.files.photo[0];
       const tempPhotoPath = `${tempPhotoFolder}/${file.originalname}`;
+      if (file.size > MAX_PROFILEPHOTO_SIZE) {
+        return res
+          .status(HTTP.BAD_REQUEST)
+          .json({ message: `Profile photo exceeds maximum size of 5 MB` });
+      }
       const { error } = await supabase.storage.from(process.env.SUPABASE_BUCKET).upload(tempPhotoPath, file.buffer, { contentType: file.mimetype, upsert: true });
       if (error) throw new Error(`Photo upload failed: ${error.message}`);
       const { data: publicData } = supabase.storage.from(process.env.SUPABASE_BUCKET).getPublicUrl(tempPhotoPath);
@@ -233,6 +240,11 @@ export const upsertCampaign = async (req, res) => {
     if (req.files?.Files?.length > 0) {
       for (const file of req.files.Files) {
         const tempPortfolioPath = `${tempPortfolioFolder}/${file.originalname}`;
+        if (file.size > MAX_PORTFOLIO_FILE_SIZE) {
+          return res
+            .status(HTTP.BAD_REQUEST)
+            .json({ message: `Portfolio file ${file.originalname} exceeds maximum size of 25 MB` });
+        }
         const { error } = await supabase.storage.from(process.env.SUPABASE_BUCKET).upload(tempPortfolioPath, file.buffer, { contentType: file.mimetype, upsert: true });
         if (error) console.warn("⚠️ File upload failed:", error.message);
         const { data: publicData } = supabase.storage.from(process.env.SUPABASE_BUCKET).getPublicUrl(tempPortfolioPath);
