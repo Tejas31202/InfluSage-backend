@@ -90,6 +90,8 @@ export const startConversation = async (req, res) => {
   }
 };
 
+const MAX_FILE_UPLOAD = 5; // Max 5 files
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
 export const insertMessage = async (req, res) => {
   const userId = req.user?.id || req.body.userId;
 
@@ -113,6 +115,16 @@ export const insertMessage = async (req, res) => {
     for (const file of req.files) {
       const timestamp = Date.now();
       const newFileName = `${timestamp}_${file.originalname}`;
+      if (fileUpload.length > MAX_FILE_UPLOAD) {
+        return res
+          .status(HTTP.BAD_REQUEST)
+          .json({ message: `Maximum ${MAX_FILE_UPLOAD} files are allowed per message.` });
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        return res
+          .status(HTTP.BAD_REQUEST)
+          .json({ message: `File ${file.originalname} exceeds maximum size of 25 MB` });
+      }
       // const newFileName = `${file.originalname}`;
 
       let uniqueFileName = ""

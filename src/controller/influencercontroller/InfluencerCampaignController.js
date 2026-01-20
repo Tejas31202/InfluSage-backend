@@ -35,6 +35,7 @@ export const getCampaignDetails = async (req, res) => {
   }
 };
 
+const MAX_PORTFOLIO_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
 export const applyNowCampaign = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
@@ -55,6 +56,12 @@ export const applyNowCampaign = async (req, res) => {
 
       for (const file of req.files.portfolioFiles) {
         const fileName = file.originalname;
+        if (file.size > MAX_PORTFOLIO_FILE_SIZE) {
+          return res
+            .status(HTTP.BAD_REQUEST)
+            .json({ message: `Portfolio file ${file.originalname} is too large. The maximum size allowed is 25 MB` });
+        }
+        
         const newFileName = `${fileName}`;
         const uniqueFileName = `Influencer/${userFolder}/Campaigns/${campaignId}/ApplyCampaigns/${newFileName}`;
         const fileBuffer = file.buffer;

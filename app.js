@@ -13,6 +13,8 @@ import Redis from './src/utils/RedisWrapper.js';
 
 import { client } from "./src/config/Db.js";
 import {serviceStatusMiddleware} from './src/middleware/ServiceStatusMiddleware.js';
+import { responseTimeLogger } from './src/middleware/responseTime.js';
+import { performanceLogger } from './src/middleware/performanceLogger.js';
 import ServiceRoutes from './src/routes/serviceroutes/ServiceRoutes.js';
 import authRoutes from './src/routes/AuthRoutes.js';
 import CommonRoutes from './src/routes/CommonRoutes.js';
@@ -83,6 +85,9 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+app.use(responseTimeLogger);
+app.use(performanceLogger);
 
 app.use(
   cors({

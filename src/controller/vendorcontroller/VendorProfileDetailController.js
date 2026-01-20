@@ -177,6 +177,8 @@ export const getVendorProfile = async (req, res) => {
   }
 };
 
+
+const MAX_PROFILEPHOTO_SIZE = 5 * 1024 * 1024; // 5 MB
 export const completeVendorProfile = async (req, res) => {
   const userId = req.user?.id || req.body.userid;
   const redisKey = `vendorprofile:${userId}`;
@@ -198,6 +200,9 @@ export const completeVendorProfile = async (req, res) => {
 
       if (!file.buffer || file.buffer.length === 0) {
         return res.status(HTTP.BAD_REQUEST).json({ message: "No valid file buffer found" });
+      }
+      if (file.size > MAX_PROFILEPHOTO_SIZE) {
+        return res.status(HTTP.BAD_REQUEST).json({ message: `Profile photo exceeds maximum size of 5 MB` });
       }
 
       const fileName = file.originalname;

@@ -250,6 +250,8 @@ export const getTicketStatus = async (req, res) => {
   }
 };
 
+// const MAX_FILE_UPLOAD = 1; // Max 1 file
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
 export const sendSupportMessage = async (req, res) => {
   const userId = req.user?.id || req.body.userId;
 
@@ -295,6 +297,11 @@ export const sendSupportMessage = async (req, res) => {
       const f = req.file;
       const fileName = `${req.user?.role}Id_${p_senderid}_${Date.now()}_${f.originalname
         }`;
+        if (f.size > MAX_FILE_SIZE) {
+          return res
+            .status(HTTP.BAD_REQUEST)
+            .json({ message: `File ${f.originalname} exceeds maximum size of 25 MB` });
+        }
 
       const { error } = await supabase.storage
         .from(process.env.SUPABASE_BUCKET)
