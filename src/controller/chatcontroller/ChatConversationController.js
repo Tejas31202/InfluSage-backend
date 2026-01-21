@@ -115,10 +115,10 @@ export const insertMessage = async (req, res) => {
     for (const file of req.files) {
       const timestamp = Date.now();
       const newFileName = `${timestamp}_${file.originalname}`;
-      if (fileUpload.length > MAX_FILE_UPLOAD) {
+     if (uploadedUrls.length >= MAX_FILE_UPLOAD) {
         return res
           .status(HTTP.BAD_REQUEST)
-          .json({ message: `Maximum ${MAX_FILE_UPLOAD} files are allowed per message.` });
+          .json({ message: `Maximum of ${MAX_FILE_UPLOAD} files can be uploaded.` });
       }
       if (file.size > MAX_FILE_SIZE) {
         return res
