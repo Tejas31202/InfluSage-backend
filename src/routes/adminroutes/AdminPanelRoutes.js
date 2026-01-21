@@ -18,7 +18,6 @@ import {
   insertShippingAddress
 } from '../../controller/admincontroller/AdminPanelController.js';
 import authenticateUser from '../../middleware/AuthMiddleware.js';
-import { auth } from 'googleapis/build/src/apis/abusiveexperiencereport/index.js';
 const routes = express.Router();
 
 routes.get(

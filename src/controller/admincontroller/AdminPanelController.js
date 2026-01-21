@@ -221,8 +221,12 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
       // ------------------
       if (p_userid && !p_campaignid) {
         const userResult = await client.query(
-          `SELECT id, firstname, email FROM ins.users WHERE id = $1`,
-          [p_userid]
+          `SELECT
+            (u->>'id')::bigint AS id,
+            u->>'firstname'     AS firstname,
+            u->>'email'        AS email
+          FROM json_array_elements(ins.fn_get_userinfo($1::bigint)) AS u;`,
+          [p_userid],
         );
         const user = userResult.rows[0];
         if (!user) return res.status(HTTP.NOT_FOUND).json({ message: p_message || "User not found" });
@@ -243,17 +247,10 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
       // CAMPAIGN APPROVAL 
       else if (p_campaignid && !p_userid) {
         const campaignOwnerResult = await client.query(
-          `SELECT 
-            c.name AS campaignname,
-            u.id AS ownerid,
-            u.firstname,
-            u.email
-          FROM ins.campaigns c
-          INNER JOIN ins.users u ON u.id = c.ownerid
-          WHERE c.id = $1`,
+          `select * from ins.fn_get_campaigninfo($1::bigint);`,
           [p_campaignid]
         );
-        const data = campaignOwnerResult.rows[0];
+        const data = campaignOwnerResult.rows[0]?.fn_get_campaigninfo;
         if (!data) {
           return res.status(HTTP.NOT_FOUND).json({ message: p_message || "Campaign or owner not found" });
         }
@@ -460,7 +457,11 @@ export const blockInfluencerAndCampaignApplication = async (req, res) => {
       // -------------------------------
       if (p_userid && !p_campaignid) {
         const userResult = await client.query(
-          `SELECT id, firstname, email FROM ins.users WHERE id = $1`,
+          `SELECT
+            (u->>'id')::bigint AS id,
+            u->>'firstname'     AS firstname,
+            u->>'email'        AS email
+          FROM json_array_elements(ins.fn_get_userinfo($1::bigint)) AS u;`,
           [p_userid]
         );
         const user = userResult.rows[0];
@@ -482,17 +483,10 @@ export const blockInfluencerAndCampaignApplication = async (req, res) => {
       // -------------------------------
       else if (p_campaignid && !p_userid) {
         const campaignOwner = await client.query(
-          `SELECT 
-              u.id AS ownerid,
-              u.firstname,
-              u.email,
-              c.name AS campaignname
-           FROM ins.campaigns c
-           INNER JOIN ins.users u ON u.id = c.ownerid
-           WHERE c.id = $1`,
+          `select * from ins.fn_get_campaigninfo($1::bigint);`,
           [p_campaignid]
         );
-        const data = campaignOwner.rows[0];
+        const data = campaignOwner.rows[0]?.fn_get_campaigninfo;
         if (!data) return res.status(HTTP.NOT_FOUND).json({ message: "Campaign or owner not found" });
         recipientId = data.ownerid;
         await sendingMailFormatForAdmin(
@@ -603,7 +597,11 @@ export const adminRejectInfluencerOrCampaign = async (req, res) => {
       //  1️⃣ Influencer Rejection
       if (p_userid && !p_campaignid) {
         const userResult = await client.query(
-          "SELECT firstname, email FROM ins.users WHERE id = $1",
+          `SELECT
+            (u->>'id')::bigint AS id,
+            u->>'firstname'     AS firstname,
+            u->>'email'        AS email
+          FROM json_array_elements(ins.fn_get_userinfo($1::bigint)) AS u;`,
           [p_userid]
         );
         const user = userResult.rows[0];
@@ -630,16 +628,10 @@ export const adminRejectInfluencerOrCampaign = async (req, res) => {
       // 2️⃣ CAMPAIGN REJECTION CASE
       if (p_campaignid && !p_userid) {
         const campaignOwnerResult = await client.query(
-          `SELECT
-           c.name AS campaignname,
-           u.firstname,
-           u.email
-         FROM ins.campaigns c
-         INNER JOIN ins.users u ON u.id = c.ownerid
-         WHERE c.id = $1`,
+          `select * from ins.fn_get_campaigninfo($1::bigint);`,
           [p_campaignid]
         );
-        const campaignData = campaignOwnerResult.rows[0];
+        const campaignData = campaignOwnerResult.rows[0]?.fn_get_campaigninfo;
         if (!campaignData) {
           return res.status(HTTP.NOT_FOUND).json({
             message: "Campaign or owner not found.",

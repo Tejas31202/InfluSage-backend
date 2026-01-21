@@ -24,38 +24,6 @@ export const getInfluencerAnalyticsSummary = async (req, res) => {
   }
 };
 
-export const getInfluencerEarningSummary = async (req, res) => {
-  const p_userid = req.user?.id;
-
-  if (!p_userid) {
-    return res.status(HTTP.BAD_REQUEST).json({
-      status: false,
-      message: "Influencer Id Required For Earnings Summary",
-    });
-  }
-
-  try {
-    const result = await client.query(
-      `SELECT * FROM ins.getInfluencerEarningSummary($1::BIGINT);`,
-      [p_userid]
-    );
-
-    const InfluencerEarningsSummary = result.rows;
-
-    return res.status(HTTP.OK).json({
-      status: true,
-      message: "Earning Summary Retrieved Successfully",
-      data: InfluencerEarningsSummary,
-    });
-  } catch (error) {
-    console.error("Error In InfluencerEarningSummary:", error);
-    return res.status(HTTP.INTERNAL_ERROR).json({
-      message: "Something went wrong. Please try again later.",
-      error: error.message,
-    });
-  }
-};
-
 export const getInfluencerSocialStats = async (req, res) => {
   const p_userid = req.user?.id;
 
@@ -77,68 +45,6 @@ export const getInfluencerSocialStats = async (req, res) => {
     });
   } catch (error) {
     console.error("Error In InfluencerEarningSummary:", error);
-    return res.status(HTTP.INTERNAL_ERROR).json({
-      message: "Something went wrong. Please try again later.",
-      error: error.message,
-    });
-  }
-};
-
-export const getInfluencerContentTypeStats = async (req, res) => {
-  const p_userid = req.user?.id;
-
-  if (!p_userid) {
-    return res.status(HTTP.BAD_REQUEST).json({
-      status: false,
-      message: "Influencer Id Required For Content Type Stats",
-    });
-  }
-
-  try {
-    const result = await client.query(
-      `SELECT * FROM ins.getInfluencerContentTypeStats($1::BIGINT);`,
-      [p_userid]
-    );
-
-    const contentTypeStats = result.rows;
-
-    return res.status(HTTP.OK).json({
-      status: true,
-      message: "Content Type Stats Retrieved Successfully",
-      data: contentTypeStats,
-    });
-  } catch (error) {
-    console.error("Error in getInfluencerContentTypeStats:", error);
-    return res.status(HTTP.INTERNAL_ERROR).json({
-      message: "Something went wrong. Please try again later.",
-      error: error.message,
-    });
-  }
-};
-
-export const getInfluencerContentInsight = async (req, res) => {
-  const p_userid = req.user?.id;
-
-  if (!p_userid) {
-    return res.status(HTTP.BAD_REQUEST).json({
-      status: false,
-      message: "Influencer Id Required For Content Insight",
-    });
-  }
-
-  try {
-    const result = await client.query(
-      `SELECT * FROM ins.getInfluencerContentInsight($1::BIGINT);`,
-      [p_userid]
-    );
-
-    return res.status(HTTP.OK).json({
-      status: true,
-      message: "Content Insight Retrieved Successfully",
-      data: result.rows,
-    });
-  } catch (error) {
-    console.error("Error in getInfluencerContentInsight:", error);
     return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
@@ -172,58 +78,6 @@ export const getInfluencerImpressionInsight = async (req, res) => {
     });
   }
 };
-
-export const getInfluencerRecentContent = async (req, res) => {
-  const p_userid = req.user?.id;
-  if (!p_userid)
-    return res.status(HTTP.BAD_REQUEST).json({ message: "Influencer Id Required" });
-
-  try {
-    const result = await client.query(
-      `SELECT * FROM ins.getInfluencerRecentContent($1::BIGINT, $2::INT)`,
-      [p_userid, 10]
-    );
-    return res
-      .status(HTTP.OK)
-      .json({
-        status: true,
-        message: "Recent Content fetched",
-        data: result.rows,
-      });
-  } catch (error) {
-    console.error("Error in getInfluencerRecentContent:", error);
-    return res.status(HTTP.INTERNAL_ERROR).json({
-      message: "Something went wrong. Please try again later.",
-      error: error.message,
-    });
-  }
-};
-
-// export const getInfluencerAudienceDemographic = async (req, res) => {
-//   const p_userid = req.user?.id;
-//   if (!p_userid)
-//     return res.status(HTTP.BAD_REQUEST).json({ message: "Influencer Id Required" });
-
-//   try {
-//     const result = await client.query(
-//       `SELECT ins.getInfluencerAudienceDemographic($1::BIGINT) as audience`,
-//       [p_userid]
-//     );
-//     return res
-//       .status(HTTP.OK)
-//       .json({
-//         status: true,
-//         message: "Audience Demographic fetched",
-//         data: result.rows[0].audience,
-//       });
-//   } catch (error) {
-//     console.error("Error in getInfluencerAudienceDemographic:", error);
-//     return res.status(HTTP.INTERNAL_ERROR).json({
-//       message: "Something went wrong. Please try again later.",
-//       error: error.message,
-//     });
-//   }
-// };
 
 export const getInfluencerTopPerformingContent = async (req, res) => {
   try {

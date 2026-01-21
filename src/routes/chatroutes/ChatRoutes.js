@@ -46,6 +46,10 @@ routes.get(
 );
 
 // Get all messages for a conversation
-routes.get("/messages", getMessages);
+routes.get(
+  "/messages",
+  authenticateUser(["Influencer", "Vendor"]),
+  getMessages,
+);
 
 export default routes;
