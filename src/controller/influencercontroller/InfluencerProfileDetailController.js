@@ -254,6 +254,7 @@ export const completeUserProfile = async (req, res) => {
           return res.status(HTTP.OK).json({
             message: "Profile incomplete, saved temporarily in Redis",
             source: "redis",
+            photopath:finalData.profilejson.photopath,
             profileCompletion:
               (completedParts.length / requiredParts.length) * 100,
             userpcode,
