@@ -349,15 +349,8 @@ io.on("connection", (socket) => {
 socket.on("sendMessage", (message) => {
   const conversationId =
     String(message.conversationid || message.conversationId);
-
   const senderId = String(message.userid);
   const receiverId = String(message.receiverId);
-
-  console.log("📤 sendMessage", {
-    conversationId,
-    senderId,
-    receiverId,
-  });
   socket.to(conversationId).emit("receiveMessage", message);
   if (receiverId && receiverId !== senderId) {
     io.to(`user_${receiverId}`).emit("receiveMessage", message);
