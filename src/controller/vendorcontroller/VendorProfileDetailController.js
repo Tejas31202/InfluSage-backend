@@ -296,6 +296,7 @@ export const completeVendorProfile = async (req, res) => {
       await Redis.setEx(redisKey, 86400, finalData); // redisWrapper handles stringify
       return res.status(HTTP.OK).json({
         message: "Partial data saved in Redis (first-time user)",
+        photopath:finalData.profilejson.photopath,
         source: "redis",
       });
     }
