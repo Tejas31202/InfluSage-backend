@@ -187,6 +187,7 @@ const OPTIONAL_STEPS = [3];
 
 const MAX_PROFILEPHOTO_SIZE = 5 * 1024 * 1024; // 5 MB
 
+
 export const completeVendorProfile = async (req, res) => {
   const userId = req.user?.id || req.body.userid;
   const redisKey = `vendorprofile:${userId}`;
@@ -247,35 +248,24 @@ export const completeVendorProfile = async (req, res) => {
       updatedProfileJson.photopath = publicUrlData.publicUrl;
     }
 
+    function safeParse(input) {
+  if (!input) return null;
+  if (typeof input === "string") {
+    try {
+      return JSON.parse(input);
+    } catch (err) {
+      return input; // agar invalid string hai to fallback
+    }
+  }
+  return input; // already object
+}
     // Merge request data
     const mergedData = {
-  ...(profilejson && {
-    profilejson: {
-      ...updatedProfileJson,
-      completedAt: Date.now(),
-    },
-  }),
-  ...(categoriesjson && {
-    categoriesjson: {
-      data: JSON.parse(categoriesjson),
-      completedAt: Date.now(),
-    },
-  }),
-  ...(providersjson && {
-    providersjson: JSON.parse(providersjson), // can include skipped:true
-  }),
-  ...(objectivesjson && {
-    objectivesjson: {
-      data: JSON.parse(objectivesjson),
-      completedAt: Date.now(),
-    },
-  }),
-  ...(paymentjson && {
-    paymentjson: {
-      data: JSON.parse(paymentjson),
-      completedAt: Date.now(),
-    },
-  }),
+  ...(req.body.profilejson && { profilejson: updatedProfileJson }),
+  ...(categoriesjson && { categoriesjson: safeParse(categoriesjson) }),
+  ...(providersjson && { providersjson: safeParse(providersjson) }),
+  ...(objectivesjson && { objectivesjson: safeParse(objectivesjson) }),
+  ...(paymentjson && { paymentjson: safeParse(paymentjson) }),
 };
 
     // Check DB for existing profile
@@ -352,24 +342,33 @@ try {
 
 
 
+    // Helper for safe JSON
+    const safeJson = (obj) => (obj ? JSON.stringify(obj) : null);
+
     // CASE C: All parts present → insert into DB
     await client.query("BEGIN");
     await client.query("SELECT set_config('app.current_user_id', $1, true)", [String(userId)]);
+
+    const dbProviders = finalData.providersjson?.data || finalData.providersjson || null;
+
+const dbParams = [
+  userId,
+  safeJson(finalData.profilejson),
+  safeJson(finalData.categoriesjson),
+  safeJson(dbProviders), // flattened for DB
+  safeJson(finalData.objectivesjson),
+  safeJson(finalData.paymentjson),
+  null,
+  null,
+];
+
     const result = await client.query(
       `CALL ins.usp_upsert_vendorprofile(
-        $1::BIGINT, $2::JSON, $3::JSON, $4::JSON, $5::JSON, $6::JSON, $7::SMALLINT, $8::TEXT
-      )`,
-      [
-        userId,
-        JSON.stringify(finalData.profilejson),
-        JSON.stringify(finalData.categoriesjson),
-        JSON.stringify(finalData.providersjson || null),
-        JSON.stringify(finalData.objectivesjson),
-        JSON.stringify(finalData.paymentjson),
-        null,
-        null,
-      ]
+    $1::BIGINT, $2::JSON, $3::JSON, $4::JSON, $5::JSON, $6::JSON, $7::SMALLINT, $8::TEXT
+  )`,
+      dbParams
     );
+
     await client.query("COMMIT");
 
     const { p_status, p_message } = result.rows[0] || {};
