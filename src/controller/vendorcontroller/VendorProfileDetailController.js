@@ -177,8 +177,16 @@ export const getVendorProfile = async (req, res) => {
   }
 };
 
+const STEP_MAP = {1: "profilejson",
+  2: "categoriesjson",
+  3: "providersjson", // optional
+  4: "objectivesjson",
+  5: "paymentjson"}; 
+const REQUIRED_STEPS = [1, 2, 4, 5];
+const OPTIONAL_STEPS = [3];
 
 const MAX_PROFILEPHOTO_SIZE = 5 * 1024 * 1024; // 5 MB
+
 export const completeVendorProfile = async (req, res) => {
   const userId = req.user?.id || req.body.userid;
   const redisKey = `vendorprofile:${userId}`;
@@ -241,12 +249,35 @@ export const completeVendorProfile = async (req, res) => {
 
     // Merge request data
     const mergedData = {
-      ...(req.body.profilejson && { profilejson: updatedProfileJson }),
-      ...(categoriesjson && { categoriesjson: JSON.parse(categoriesjson) }),
-      ...(providersjson && { providersjson: JSON.parse(providersjson) }),
-      ...(objectivesjson && { objectivesjson: JSON.parse(objectivesjson) }),
-      ...(paymentjson && { paymentjson: JSON.parse(paymentjson) }),
-    };
+  ...(profilejson && {
+    profilejson: {
+      ...updatedProfileJson,
+      completedAt: Date.now(),
+    },
+  }),
+  ...(categoriesjson && {
+    categoriesjson: {
+      data: JSON.parse(categoriesjson),
+      completedAt: Date.now(),
+    },
+  }),
+  ...(providersjson && {
+    providersjson: JSON.parse(providersjson), // can include skipped:true
+  }),
+  ...(objectivesjson && {
+    objectivesjson: {
+      data: JSON.parse(objectivesjson),
+      completedAt: Date.now(),
+    },
+  }),
+  ...(paymentjson && {
+    paymentjson: {
+      data: JSON.parse(paymentjson),
+      completedAt: Date.now(),
+    },
+  }),
+};
+
     // Check DB for existing profile
     const dbCheck = await client.query(
       `SELECT * FROM ins.fn_get_vendorprofile($1::BIGINT)`,
@@ -283,22 +314,42 @@ export const completeVendorProfile = async (req, res) => {
 
     // CASE B: New or incomplete user → handle Redis
     const existingRedis = await Redis.get(redisKey); // already parsed object
-    const finalData = { ...(existingRedis || {}), ...mergedData };
+const finalData = { ...(existingRedis || {}), ...mergedData };
 
-    const allPartsPresent =
-      finalData.profilejson &&
-      finalData.categoriesjson &&
-      finalData.providersjson &&
-      finalData.objectivesjson &&
-      finalData.paymentjson;
-
-    if (!allPartsPresent) {
-      await Redis.setEx(redisKey, 86400, finalData); // redisWrapper handles stringify
-      return res.status(HTTP.OK).json({
-        message: "Partial data saved in Redis (first-time user)",
-        source: "redis",
-      });
+function validateSteps(redisData) {
+  // REQUIRED
+  for (const step of REQUIRED_STEPS) {
+    const key = STEP_MAP[step];  // <-- fixed typo here
+    if (!redisData[key]) {
+      throw new Error(`Required step ${step} (${key}) missing`);
     }
+  }
+
+  // OPTIONAL
+  for (const step of OPTIONAL_STEPS) {
+    const key = STEP_MAP[step];  // <-- fixed typo here
+    if (
+      redisData[key] &&
+      redisData[key].skipped === true
+    ) {
+      continue; // allowed
+    }
+  }
+
+  return true;
+}
+
+try {
+  validateSteps(finalData);
+} catch (err) {
+  await Redis.setEx(redisKey, 86400, finalData);
+  return res.status(HTTP.OK).json({
+    message: err.message,
+    source: "redis",
+  });
+}
+
+
 
     // CASE C: All parts present → insert into DB
     await client.query("BEGIN");
@@ -311,7 +362,7 @@ export const completeVendorProfile = async (req, res) => {
         userId,
         JSON.stringify(finalData.profilejson),
         JSON.stringify(finalData.categoriesjson),
-        JSON.stringify(finalData.providersjson),
+        JSON.stringify(finalData.providersjson || null),
         JSON.stringify(finalData.objectivesjson),
         JSON.stringify(finalData.paymentjson),
         null,
