@@ -344,7 +344,8 @@ try {
 } catch (err) {
   await Redis.setEx(redisKey, 86400, finalData);
   return res.status(HTTP.OK).json({
-    message: err.message,
+    message: "Partial data saved in Redis (first-time user)",
+    photopath:finalData.profilejson.photopath,
     source: "redis",
   });
 }
