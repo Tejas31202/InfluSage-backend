@@ -8,5 +8,4 @@ vendor/
 
 docker-compose.yml
 Dockerfile
-src/utils/RedisWrapper.js
 .dockerignore
