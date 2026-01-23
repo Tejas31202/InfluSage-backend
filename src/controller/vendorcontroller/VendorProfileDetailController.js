@@ -129,7 +129,7 @@ export const getVendorProfile = async (req, res) => {
         p_providers: cachedData.providersjson || {},
         p_objectives: cachedData.objectivesjson || {},
         p_paymentaccounts: cachedData.paymentjson || {},
-        providersSkipped: cachedData.providersSkipped || false, // <-- added
+        providersSkipped: cachedData.providersSkipped === true ? true : false,
       };
       const profileCompletion = calculateProfileCompletion([
         profileParts.p_profile,
@@ -160,6 +160,9 @@ export const getVendorProfile = async (req, res) => {
       p_objectives,
       p_paymentaccounts,
     } = result.rows[0];
+
+    const providersSkipped = (p_providers === null && p_categories !== null) ? true : false;
+
     return res.status(HTTP.OK).json({
       message: "get vendor profile from db",
       profileParts: {
@@ -168,6 +171,7 @@ export const getVendorProfile = async (req, res) => {
         p_providers,
         p_objectives,
         p_paymentaccounts,
+        providersSkipped
       },
       source: "db",
     });

@@ -482,16 +482,18 @@ export const deletePortfolioFile = async (req, res) => {
 
     // 1 Redis se data fetch
     let profileData = await Redis.get(redisKey);
-    if (profileData) {
-      // profileData = JSON.parse(profileData);
 
-      if (profileData.portfoliojson) {
-        profileData.portfoliojson = profileData.portfoliojson.filter(
-          (file) => file.filepath !== filePathToDelete
-        );
-        //Redis store data for 3h->10800sec
-        await Redis.setEx(redisKey, 10800, profileData);
+    if (profileData) {
+      //  portfoliojson always object with filepaths array
+      if (!Array.isArray(profileData.portfoliojson)) {
+        profileData.portfoliojson = [];
       }
+
+      profileData.portfoliojson = profileData.portfoliojson.filter(
+        (file) => file.filepath !== filePathToDelete
+      );
+
+      await Redis.setEx(redisKey, 10800, profileData);
     }
 
     //  2 Local file delete
