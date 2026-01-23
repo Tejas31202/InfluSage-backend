@@ -370,9 +370,7 @@ export const addVendorFeedback =async(req,res)=>{
     if (p_status === SP_STATUS.SUCCESS) {
       try {
         const p_role = "SENDER";
-        // console.log("Notification role:", p_role);
-        // console.log("Notification sender userId:", p_userid );
-
+       
         const notification = await client.query(
           `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean, $3::text)`,
           [p_userid , null, p_role]

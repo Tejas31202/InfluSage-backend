@@ -134,12 +134,12 @@ export const getVendorProfile = async (req, res) => {
         providersSkipped: cachedData.providersSkipped || false, // <-- added
       };
       const profileCompletion = calculateProfileCompletion([
-  profileParts.p_profile,
-  profileParts.p_categories,
-  profileParts.p_providers,
-  profileParts.p_objectives,
-  profileParts.p_paymentaccounts,
-]);
+        profileParts.p_profile,
+        profileParts.p_categories,
+        profileParts.p_providers,
+        profileParts.p_objectives,
+        profileParts.p_paymentaccounts,
+      ]);
       return res.status(HTTP.OK).json({
         message: "Partial profile from Redis",
         profileParts,
