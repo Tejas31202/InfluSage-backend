@@ -24,7 +24,7 @@ routes.post(
 );
 
 routes.get(
-  "/campaign/:campaignId",
+  "/campaign",
   authenticateUser(["Vendor", "Admin"]),
   getCampaign
 );

@@ -1,5 +1,6 @@
 import { client } from '../../config/Db.js';
 import { io } from '../../../app.js';
+import { HTTP, SP_STATUS } from '../../utils/Constants.js';
 
 export const getSelectInfluencerListForFeedback = async (req, res) => {
   try {
@@ -7,7 +8,7 @@ export const getSelectInfluencerListForFeedback = async (req, res) => {
     const { campaign_id } = req.query;
 
     if (!campaign_id) {
-      return res.status(400).json({
+      return res.status(HTTP.BAD_REQUEST).json({
         message: "campaign_id is required.",
       });
     }
@@ -19,14 +20,14 @@ export const getSelectInfluencerListForFeedback = async (req, res) => {
 
     const data = result.rows[0].fn_get_feedbackinfluencers || [];
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "Selected influencers for feedback retrieved successfully.",
       data: data,
       source: "db",
     });
   } catch (error) {
     console.error("error in getSelectInfluencerListForFeedback", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -37,13 +38,13 @@ export const vendorInsertFeedback = async (req, res) => {
   const { p_contractid, p_rating, p_text } = req.body;
   const userId = req.user?.id || req.body.userId;
   if (!userId) {
-    return res.status(401).json({
+    return res.status(HTTP.UNAUTHORIZED).json({
       status: false,
       message: "Unauthorized: user not found",
     });
   }
   if (!p_contractid) {
-    return res.status(400).json({ status: false, message: "Contract Id Required For Feedback" });
+    return res.status(HTTP.BAD_REQUEST).json({ status: false, message: "Contract Id Required For Feedback" });
   }
   try {
     await client.query("BEGIN");
@@ -74,11 +75,9 @@ export const vendorInsertFeedback = async (req, res) => {
     const p_status = Number(feedbackRow.p_status);
     const p_message = feedbackRow.p_message;
 
-    if (p_status === 1) {
+    if (p_status === SP_STATUS.SUCCESS) {
       try {
         const p_role = "SENDER"; // role sending the notification
-        console.log("Notification role:", p_role);
-        console.log("Notification sender userId:", userId);
 
         const notification = await client.query(
           `SELECT * FROM ins.fn_get_notificationlist($1::bigint, $2::boolean, $3::text)`,
@@ -89,41 +88,41 @@ export const vendorInsertFeedback = async (req, res) => {
 
         notifyData.forEach(latest => {
           const toUserId = latest.receiverid;
-          console.log("Notification receiver toUserId:", toUserId); // log receiver
+          // console.log("Notification receiver toUserId:", toUserId); // log receiver
           if (toUserId) {
             io.to(`notification_${toUserId}`).emit("receiveNotification", latest);
-            console.log(`Feedback notification sent to user_${toUserId}`);
+            // console.log(`Feedback notification sent to user_${toUserId}`);
           }
         });
       } catch (error) {
         console.error("Notification error:", error);
       }
-      return res.status(200).json({
+      return res.status(HTTP.OK).json({
         status: true,
         message: p_message,
         source: "db"
       });
-    } else if (p_status === 0) {
-      return res.status(400).json({
+    } else if (p_status === SP_STATUS.VALIDATION_FAIL) {
+      return res.status(HTTP.BAD_REQUEST).json({
         status: false,
         message: p_message,
         source: "db",
       });
-    } else if (p_status === -1) {
+    } else if (p_status === SP_STATUS.ERROR) {
       console.error("Stored Procedure Failure:", p_message);
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: p_status,
         message: "Something went wrong. Please try again later.",
       });
     } else {
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: "Unexpected database response",
       });
     }
   } catch (error) {
     console.error("Error in vendorInsertFeedback:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -135,7 +134,7 @@ export const getInfluencerFeedbackList = async (req, res) => {
     const p_userid = req.user?.id || req.query.p_userid;
 
     if (!p_userid) {
-      return res.status(400).json({
+      return res.status(HTTP.BAD_REQUEST).json({
         message: "p_userid is required.",
       });
     }
@@ -143,7 +142,7 @@ export const getInfluencerFeedbackList = async (req, res) => {
     const { p_influencerid , p_limit ,p_offset } = req.query || {};
 
     if (!p_influencerid) {
-      return res.status(400).json({
+      return res.status(HTTP.BAD_REQUEST).json({
         message: "p_influencerid is required.",
       });
     }
@@ -165,14 +164,14 @@ export const getInfluencerFeedbackList = async (req, res) => {
 
     const data = result.rows[0]?.fn_get_influencerfeedbacklist;
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "Influencer feedback data retrieved successfully.",
       data: data,
       source: "db",
     });
   } catch (error) {
     console.error("error in getInfluencerFeedbackList:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });

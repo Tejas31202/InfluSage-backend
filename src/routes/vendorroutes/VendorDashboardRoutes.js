@@ -6,7 +6,8 @@ import {
     getVendorPerformanceSummary,
     getVendorPendingContentList,
     getVendorCampaignStatusOverview,
-    getVendorDashboardFeedbackList
+    getVendorDashboardFeedbackList,
+    getCampaignStatusTrend
 } from '../../controller/vendorcontroller/VendorDashboardController.js';
 
 const routes = express.Router();
@@ -39,5 +40,11 @@ routes.get(
   "/dashboard/feedback",
   authenticateUser(["Vendor"]),
   getVendorDashboardFeedbackList
+)
+
+routes.get(
+  "/dashboard/CampaignStatusTrend",
+  authenticateUser(["Vendor"]),
+  getCampaignStatusTrend
 )
 export default routes;

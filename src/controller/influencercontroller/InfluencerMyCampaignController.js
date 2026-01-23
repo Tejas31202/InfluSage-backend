@@ -1,11 +1,12 @@
 import { client } from "../../config/Db.js";
+import { HTTP, SP_STATUS } from "../../utils/Constants.js";
 
 export const getClientsList = async (req, res) => {
   const p_userid = req.user?.id || req.body.p_userid;
 
   try {
     if (!p_userid) {
-      return res.status(400).json({ message: "User Id Require" });
+      return res.status(HTTP.BAD_REQUEST).json({ message: "User Id Require" });
     }
 
     const result = await client.query(
@@ -14,19 +15,19 @@ export const getClientsList = async (req, res) => {
     );
 
     if (!result || result.rows.length === 0) {
-      return res.status(404).json({ message: "No Client Found" });
+      return res.status(HTTP.NOT_FOUND).json({ message: "No Client Found" });
     }
 
     const clientList = result.rows[0].fn_get_clients;
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "clientList Fetched Successfully",
       data: clientList,
       source: "db",
     });
   } catch (error) {
     console.error("Error While Fetching clientList", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -37,7 +38,7 @@ export const getInfluencerMyContract = async (req, res) => {
   const p_userid = req.user?.id || req.body.p_userid;
   try {
     if (!p_userid) {
-      return res.status(400).json({ message: "User Id Require" });
+      return res.status(HTTP.BAD_REQUEST).json({ message: "User Id Require" });
     }
     const {
       p_statuslabelid,
@@ -85,14 +86,14 @@ export const getInfluencerMyContract = async (req, res) => {
       ]
     );
     const influencerContract = result.rows[0].fn_get_influencermycontract || {};
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "Influencer campaigns fetched successfully",
       data: influencerContract,
       source: "db",
     });
   } catch (error) {
     console.error("Error Getting Influencer My Campaign", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -106,7 +107,7 @@ export const getInfluencerMyCampaignDetails = async (req, res) => {
   try {
     if (!p_campaignid) {
       return res
-        .status(400)
+        .status(HTTP.BAD_REQUEST)
         .json({ message: "p_campaignid are Require" });
     }
 
@@ -119,20 +120,20 @@ export const getInfluencerMyCampaignDetails = async (req, res) => {
     );
 
     if (!result || result.rows.length === 0) {
-      return res.status(404).json({ message: "Campaign Not Found" });
+      return res.status(HTTP.NOT_FOUND).json({ message: "Campaign Not Found" });
     }
 
     const influencerCampaign =
       result.rows[0].fn_get_influencermycampaigndetails[0];
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "Campaign Fetched Successfully",
       data: influencerCampaign,
       source: "db",
     });
   } catch (error) {
     console.error("Error in getInfluencerMyCampaignDetails:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -146,7 +147,7 @@ export const getInfluencerMyCampaignStatus = async (req, res) => {
     )
     const result = status.rows;
 
-    return res.status(200).json(
+    return res.status(HTTP.OK).json(
       {
         Message: "Influencer MyCampaign status Fetched Successfully",
         data: result,
@@ -155,7 +156,7 @@ export const getInfluencerMyCampaignStatus = async (req, res) => {
     )
   } catch (error) {
     console.error("Error in getInfluencerMyCampaignStatus:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -169,14 +170,14 @@ export const getInfluencerMyContractStatus = async (req, res) => {
     )
     const result = status.rows;
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
         Message: "Influencer My Contract status Fetched Successfully.",
         data: result,
         source: "db"
       })
   } catch (error) {
     console.error("Error in getInfluencerMyContractStatus:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });

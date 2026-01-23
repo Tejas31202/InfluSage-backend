@@ -8,6 +8,7 @@ import {
   campaignRejectEmailHTML,
   userCampaignBlockEmailHTML
 } from "../../utils/EmailTemplates.js";
+import { SP_STATUS, HTTP } from '../../utils/Constants.js';
 import { io } from '../../../app.js'
 
 
@@ -17,14 +18,14 @@ export const getUserStatusList = async (req, res) => {
       "SELECT * FROM ins.fn_get_userapprovalstatus();"
     );
     const statusList = result.rows;
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "Fetched user approval status successfully.",
       data: statusList,
       source: "db",
     });
   } catch (error) {
     console.error("Error in getUserStatusList:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -37,14 +38,14 @@ export const getCampaignStatusList = async (req, res) => {
       "SELECT * FROM ins.fn_get_campaignapprovalstatus();"
     );
     const statusList = result.rows;
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "Fetched campaign approval status successfully.",
       data: statusList,
       source: "db",
     });
   } catch (error) {
     console.error("Error in getCampaignStatusList:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -57,14 +58,14 @@ export const getDashboardCountList = async (req, res) => {
       "select * from ins.fn_get_admindashboard();"
     );
     const data = result.rows[0].fn_get_admindashboard[0];
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "fatching Admin Dashboard Details",
       data: data,
       source: "db",
     });
   } catch (error) {
     console.error("Error fetching getDashboardCountList:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -106,14 +107,14 @@ export const getRequestedUserList = async (req, res) => {
       ]
     );
     const data = result.rows[0].fn_get_usermanagement;
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "fatching getRequestedUserList",
       data: data,
       source: "db",
     });
   } catch (error) {
     console.error("Error fetching getRequestedUserList:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -164,14 +165,14 @@ export const getRequestedCampaignList = async (req, res) => {
       ]
     );
     const data = result.rows[0].fn_get_campaignmanagement;
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "fatching getRequestedCampaignList",
       data: data,
       source: "db",
     });
   } catch (error) {
     console.error("Error fetching getRequestedCampaignList:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -183,7 +184,7 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
   const { p_userid, p_campaignid } = req.body;
 
   if (!p_adminid && !p_userid) {
-    return res.status(400).json({
+    return res.status(HTTP.BAD_REQUEST).json({
       message: "Required field missing: p_adminid or p_userid must be specified.",
     });
   }
@@ -209,7 +210,7 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
     const p_status = Number(row.p_status);
     const p_message = row.p_message;
     // ----------------- HANDLE p_status -----------------
-    if (p_status === 1) {
+    if (p_status === SP_STATUS.SUCCESS) {
       // Proceed with emails + notifications as before
       let recipientId = null;
       let email = null;
@@ -220,11 +221,15 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
       // ------------------
       if (p_userid && !p_campaignid) {
         const userResult = await client.query(
-          `SELECT id, firstname, email FROM ins.users WHERE id = $1`,
-          [p_userid]
+          `SELECT
+            (u->>'id')::bigint AS id,
+            u->>'firstname'     AS firstname,
+            u->>'email'        AS email
+          FROM json_array_elements(ins.fn_get_userinfo($1::bigint)) AS u;`,
+          [p_userid],
         );
         const user = userResult.rows[0];
-        if (!user) return res.status(404).json({ message: p_message || "User not found" });
+        if (!user) return res.status(HTTP.NOT_FOUND).json({ message: p_message || "User not found" });
         recipientId = user.id;
         email = user.email;
         firstName = user.firstname;
@@ -233,7 +238,7 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
           `Your Profile Approved`,
           userProfileEmailHTML({ userName: firstName })
         );
-        res.status(200).json({
+        res.status(HTTP.OK).json({
           p_status,
           message: p_message,
           source: "db",
@@ -242,19 +247,12 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
       // CAMPAIGN APPROVAL 
       else if (p_campaignid && !p_userid) {
         const campaignOwnerResult = await client.query(
-          `SELECT 
-            c.name AS campaignname,
-            u.id AS ownerid,
-            u.firstname,
-            u.email
-          FROM ins.campaigns c
-          INNER JOIN ins.users u ON u.id = c.ownerid
-          WHERE c.id = $1`,
+          `select * from ins.fn_get_campaigninfo($1::bigint);`,
           [p_campaignid]
         );
-        const data = campaignOwnerResult.rows[0];
+        const data = campaignOwnerResult.rows[0]?.fn_get_campaigninfo;
         if (!data) {
-          return res.status(404).json({ message: p_message || "Campaign or owner not found" });
+          return res.status(HTTP.NOT_FOUND).json({ message: p_message || "Campaign or owner not found" });
         }
         recipientId = data.ownerid;
         email = data.email;
@@ -269,7 +267,7 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
             status: "Approved",
           })
         );
-        res.status(200).json({
+        res.status(HTTP.OK).json({
           p_status,
           message: p_message,
           source: "db",
@@ -295,36 +293,36 @@ export const insertApprovedOrRejectedApplication = async (req, res) => {
         if (!toUserId) return;
         io.to(`user_${toUserId}`).emit("receiveNotification", latest);
       }
-      // return res.status(200).json({
+      // return res.status(HTTP.OK).json({
       //   message: p_message,
       //   status: p_status
       // });
     }
     // Case 2: p_status = 0 → DB validation fail
-    else if (p_status === 0) {
-      return res.status(400).json({
+    else if (p_status === SP_STATUS.VALIDATION_FAIL) {
+      return res.status(HTTP.BAD_REQUEST).json({
         status: p_status,
         message: p_message || "Validation failed"
       });
     }
     // Case 3: p_status = -1 → SP failed
-    else if (p_status === -1) {
+    else if (p_status === SP_STATUS.ERROR) {
       console.error("Stored Procedure Failure:", p_message);
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: p_status,
         message: "Something went wrong. Please try again later."
       });
     }
     // Fallback: unexpected value
     else {
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: "Unexpected database response",
       });
     }
   } catch (error) {
     console.error("Error in insertApprovedOrRejectedApplication:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -336,7 +334,7 @@ export const getUserDetails = async (req, res) => {
   try {
     const p_userid = req.query.p_userid || req.body.p_userid;
     if (!p_userid) {
-      return res.status(400).json({
+      return res.status(HTTP.BAD_REQUEST).json({
         message: "User ID is required to fetch user details.",
       });
     }
@@ -346,18 +344,18 @@ export const getUserDetails = async (req, res) => {
     );
     const allDetails = result.rows[0].fn_get_userdetails[0];
     if (allDetails === 0 || !allDetails) {
-      return res.status(404).json({
+      return res.status(HTTP.NOT_FOUND).json({
         message: "No user details found for the given ID.",
       });
     }
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "User details fetched successfully.",
       userDetails: allDetails,
       source: "db",
     });
   } catch (error) {
     console.error("Error in getUserDetails:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -368,7 +366,7 @@ export const getCampaignDetails = async (req, res) => {
   try {
     const p_campaignid = req.query.p_campaignid || req.body.p_campaignid;
     if (!p_campaignid) {
-      return res.status(400).json({
+      return res.status(HTTP.BAD_REQUEST).json({
         message: "p_campaignid is required to fetch camapign details.",
       });
     }
@@ -377,13 +375,13 @@ export const getCampaignDetails = async (req, res) => {
       [p_campaignid]
     );
     const campaign = result.rows[0].fn_get_campaignmanagementdetails[0];
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "campaign details fetched successfully.",
       campaignDetails: campaign,
       source: "db",
     });
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return res.status(HTTP.INTERNAL_ERROR).json({ error: error.message });
   }
 };
 
@@ -391,13 +389,13 @@ export const campaignBlockReason = async (req, res) => {
   try {
     const result = await client.query("SELECT * FROM ins.fn_get_campaignblockreason();");
     const BlockReason = result.rows;
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "Campaign Block Reasons fetched successfully",
       data: BlockReason
     });
   } catch (error) {
     console.error("Error fetching Campaign Block Reason:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -407,13 +405,13 @@ export const campaignBlockReason = async (req, res) => {
 export const userBlockReason = async (req, res) => {
   try {
     const result = await client.query("SELECT * FROM ins.fn_get_userblockreason();");
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "User Block Reasons fetched successfully",
       data: result.rows,
     });
   } catch (error) {
     console.error("Error fetching User Block Reason:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -424,7 +422,7 @@ export const blockInfluencerAndCampaignApplication = async (req, res) => {
   const p_adminid = req.user?.id || req.body.p_adminid;
   const { p_userid, p_campaignid, p_objective } = req.body;
   if (!p_userid && !p_campaignid) {
-    return res.status(400).json({
+    return res.status(HTTP.BAD_REQUEST).json({
       message: "Required field missing: p_userid or p_campaignid must be specified.",
     });
   }
@@ -452,25 +450,29 @@ export const blockInfluencerAndCampaignApplication = async (req, res) => {
     // -------------------------------
     //       STATUS HANDLING
     // -------------------------------
-    if (p_status === 1) {
+    if (p_status === SP_STATUS.SUCCESS) {
       let recipientId = null;
       // -------------------------------
       // USER BLOCK → EMAIL + SOCKET
       // -------------------------------
       if (p_userid && !p_campaignid) {
         const userResult = await client.query(
-          `SELECT id, firstname, email FROM ins.users WHERE id = $1`,
+          `SELECT
+            (u->>'id')::bigint AS id,
+            u->>'firstname'     AS firstname,
+            u->>'email'        AS email
+          FROM json_array_elements(ins.fn_get_userinfo($1::bigint)) AS u;`,
           [p_userid]
         );
         const user = userResult.rows[0];
-        if (!user) return res.status(404).json({ message: "User not found" });
+        if (!user) return res.status(HTTP.NOT_FOUND).json({ message: "User not found" });
         recipientId = user.id;
         await sendingMailFormatForAdmin(
           user.email,
           `Your Profile blocked by influsage admin team`,
           userProfileBlockEmailHTML({ userName: user.firstname })
         );
-        res.status(200).json({
+        res.status(HTTP.OK).json({
           p_status,
           message: p_message,
           source: "db",
@@ -481,18 +483,11 @@ export const blockInfluencerAndCampaignApplication = async (req, res) => {
       // -------------------------------
       else if (p_campaignid && !p_userid) {
         const campaignOwner = await client.query(
-          `SELECT 
-              u.id AS ownerid,
-              u.firstname,
-              u.email,
-              c.name AS campaignname
-           FROM ins.campaigns c
-           INNER JOIN ins.users u ON u.id = c.ownerid
-           WHERE c.id = $1`,
+          `select * from ins.fn_get_campaigninfo($1::bigint);`,
           [p_campaignid]
         );
-        const data = campaignOwner.rows[0];
-        if (!data) return res.status(404).json({ message: "Campaign or owner not found" });
+        const data = campaignOwner.rows[0]?.fn_get_campaigninfo;
+        if (!data) return res.status(HTTP.NOT_FOUND).json({ message: "Campaign or owner not found" });
         recipientId = data.ownerid;
         await sendingMailFormatForAdmin(
           data.email,
@@ -502,7 +497,7 @@ export const blockInfluencerAndCampaignApplication = async (req, res) => {
             campaignName: data.campaignname
           })
         );
-        res.status(200).json({
+        res.status(HTTP.OK).json({
           p_status,
           message: p_message,
           source: "db",
@@ -510,7 +505,7 @@ export const blockInfluencerAndCampaignApplication = async (req, res) => {
       }
       // Safety fallback
       else {
-        return res.status(400).json({
+        return res.status(HTTP.BAD_REQUEST).json({
           message: "Invalid request: provide either userId or campaignId",
         });
       }
@@ -536,13 +531,13 @@ export const blockInfluencerAndCampaignApplication = async (req, res) => {
       }
     }
     // VALIDATION FAIL → p_status = 0
-    else if (p_status === 0) {
-      return res.status(400).json({ message: p_message || "Validation failed", status: false, p_status });
+    else if (p_status === SP_STATUS.VALIDATION_FAIL) {
+      return res.status(HTTP.BAD_REQUEST).json({ message: p_message || "Validation failed", status: false, p_status });
     }
     // SP FAILED → p_status = -1
-    else if (p_status === -1) {
+    else if (p_status === SP_STATUS.ERROR) {
       console.error("Stored Procedure Failure:", p_message);
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         message: "Something went wrong. Please try again later.",
         status: false,
         p_status
@@ -550,7 +545,7 @@ export const blockInfluencerAndCampaignApplication = async (req, res) => {
     }
     // Unexpected fallback
     else {
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         message: "Unexpected database response",
         status: false,
         p_status
@@ -558,7 +553,7 @@ export const blockInfluencerAndCampaignApplication = async (req, res) => {
     }
   } catch (error) {
     console.error("Error in blockInfluencerApplication:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -569,16 +564,16 @@ export const adminRejectInfluencerOrCampaign = async (req, res) => {
   try {
     const p_adminid = req.user?.id || req.body.p_adminid;
     if (!p_adminid) {
-      return res.status(400).json({ message: "p_adminid is required." });
+      return res.status(HTTP.BAD_REQUEST).json({ message: "p_adminid is required." });
     }
     const { p_userid, p_campaignid, p_text } = req.body;
     if (!p_userid && !p_campaignid) {
       return res
-        .status(400)
+        .status(HTTP.BAD_REQUEST)
         .json({ message: "Please provide either p_userid or p_campaignid." });
     }
     if (!p_text) {
-      return res.status(400).json({ message: " p_text is required." });
+      return res.status(HTTP.BAD_REQUEST).json({ message: " p_text is required." });
     }
     await client.query("BEGIN");
     await client.query("SELECT set_config('app.current_user_id', $1, true)", [
@@ -598,16 +593,20 @@ export const adminRejectInfluencerOrCampaign = async (req, res) => {
     );
     await client.query("COMMIT");
     const { p_status, p_message } = result.rows[0];
-    if (p_status === 1) {
+    if (p_status === SP_STATUS.SUCCESS) {
       //  1️⃣ Influencer Rejection
       if (p_userid && !p_campaignid) {
         const userResult = await client.query(
-          "SELECT firstname, email FROM ins.users WHERE id = $1",
+          `SELECT
+            (u->>'id')::bigint AS id,
+            u->>'firstname'     AS firstname,
+            u->>'email'        AS email
+          FROM json_array_elements(ins.fn_get_userinfo($1::bigint)) AS u;`,
           [p_userid]
         );
         const user = userResult.rows[0];
         if (!user) {
-          return res.status(404).json({
+          return res.status(HTTP.NOT_FOUND).json({
             message: "User not found.",
           });
         }
@@ -620,7 +619,7 @@ export const adminRejectInfluencerOrCampaign = async (req, res) => {
             reason: p_text,
           })
         );
-        return res.status(200).json({
+        return res.status(HTTP.OK).json({
           message: p_message,
           p_status,
           source: "db",
@@ -629,18 +628,12 @@ export const adminRejectInfluencerOrCampaign = async (req, res) => {
       // 2️⃣ CAMPAIGN REJECTION CASE
       if (p_campaignid && !p_userid) {
         const campaignOwnerResult = await client.query(
-          `SELECT
-           c.name AS campaignname,
-           u.firstname,
-           u.email
-         FROM ins.campaigns c
-         INNER JOIN ins.users u ON u.id = c.ownerid
-         WHERE c.id = $1`,
+          `select * from ins.fn_get_campaigninfo($1::bigint);`,
           [p_campaignid]
         );
-        const campaignData = campaignOwnerResult.rows[0];
+        const campaignData = campaignOwnerResult.rows[0]?.fn_get_campaigninfo;
         if (!campaignData) {
-          return res.status(404).json({
+          return res.status(HTTP.NOT_FOUND).json({
             message: "Campaign or owner not found.",
           });
         }
@@ -654,16 +647,16 @@ export const adminRejectInfluencerOrCampaign = async (req, res) => {
             reason: p_text,
           })
         );
-        return res.status(200).json({
+        return res.status(HTTP.OK).json({
           message: p_message,
           p_status,
           source: "db",
         });
       }
     } // VALIDATION FAIL → p_status = 0
-    else if (p_status === 0) {
+    else if (p_status === SP_STATUS.VALIDATION_FAIL) {
       return res
-        .status(400)
+        .status(HTTP.BAD_REQUEST)
         .json({
           message: p_message || "Validation failed",
           status: false,
@@ -671,9 +664,9 @@ export const adminRejectInfluencerOrCampaign = async (req, res) => {
         });
     }
     // SP FAILED → p_status = -1
-    else if (p_status === -1) {
+    else if (p_status === SP_STATUS.ERROR) {
       console.error("Stored Procedure Failure:", p_message);
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         message: "Something went wrong. Please try again later.",
         status: false,
         p_status,
@@ -681,7 +674,7 @@ export const adminRejectInfluencerOrCampaign = async (req, res) => {
     }
     // Unexpected fallback
     else {
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         message: "Unexpected database response",
         status: false,
         p_status,
@@ -689,7 +682,7 @@ export const adminRejectInfluencerOrCampaign = async (req, res) => {
     }
   } catch (error) {
     console.error("Error in adminRejectInfluencerOrCampaign:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -698,7 +691,7 @@ export const adminRejectInfluencerOrCampaign = async (req, res) => {
 
 export const getMessageManagement = async (req, res) => {
   const p_userid = req.user?.id;
-  if (!p_userid) return res.status(400).json({ Message: "User ID required For Message Management" });
+  if (!p_userid) return res.status(HTTP.BAD_REQUEST).json({ Message: "User ID required For Message Management" });
   try {
     const p_pagenumber = Number(req.query.p_pagenumber) || 1;
     const p_pagesize = Number(req.query.p_pagesize) || 20;
@@ -713,16 +706,111 @@ export const getMessageManagement = async (req, res) => {
       ]
     );
     const responseData = messageManagementRes.rows[0].fn_get_messagemanagement;
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       Message: "Message management fetched successfully",
       data: responseData,
       source: 'db'
     })
   } catch (error) {
     console.error("Error fetching Message Management:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
+  }
+}
+
+export const getShippingCampaignList = async (req, res) => {
+  try {
+    const p_pagenumber = Number.parseInt(req.query.p_pagenumber) || 1;
+    const p_pagesize = Number.parseInt(req.query.p_pagesize) || 20;
+    const p_search = req.query.p_search || null;
+    const shippingCampaignList = await client.query(`
+       SELECT * FROM ins.fn_get_shippingcampaignlist($1::int,$2::int,$3::text)`,
+      [
+        p_pagenumber,
+        p_pagesize,
+        p_search
+      ]);
+    const shippingCampaignListRes = shippingCampaignList.rows[0].fn_get_shippingcampaignlist;
+    // console.log(shippingCampaignListRes);
+    return res.status(HTTP.OK).json({
+      Message: "Shipping Campaign List Getting Sucessfully",
+      data: shippingCampaignListRes,
+      source: 'db'
+    })
+  } catch (error) {
+    console.error("Error Gettign Shipping Campaign List", error)
+    return res.status(HTTP.INTERNAL_ERROR).json({
+      Message: "Internal Server Error",
+      error: error.message
+    })
+  }
+}
+
+export const insertShippingAddress = async (req, res) => {
+  const p_adminid = req.user?.id || req.body.p_adminid;
+  if (!p_adminid) return res.status(HTTP.BAD_REQUEST).json({ message: "Admin ID Required For Insert Shipping Address" });
+
+  try {
+    const {p_userid ,p_address,p_isreusable} = req.body
+    if (!p_userid || !p_address) return res.status(HTTP.BAD_REQUEST).json({ message: "User Id And Address Required" })
+
+    await client.query("BEGIN");
+    await client.query("SELECT set_config('app.current_user_id', $1, true)", [
+      String(p_adminid),
+    ]);
+
+    const result = await client.query(`
+     CALL ins.usp_upsert_shippingaddress($1::bigint,$2::bigint,$3::varchar,$4::BOOLEAN,$5::smallint,$6::text)`,
+      [
+        p_adminid,
+        p_userid,
+        p_address,
+        p_isreusable,
+        null,
+        null
+      ]);
+
+    const { p_status, p_message } = result.rows[0] || {};
+    // console.log("status:-",p_status);
+    // console.log("Message:-",p_message)
+    await client.query("COMMIT");
+    if (p_status === SP_STATUS.SUCCESS) {
+      return res.status(HTTP.OK).json(
+        {
+          message: p_message,
+          p_status: p_status
+        }
+      );
+    } else if (p_status === SP_STATUS.VALIDATION_FAIL) {
+      return res.status(HTTP.BAD_REQUEST).json(
+        {
+          message: p_message || "Validation failed",
+          p_status: p_status
+        }
+      );
+    } else if (p_status === SP_STATUS.ERROR) {
+      // console.error("Stored Procedure Failure:", p_message);
+      return res.status(HTTP.INTERNAL_ERROR).json(
+        {
+          message: p_message,
+          p_status: p_status
+        }
+      );
+    } else {
+      return res.status(HTTP.INTERNAL_ERROR).json(
+        {
+          message: "Unexpected database response",
+          p_status: p_status
+        }
+      );
+    }
+  } catch (error) {
+    console.error("Error In Updating Shipping Address", error)
+    return res.status(HTTP.INTERNAL_ERROR).json({
+      message: "Internal Server Error",
+      error: error.message
+    })
   }
 }

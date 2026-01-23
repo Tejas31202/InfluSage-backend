@@ -1,11 +1,12 @@
 import { client } from '../config/Db.js';
+import { HTTP, SP_STATUS } from '../utils/Constants.js';
 
 export const getAllNotification = async (req, res) => {
   const userId = req.user?.id;
   const limitedData = req.query?.limitedData;
   const p_role = "RECEIVER";
   if (!userId) {
-    return res.status(400).json({ message: "user Id Required" });
+    return res.status(HTTP.BAD_REQUEST).json({ message: "user Id Required" });
   }
 
   const limitedFlag =
@@ -18,7 +19,7 @@ export const getAllNotification = async (req, res) => {
       [userId, limitedFlag, p_role]
     );
     const result = notification.rows[0]?.fn_get_notificationlist || [];
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message:
         result.length > 0
           ? "Notifications fetched successfully"
@@ -27,7 +28,7 @@ export const getAllNotification = async (req, res) => {
     });
   } catch (error) {
     console.error("Error While Fetching Notification:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });

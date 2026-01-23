@@ -5,6 +5,7 @@ import jwt from "jsonwebtoken";
 import Redis from "../../utils/RedisWrapper.js";
 import { sendingMail } from "../../utils/MailUtils.js";
 import { htmlContent } from "../../utils/EmailTemplates.js";
+import { SP_STATUS, HTTP } from "../../utils/Constants.js";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -43,14 +44,14 @@ const respondByStatus = (res, row, successData = {}) => {
   const p_status = Number(row?.p_status);
   const p_message = row?.p_message;
 
-  if (p_status === 1)
-    return res.status(200).json({ status: true, message: p_message, ...successData });
+  if (p_status === SP_STATUS.SUCCESS)
+    return res.status(HTTP.OK).json({ status: true, message: p_message, ...successData });
 
-  if (p_status === 0)
-    return res.status(400).json({ status: false, message: p_message });
+  if (p_status === SP_STATUS.VALIDATION_FAIL)
+    return res.status(HTTP.BAD_REQUEST).json({ status: false, message: p_message });
 
   console.error("Stored Procedure Error:", p_message);
-  return res.status(500).json({ status: false, message: "Something went wrong" });
+  return res.status(HTTP.INTERNAL_ERROR).json({ status: false, message: "Something went wrong" });
 };
 
 /* ====================== REGISTER ====================== */
@@ -61,7 +62,7 @@ export const requestRegistration = async (req, res) => {
     const normalizedEmail = normalizeEmail(email);
 
     if (await isEmailExists(normalizedEmail)) {
-      return res.status(400).json({ message: "User already exists" });
+      return res.status(HTTP.BAD_REQUEST).json({ message: "User already exists" });
     }
 
     const passwordhash = await bcrypt.hash(password, 10);
@@ -91,10 +92,10 @@ export const requestRegistration = async (req, res) => {
       htmlContent({ otp: otpCode })
     );
 
-    return res.status(200).json({ message: "OTP sent successfully" });
+    return res.status(HTTP.OK).json({ message: "OTP sent successfully" });
   } catch (err) {
     console.error("Request Registration Error:", err);
-    return res.status(500).json({ message: "Registration failed" });
+    return res.status(HTTP.INTERNAL_ERROR).json({ message: "Registration failed" });
   }
 };
 
@@ -106,13 +107,13 @@ export const verifyOtpAndRegister = async (req, res) => {
     const { otp } = req.body;
 
     const storedOtp = await Redis.get(`otp:${email}`);
-    if (Number(storedOtp) !== Number(otp)) {
-      return res.status(400).json({ message: "Invalid or expired OTP" });
+    if (!storedOtp || String(storedOtp) !== String(otp)) {
+      return res.status(HTTP.BAD_REQUEST).json({ message: "Invalid or expired OTP" });
     }
 
     const pendingUser = await Redis.get(`pendingUser:${email}`);
     if (!pendingUser) {
-      return res.status(400).json({ message: "No pending registration found" });
+      return res.status(HTTP.BAD_REQUEST).json({ message: "No pending registration found" });
     }
 
     const { firstName, lastName, roleId, passwordhash } = pendingUser;
@@ -126,7 +127,7 @@ export const verifyOtpAndRegister = async (req, res) => {
 
     const row = result.rows[0];
 
-    if (row.p_status === 1) {
+    if (row.p_status === SP_STATUS.SUCCESS) {
       await Redis.del(`otp:${email}`);
       await Redis.del(`pendingUser:${email}`);
     }
@@ -134,7 +135,7 @@ export const verifyOtpAndRegister = async (req, res) => {
     return respondByStatus(res, row);
   } catch (err) {
     console.error("OTP Verification Error:", err);
-    return res.status(500).json({ message: "OTP verification failed" });
+    return res.status(HTTP.INTERNAL_ERROR).json({ message: "OTP verification failed" });
   }
 };
 
@@ -154,9 +155,9 @@ export const loginUser = async (req, res) => {
     const p_status = Number(row.p_status);
     const p_message = row.p_message || "Unknown response from DB";
 
-    if (p_status === 1) {
+    if (p_status === SP_STATUS.SUCCESS) {
       if (!user || user.code === "NOTREGISTERED") {
-        return res.status(404).json({
+        return res.status(HTTP.NOT_FOUND).json({
           status: false,
           message: user?.message || "User not registered",
           code: user?.code || "NOTREGISTERED",
@@ -166,7 +167,7 @@ export const loginUser = async (req, res) => {
       const isMatch = await bcrypt.compare(password, user.passwordhash);
 
       if (!isMatch) {
-        return res.status(401).json({
+        return res.status(HTTP.UNAUTHORIZED).json({
           status: false,
           message: "Incorrect password",
         });
@@ -190,7 +191,7 @@ export const loginUser = async (req, res) => {
         { expiresIn: "1h" }
       );
 
-      return res.status(200).json({
+      return res.status(HTTP.OK).json({
         status: true,
         message: "Welcome back " + user.fullname,
         token,
@@ -202,21 +203,21 @@ export const loginUser = async (req, res) => {
         p_message: user.message,
         source: "db",
       });
-    } else if (p_status === 0) {
-      return res.status(400).json({
+    } else if (p_status === SP_STATUS.VALIDATION_FAIL) {
+      return res.status(HTTP.BAD_REQUEST).json({
         status: false,
         message: p_message,
         source: "db",
       });
-    } else if (p_status === -1) {
+    } else if (p_status === SP_STATUS.ERROR) {
       console.error("Stored Procedure Failure:", p_message);
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: "Unexpected database error",
         source: "db",
       });
     } else {
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: "Unknown database response",
         source: "db",
@@ -225,7 +226,7 @@ export const loginUser = async (req, res) => {
 
   } catch (error) {
     console.error("Login error:", error);
-    return res.status(500).json({ 
+    return res.status(HTTP.INTERNAL_ERROR).json({ 
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -256,10 +257,10 @@ export const resendOtp = async (req, res) => {
       htmlContent({ otp })
     );
 
-    return res.status(200).json({ message: "OTP resent successfully" });
+    return res.status(HTTP.OK).json({ message: "OTP resent successfully" });
   } catch (err) {
     console.error("Resend OTP Error:", err);
-    return res.status(500).json({ message: "Failed to resend OTP" });
+    return res.status(HTTP.INTERNAL_ERROR).json({ message: "Failed to resend OTP" });
   }
 };
 
@@ -270,7 +271,7 @@ export const forgotPassword = async (req, res) => {
     const email = normalizeEmail(req.body.email);
 
     if (!(await isEmailExists(email))) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(HTTP.NOT_FOUND).json({ message: "User not found" });
     }
 
     const { rows } = await client.query(
@@ -287,10 +288,10 @@ export const forgotPassword = async (req, res) => {
       `${process.env.FRONTEND_URL}/reset-password?token=${token}`
     );
 
-    return res.status(200).json({ message: "Reset link sent successfully" });
+    return res.status(HTTP.OK).json({ message: "Reset link sent successfully" });
   } catch (err) {
     console.error("Forgot Password Error:", err);
-    return res.status(500).json({ message: "Failed to send reset link" });
+    return res.status(HTTP.INTERNAL_ERROR).json({ message: "Failed to send reset link" });
   }
 };
 
@@ -302,7 +303,7 @@ export const resetPassword = async (req, res) => {
     const userId = await Redis.get(`reset:${token}`);
 
     if (!userId) {
-      return res.status(400).json({ message: "Invalid or expired token" });
+      return res.status(HTTP.BAD_REQUEST).json({ message: "Invalid or expired token" });
     }
 
     const passwordhash = await bcrypt.hash(password, 10);
@@ -316,13 +317,13 @@ export const resetPassword = async (req, res) => {
 
     const row = result.rows[0];
 
-    if (row.p_status === 1) {
+    if (row.p_status === SP_STATUS.SUCCESS) {
       await Redis.del(`reset:${token}`);
     }
 
     return respondByStatus(res, row);
   } catch (err) {
     console.error("Reset Password Error:", err);
-    return res.status(500).json({ message: "Password reset failed" });
+    return res.status(HTTP.INTERNAL_ERROR).json({ message: "Password reset failed" });
   }
 };

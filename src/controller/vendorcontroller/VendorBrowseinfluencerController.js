@@ -1,4 +1,5 @@
 import { client } from '../../config/Db.js';
+import { HTTP , SP_STATUS} from '../../utils/Constants.js';
 import Redis from '../../utils/RedisWrapper.js';
 
 // const Redis = redis.createClient({ url: process.env.REDIS_URL });
@@ -11,7 +12,7 @@ export const getInfluencerBrowseDetails = async (req, res) => {
     const influencerId = req.params.influencerId;
 
     if (!influencerId) {
-      return res.status(400).json({ message: "Influencer ID required" });
+      return res.status(HTTP.BAD_REQUEST).json({ message: "Influencer ID required" });
     }
 
     //Data Given Form DB
@@ -22,14 +23,14 @@ export const getInfluencerBrowseDetails = async (req, res) => {
 
     const influencer = result.rows[0]?.fn_get_influencerbrowsedetails[0];
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "Influencers Browse Details Form DB",
       result: influencer,
       source: "db",
     });
   } catch (error) {
     console.error("error in getInfluencerBrowseDetails:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -81,17 +82,17 @@ export const browseAllInfluencer = async (req, res) => {
     const influencers = result.rows[0].fn_get_influencerbrowse;
 
     if (influencers.length === 0) {
-      return res.status(404).json({ message: "No influencers found." });
+      return res.status(HTTP.NOT_FOUND).json({ message: "No influencers found." });
     }
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       message: "Influencers Get Sucessfully",
       data: influencers,
       source: "db",
     });
   } catch (error) {
     console.error("error in browseAllInfluencer:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -102,12 +103,12 @@ export const addFavouriteInfluencer = async (req, res) => {
   const userId = req.user?.id;
   const { p_influencerId } = req.body;
   if (!userId) {
-    return res.status(400).json({
+    return res.status(HTTP.BAD_REQUEST).json({
       message: "userId is required",
     });
   }
   if (!p_influencerId) {
-    return res.status(400).json({
+    return res.status(HTTP.BAD_REQUEST).json({
       status: false,
       message: "Missing InfluencerId",
     });
@@ -128,31 +129,31 @@ export const addFavouriteInfluencer = async (req, res) => {
     const p_message = row.p_message;
 
     //  HANDLE p_status
-    if (p_status === 1) {
-      return res.status(200).json({
+    if (p_status === SP_STATUS.SUCCESS) {
+      return res.status(HTTP.OK).json({
         status: true,
         message: p_message || "Influencer added to favourites",
       });
-    } else if (p_status === 0) {
-      return res.status(400).json({
+    } else if (p_status === SP_STATUS.VALIDATION_FAIL) {
+      return res.status(HTTP.BAD_REQUEST).json({
         status: false,
         message: p_message || "Validation failed",
       });
-    } else if (p_status === -1) {
+    } else if (p_status === SP_STATUS.ERROR) {
       console.error("Stored Procedure Failure:", p_message);
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: "Something went wrong. Please try again later.",
       });
     } else {
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: "Unexpected database response",
       });
     }
   } catch (error) {
     console.error("Error in addFavouriteInfluencer:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -161,7 +162,7 @@ export const addFavouriteInfluencer = async (req, res) => {
 //...............Get Favourite Influencer.................
 export const getFavouriteInfluencer = async (req, res) => {
   const { userId, p_pagenumber, p_pagesize, p_search } = req.query;
-  if (!userId) return res.status(400).json({ message: "Userid Require" });
+  if (!userId) return res.status(HTTP.BAD_REQUEST).json({ message: "Userid Require" });
   try {
     const result = await client.query(
       `SELECT * FROM ins.fn_get_influencersave($1::BIGINT,$2,$3,$4)`,
@@ -174,7 +175,7 @@ export const getFavouriteInfluencer = async (req, res) => {
     });
   } catch (error) {
     console.error("Error While Favourite Influencer Get", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -186,7 +187,7 @@ export const inviteInfluencerToCampaigns = async (req, res) => {
   const { p_influencerid } = req.query;
 
   if (!p_influencerid) {
-    return res.status(400).json({ message: "Influencer Id require." });
+    return res.status(HTTP.BAD_REQUEST).json({ message: "Influencer Id require." });
   }
 
   try {
@@ -197,13 +198,13 @@ export const inviteInfluencerToCampaigns = async (req, res) => {
 
     const campaigns = result.rows[0].p_campaigns;
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       data: campaigns,
       source: "db",
     });
   } catch (error) {
     console.error("Error in inviteInfluencerToCampaigns:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -215,18 +216,18 @@ export const insertCampaignInvites = async (req, res) => {
   const { p_influencerid, p_campaignidjson } = req.body;
 
   if (!userId) {
-    return res.status(401).json({
+    return res.status(HTTP.UNAUTHORIZED).json({
       status: false,
       message: "Unauthorized: user not found",
     });
   }
   if (!p_influencerid) {
-    return res.status(400).json({
+    return res.status(HTTP.BAD_REQUEST).json({
       message: "Influencerid Id Require",
     });
   }
   if (!p_campaignidjson || p_campaignidjson.length === 0) {
-    return res.status(400).json({
+    return res.status(HTTP.BAD_REQUEST).json({
       message: "No Campaign selected. Please Selected One Campaign.",
     });
   }
@@ -257,36 +258,36 @@ export const insertCampaignInvites = async (req, res) => {
     const p_status = Number(row.p_status);
     const p_message = row.p_message;
 
-    if (p_status === 1) {
-      return res.status(200).json({
+    if (p_status === SP_STATUS.SUCCESS) {
+      return res.status(HTTP.OK).json({
         status: true,
         message: p_message || "Campaign invites inserted successfully",
         source: "db",
       });
-    } else if (p_status === 0) {
-      return res.status(400).json({
+    } else if (p_status === SP_STATUS.VALIDATION_FAIL) {
+      return res.status(HTTP.BAD_REQUEST).json({
         status: false,
         message: p_message || "Failed to insert campaign invites",
         source: "db",
       });
     }
     // Case 3: p_status = -1 → SP failed
-    else if (p_status === -1) {
+    else if (p_status === SP_STATUS.ERROR) {
       console.error("Stored Procedure Failure:", p_message);
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: "Something went wrong. Please try again later.",
       });
     }
     else {
-      return res.status(500).json({
+      return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: p_message || "Unexpected database response",
       });
     }
   } catch (error) {
     console.error("error in insertCampaignInvites:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
@@ -309,13 +310,13 @@ export const browseInviteInfluencer = async (req, res) => {
 
     const influencer = result.rows[0]?.fn_get_influencerinvite;
 
-    return res.status(200).json({
+    return res.status(HTTP.OK).json({
       data: influencer,
       source: "db",
     });
   } catch (error) {
     console.error("Error in browseInviteInfluencer:", error);
-    return res.status(500).json({
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });

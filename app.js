@@ -13,6 +13,8 @@ import Redis from './src/utils/RedisWrapper.js';
 
 import { client } from "./src/config/Db.js";
 import {serviceStatusMiddleware} from './src/middleware/ServiceStatusMiddleware.js';
+import { responseTimeLogger } from './src/middleware/responseTime.js';
+import { performanceLogger } from './src/middleware/performanceLogger.js';
 import ServiceRoutes from './src/routes/serviceroutes/ServiceRoutes.js';
 import authRoutes from './src/routes/AuthRoutes.js';
 import CommonRoutes from './src/routes/CommonRoutes.js';
@@ -83,6 +85,9 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+app.use(responseTimeLogger);
+app.use(performanceLogger);
 
 app.use(
   cors({
@@ -341,12 +346,17 @@ io.on("connection", (socket) => {
     socket.leave(conversationId);
   });
 
-  socket.on("sendMessage", (message) => {
-    socket.to(message.conversationId).emit(
-      "receiveMessage",
-      message
-    );
-  });
+socket.on("sendMessage", (message) => {
+  const conversationId =
+    String(message.conversationid || message.conversationId);
+  const senderId = String(message.userid);
+  const receiverId = String(message.receiverId);
+  socket.to(conversationId).emit("receiveMessage", message);
+  if (receiverId && receiverId !== senderId) {
+    io.to(`user_${receiverId}`).emit("receiveMessage", message);
+  }
+});
+
 
   socket.on("editMessage", ({ id, content, file, conversationId, replyId }) => {
     io.to(conversationId).emit("editMessage", {

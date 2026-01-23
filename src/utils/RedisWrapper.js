@@ -1,5 +1,7 @@
 import { createClient } from "redis";
 import { Redis as UpstashRedis } from "@upstash/redis";
+import dotenv from "dotenv";
+dotenv.config();
 
 const isUpstash = process.env.REDIS_PROVIDER === "Upstash";
 
@@ -11,10 +13,21 @@ if (isUpstash) {
     token: process.env.UPSTASH_REDIS_REST_TOKEN,
   });
 } else {
-  redis = createClient({ url: process.env.REDIS_URL});
-  redis.connect().catch(console.error);
-}
+  redis = createClient({
+    socket: {
+      // host: process.env.REDIS_HOST, // 🔥 IMPORTANT for docker 
+      // port: Number(process.env.REDIS_PORT),
+      host: "127.0.0.1",
+      port: 6380,
+    },
+  });
 
+  redis.on("error", (err) => {
+    console.error("Redis Client Error", err);
+  });
+
+  await redis.connect();
+}
 
 export default {
   async set(key, value) {
@@ -36,20 +49,19 @@ export default {
   },
 
   async get(key) {
-  const data = await redis.get(key);
-  if (!data) return null;
+    const data = await redis.get(key);
+    if (!data) return null;
 
-  try {
-    
-    if (typeof data === "string") {
-      
-      return JSON.parse(data);
+    try {
+      // Upstash already object, local Redis stringified
+      if (typeof data === "string") {
+        return JSON.parse(data);
+      }
+      return data; // Upstash object
+    } catch (err) {
+      return data;
     }
-    return data; 
-  } catch (err) {
-    return data; 
-  }
-},
+  },
 
   async del(key) {
     return await redis.del(key);
