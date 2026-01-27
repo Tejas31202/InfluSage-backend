@@ -380,7 +380,7 @@ socket.on("sendMessage", (message) => {
 
   socket.on("messageRead", ({ messageId, conversationId, role }) => {
     if (!messageId || !conversationId) {
-      // console.log("❌ INVALID READ EVENT", { messageId, conversationId, role });
+      console.log("❌ INVALID READ EVENT", { messageId, conversationId, role });
       return;
     }
 
@@ -390,7 +390,7 @@ socket.on("sendMessage", (message) => {
       readbyinfluencer: Number(role) === 1,
       readbyvendor: Number(role) === 2,
     };
-    // console.log("📡 EMIT updateMessageStatus", payload);
+    console.log("📡 EMIT updateMessageStatus", payload);
 
     io.to(String(conversationId)).emit("updateMessageStatus", payload);
   });

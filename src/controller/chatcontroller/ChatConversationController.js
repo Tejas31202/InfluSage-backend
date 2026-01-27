@@ -194,7 +194,7 @@ export const insertMessage = async (req, res) => {
     const p_status = Number(row.p_status);
     const p_message = row.p_message;
 
-    /* 🔴 IMPORTANT FIX: real DB message ID */
+    /*  IMPORTANT FIX: real DB message ID */
     const newMessageId = row.p_messageid;
 
     if (p_status === SP_STATUS.SUCCESS) {
@@ -223,7 +223,7 @@ export const insertMessage = async (req, res) => {
         name: entityDetails?.name || "",
         photopath: entityDetails?.photopath || "",
 
-        /* 🔴 IMPORTANT FIX: correct read flags */
+        /* IMPORTANT FIX: correct read flags */
         readbyvendor: Number(p_roleid) === 2,
         readbyinfluencer: Number(p_roleid) === 1,
       };
