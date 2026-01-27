@@ -378,7 +378,7 @@ socket.on("sendMessage", (message) => {
     io.to(conversationId).emit("undoDeleteMessage", messageId);
   });
 
-  socket.on("messageRead", ({ messageId, conversationId, role }) => {
+    socket.on("messageRead", ({ messageId, conversationId, role }) => {
     if (!messageId || !conversationId) {
       console.log("❌ INVALID READ EVENT", { messageId, conversationId, role });
       return;
@@ -387,8 +387,7 @@ socket.on("sendMessage", (message) => {
     const payload = {
       messageId,
       conversationId,
-      readbyinfluencer: Number(role) === 1,
-      readbyvendor: Number(role) === 2,
+      readerRole: Number(role),
     };
     console.log("📡 EMIT updateMessageStatus", payload);
 

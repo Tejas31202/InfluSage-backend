@@ -194,7 +194,7 @@ export const insertMessage = async (req, res) => {
     const p_status = Number(row.p_status);
     const p_message = row.p_message;
 
-    /*  IMPORTANT FIX: real DB message ID */
+    /* 🔴 IMPORTANT FIX: real DB message ID */
     const newMessageId = row.p_messageid;
 
     if (p_status === SP_STATUS.SUCCESS) {
@@ -223,7 +223,7 @@ export const insertMessage = async (req, res) => {
         name: entityDetails?.name || "",
         photopath: entityDetails?.photopath || "",
 
-        /* IMPORTANT FIX: correct read flags */
+        /* 🔴 IMPORTANT FIX: correct read flags */
         readbyvendor: Number(p_roleid) === 2,
         readbyinfluencer: Number(p_roleid) === 1,
       };
@@ -318,7 +318,7 @@ export const getMessages = async (req, res) => {
     }
 
     const result = await client.query(
-      `SELECT * FROM ins.fn_get_messages(
+      `SELECT * FROM ins.fn_get_messages1(
         $1::BIGINT,
         $2::SMALLINT,
         $3::INTEGER,
@@ -327,7 +327,7 @@ export const getMessages = async (req, res) => {
       [p_conversationid, p_roleid, limit, offset]
     );
 
-    const messages = result.rows[0]?.fn_get_messages;
+    const messages = result.rows[0]?.fn_get_messages1;
 
     if (!messages || messages.length === 0) {
       return res.status(HTTP.NOT_FOUND).json({ message: "No messages found." });
