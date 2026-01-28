@@ -31,10 +31,10 @@ const authenticateUser = (allowedRoles = []) => {
       }
     };
 
-    // 1️⃣ Try access token first
+    // 1 Try access token first
     let decoded = token ? verifyToken(token, JWT_SECRET) : null;
 
-    // 2️⃣ If access token invalid/expired → check refresh token cookie
+    // 2 If access token invalid/expired → check refresh token cookie
     // authenticateUser middleware ke andar
 if (!decoded) {
   const refreshToken = req.cookies?.refreshToken;
@@ -44,7 +44,16 @@ if (!decoded) {
 
   const payload = jwt.verify(refreshToken, process.env.REFRESH_SECRET);
 
-  // ✅ 1. NEW ACCESS TOKEN
+  // let payload;
+  // try {
+  //   payload = jwt.verify(refreshToken, REFRESH_SECRET);
+  // } catch (err) {
+  //   return res.status(401).json({
+  //     message: "Refresh token expired or invalid",
+  //   });
+  // }
+
+  //  1. NEW ACCESS TOKEN
   const newAccessToken = jwt.sign(
     {
       id: payload.id,
@@ -57,7 +66,7 @@ if (!decoded) {
     { expiresIn: "1h" }
   );
 
-  // ✅ 2. ROTATE REFRESH TOKEN (IMPORTANT)
+  //  2. ROTATE REFRESH TOKEN (IMPORTANT)
   const newRefreshToken = jwt.sign(
     {
       id: payload.id,
@@ -106,9 +115,9 @@ if (!decoded) {
       });
     }
 
-    console.log("Access token:", token);
-console.log("Decoded access token:", decoded);
-console.log("Refresh token from cookie:", req.cookies?.refreshToken);
+//     console.log("Access token:", token);
+// console.log("Decoded access token:", decoded);
+// console.log("Refresh token from cookie:", req.cookies?.refreshToken);
 
     // Attach user info
     req.user = {
