@@ -351,16 +351,17 @@ export const sendSupportMessage = async (req, res) => {
     const row = result.rows?.[0] || {};
     const p_status = Number(row.p_status);
     const p_message = row.p_message;
-
+    const p_messageid = Number(row.p_messageid);
     // ----------------- HANDLE p_status -----------------
     if (p_status === SP_STATUS.SUCCESS) {
       // SOCKET EMIT
       io.to(`ticket_${p_usersupportticketid}`).emit("receiveSupportMessage", {
         ticketId: p_usersupportticketid,
+        messageId: p_messageid,
         senderId: p_senderid,
         message: p_messages,
         file: p_filepath,
-        replyId: p_replyid,
+        replyId: p_replyid ?? null,
         lastmessagedate: new Date(),
         readbyuser: false,
       });
@@ -384,6 +385,7 @@ export const sendSupportMessage = async (req, res) => {
       return res.status(HTTP.OK).json({
         status: true,
         message: p_message || "Message sent successfully",
+        messageId: p_messageid,
         filePaths: p_filepath,
       });
     } else if (p_status === SP_STATUS.VALIDATION_FAIL) {

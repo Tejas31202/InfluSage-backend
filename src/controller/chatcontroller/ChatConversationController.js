@@ -100,33 +100,38 @@ export const insertMessage = async (req, res) => {
     });
   }
 
-  const { p_conversationid, p_roleid, p_messages, p_replyid, p_messageid, campaignid, campaignName, influencerId, influencerName, vendorId, vendorName, tempId } = req.body || {};
+  const {
+    p_conversationid,
+    p_roleid,
+    p_messages,
+    p_replyid,
+    p_messageid,
+    campaignid,
+    influencerId,
+    vendorId,
+    tempId,
+  } = req.body || {};
 
   let p_filepaths = null;
+
+  /* ---------------- FILE UPLOAD ---------------- */
   if (req.files && req.files.length > 0) {
     const uploadedUrls = [];
-
-    // Get role and user info
     const roleId = req.user?.roleId || p_roleid;
-    const userId = req.user?.id;
 
     for (const file of req.files) {
       const timestamp = Date.now();
       const newFileName = `${timestamp}_${file.originalname}`;
-      // const newFileName = `${file.originalname}`;
+      let uniqueFileName = "";
 
-      let uniqueFileName = ""
-
-      //Created Folder Path For Vendor And Influencer saved in vendor side
       if (Number(roleId) === 2) {
         uniqueFileName = `Vendor/${userId}/Campaigns/${campaignid}/Chat/${influencerId}/${newFileName}`;
-      } else if ((Number(roleId) === 1)) {
+      } else if (Number(roleId) === 1) {
         uniqueFileName = `Vendor/${vendorId}/Campaigns/${campaignid}/Chat/${userId}/${newFileName}`;
       }
 
-      // Upload file to Supabase
-      const { data, error } = await supabase.storage
-        .from(process.env.SUPABASE_BUCKET) // bucket name
+      const { error } = await supabase.storage
+        .from(process.env.SUPABASE_BUCKET)
         .upload(uniqueFileName, file.buffer, {
           contentType: file.mimetype,
           upsert: false,
@@ -134,7 +139,6 @@ export const insertMessage = async (req, res) => {
 
       if (error) throw error;
 
-      // Get public URL
       const { data: publicData } = supabase.storage
         .from(process.env.SUPABASE_BUCKET)
         .getPublicUrl(uniqueFileName);
@@ -148,17 +152,19 @@ export const insertMessage = async (req, res) => {
   }
 
   if (!p_conversationid || !p_roleid) {
-    return res
-      .status(HTTP.BAD_REQUEST)
-      .json({ message: "Action, conversationId, and roleId are required" });
+    return res.status(HTTP.BAD_REQUEST).json({
+      message: "conversationId and roleId are required",
+    });
   }
 
   try {
     await client.query("BEGIN");
+
     await client.query(
       "SELECT set_config('app.current_user_id', $1, true)",
       [String(userId)]
     );
+
     const result = await client.query(
       `CALL ins.usp_upsert_message(
         $1::bigint, 
@@ -181,28 +187,28 @@ export const insertMessage = async (req, res) => {
         p_messageid || null,
       ]
     );
+
     await client.query("COMMIT");
 
-    const row = result.rows[0] || {};
+    const row = result.rows?.[0] || {};
     const p_status = Number(row.p_status);
     const p_message = row.p_message;
-    const newMessageId = tempId;
+
+    /* 🔴 IMPORTANT FIX: real DB message ID */
+    const newMessageId = row.p_messageid;
 
     if (p_status === SP_STATUS.SUCCESS) {
-      const entityId = userId;
-      const entityType = "user";
-      let entityDetails = null;
-
       const entityResult = await client.query(
         `SELECT * FROM ins.get_entity_details($1::bigint, $2::text)`,
-        [entityId, entityType]
+        [userId, "user"]
       );
 
-      entityDetails = entityResult.rows[0] || null;
+      const entityDetails = entityResult.rows[0] || {};
 
+      /* ---------------- SOCKET PAYLOAD ---------------- */
       const payload = {
         tempId,
-        messageid: tempId,
+        messageid: newMessageId, // ✅ REAL DB ID
         is_deleted: false,
         conversationid: p_conversationid,
         message: p_messages || "",
@@ -210,16 +216,19 @@ export const insertMessage = async (req, res) => {
         roleid: p_roleid,
         replyid: p_replyid || null,
         createddate: new Date().toISOString(),
-        userid: req.user?.id,
+        userid: userId,
         campaignid,
         influencerId,
         vendorId,
         name: entityDetails?.name || "",
         photopath: entityDetails?.photopath || "",
-        readbyvendor: false,
-        readbyinfluencer: false,
+
+        /* 🔴 IMPORTANT FIX: correct read flags */
+        readbyvendor: Number(p_roleid) === 2,
+        readbyinfluencer: Number(p_roleid) === 1,
       };
 
+      /* ---------------- SOCKET EMIT ---------------- */
       io.to(String(p_conversationid)).emit("receiveMessage", payload);
 
       return res.status(200).json({
@@ -227,37 +236,35 @@ export const insertMessage = async (req, res) => {
         message: p_message,
         tempId,
         messageid: newMessageId,
-        filePaths: p_filepaths ? p_filepaths.split(",") : [],
+        filePaths: payload.filepaths,
         source: "db",
       });
-    } else if (p_status === SP_STATUS.VALIDATION_FAIL) {
+    }
+
+    if (p_status === SP_STATUS.VALIDATION_FAIL) {
       return res.status(HTTP.BAD_REQUEST).json({
         status: false,
         message: p_message,
         source: "db",
       });
-    } else if (p_status === SP_STATUS.ERROR) {
-      console.error("Stored Procedure Failure:", p_message);
-      return res.status(HTTP.INTERNAL_ERROR).json({
-        status: p_status,
-        message: "Unexpected database error",
-        source: "db",
-      });
-    } else {
-      return res.status(HTTP.INTERNAL_ERROR).json({
-        status: p_status,
-        message: "Unknown database response",
-        source: "db",
-      });
     }
+
+    return res.status(HTTP.INTERNAL_ERROR).json({
+      status: p_status,
+      message: "Unexpected database response",
+      source: "db",
+    });
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error("Failed to upsert message:", error);
+
     return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
   }
 };
+ 
 //Get Conversations (Full)
 export const getConversationsdetails = async (req, res) => {
   try {
@@ -311,7 +318,7 @@ export const getMessages = async (req, res) => {
     }
 
     const result = await client.query(
-      `SELECT * FROM ins.fn_get_messages(
+      `SELECT * FROM ins.fn_get_messages1(
         $1::BIGINT,
         $2::SMALLINT,
         $3::INTEGER,
@@ -320,7 +327,7 @@ export const getMessages = async (req, res) => {
       [p_conversationid, p_roleid, limit, offset]
     );
 
-    const messages = result.rows[0]?.fn_get_messages;
+    const messages = result.rows[0]?.fn_get_messages1;
 
     if (!messages || messages.length === 0) {
       return res.status(HTTP.NOT_FOUND).json({ message: "No messages found." });
