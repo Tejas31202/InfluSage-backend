@@ -94,6 +94,7 @@ app.use(
     origin: process.env.FRONTEND_URL, // your Netlify URL
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
+    exposedHeaders: ["x-access-token"],
     credentials: true,
   })
 );
