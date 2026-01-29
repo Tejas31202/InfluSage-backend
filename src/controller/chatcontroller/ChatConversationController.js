@@ -318,7 +318,7 @@ export const getMessages = async (req, res) => {
     }
 
     const result = await client.query(
-      `SELECT * FROM ins.fn_get_messages1(
+      `SELECT * FROM ins.fn_get_messages(
         $1::BIGINT,
         $2::SMALLINT,
         $3::INTEGER,
@@ -327,7 +327,7 @@ export const getMessages = async (req, res) => {
       [p_conversationid, p_roleid, limit, offset]
     );
 
-    const messages = result.rows[0]?.fn_get_messages1;
+    const messages = result.rows[0]?.fn_get_messages;
 
     if (!messages || messages.length === 0) {
       return res.status(HTTP.NOT_FOUND).json({ message: "No messages found." });

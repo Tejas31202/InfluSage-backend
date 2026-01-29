@@ -475,3 +475,349 @@ export async function getFacebookLoginCallback(req, res) {
   }
 }
 
+// const REFRESH_SECRET = process.env.REFRESH_SECRET;
+
+
+//   //  COMMON HELPER : GET USER USING USP
+// async function getUserByEmail(email) {
+//   const result = await client.query(
+//     "CALL ins.usp_login_user($1::VARCHAR, $2::JSON, $3::SMALLINT, $4::TEXT);",
+//     [email, null, null, null]
+//   );
+
+//   const row = result.rows[0] || {};
+
+//   return {
+//     p_status: Number(row.p_status),
+//     p_message: row.p_message || "Unknown DB response",
+//     user: row.p_loginuser || null,
+//   };
+// }
+
+
+//   //  CREATE USER (FOR SOCIAL SIGNUP)
+
+// async function createUser({ firstName, lastName, email, passwordhash, roleId }) {
+//   try {
+//   const result = await client.query(
+//         `CALL ins.usp_insert_user($1::VARCHAR, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::BOOLEAN, $6::SMALLINT, $7::SMALLINT, $8::TEXT);`,
+//         [firstName, lastName, email, passwordhash, true, roleId, null, null]
+//       );
+  
+//       const row = result.rows?.[0] || {};
+//       const p_status = Number(row.p_status);
+//       const p_message = row.p_message;
+    
+//       if (p_status === SP_STATUS.SUCCESS) {
+//         return { message: p_message, p_status };
+//       }
+  
+//       if (p_status === SP_STATUS.VALIDATION_FAIL) {
+//         return { message: p_message, p_status };
+//       }
+  
+//       if (p_status === SP_STATUS.ERROR) {
+//         console.error("Stored Procedure Failure:", p_message);
+//         return { message: "Something went wrong. Please try again later.", p_status: -1 };
+//       }
+//   } catch (error) {
+//     console.error("Error in createUser:", error);
+//     return res.status(HTTP.INTERNAL_ERROR).json({
+//       message: "Something went wrong. Please try again later.",
+//       error: error.message,
+//     });
+//   }
+// }
+    
+
+// //  Common login handler used by both manual + social login
+// async function handleUserLogin(user) {
+//   const fullname = user.fullname || `${user.firstname || ""} ${user.lastname || ""}`.trim();
+
+//   // 1. generate tokens
+// const accessToken = jwt.sign(
+//   {
+//     id: user.userid,
+//     role: user.roleid,
+//     email: data.email,
+//     name: fullname,
+//     p_code: pCode,
+//   },
+//   process.env.JWT_SECRET,
+//   { expiresIn: "1h" }
+// );
+
+// const refreshToken = jwt.sign(
+//   { id: user.userid, role: user.roleid, email: data.email, name: fullname, p_code: pCode },
+//   process.env.REFRESH_SECRET,
+//   { expiresIn: "7d" }
+// );
+
+// // 2. set refresh token cookie
+// res.cookie("refresh_token", refreshToken, {
+//   httpOnly: true,
+//   secure: true,
+//   sameSite: "lax",
+//   maxAge: 7 * 24 * 60 * 60 * 1000,
+// });
+
+// // 3. redirect with access token only
+// return res.redirect(
+//   `${process.env.FRONTEND_URL}/login?token=${encodeURIComponent(accessToken)}`
+// );
+// }
+// // ================== Normal Login ==================
+
+// export const loginUser = async (req, res) => {
+//   const { email, password } = req.body;
+
+//   try {
+//     const result = await client.query(
+//       `CALL ins.usp_login_user($1::VARCHAR, $2::JSON, $3::SMALLINT, $4::TEXT);`,
+//       [email, null, null, null]
+//     );
+
+//     const dbResponse = result.rows[0];
+//     if (!dbResponse) {
+//       return res.status(HTTP.INTERNAL_ERROR).json({ message: "Invalid DB response" });
+//     }
+
+//     const user = dbResponse.p_loginuser;
+//     const p_status = dbResponse.p_status;
+//     const p_message = dbResponse.p_message;
+
+//     if (!user || user.code === "NOTREGISTERED") {
+//       return res.status(HTTP.NOT_FOUND).json({
+//         message: user?.message || "User not found",
+//         code: user?.code || "NOTREGISTERED",
+//       });
+//     }
+
+//     if (!user.passwordhash) {
+//       return res
+//         .status(HTTP.BAD_REQUEST)
+//         .json({ message: "Password not set. Please set your password." });
+//     }
+
+//     if (!p_status) {
+//       return res.status(HTTP.BAD_REQUEST).json({ message: p_message });
+//     }
+
+//     const isMatch = await bcrypt.compare(password, user.passwordhash);
+//     if (!isMatch) {
+//       return res.status(HTTP.UNAUTHORIZED).json({ message: "Incorrect password" });
+//     }
+
+//     const loginResponse = await handleUserLogin(user);
+
+//     return res.status(HTTP.OK).json(loginResponse);
+//   } catch (error) {
+//     console.error("[ERROR] loginUser:", error);
+//     return res.status(HTTP.INTERNAL_ERROR).json({ message: "Server error during login" });
+//   }
+// };
+
+// //New Updated 
+// export async function getGoogleLoginPage(req, res) {
+//   try {
+//     const { roleid } = req.query;
+
+//     const redirectUrl =
+//       `https://accounts.google.com/o/oauth2/v2/auth?` +
+//       `client_id=${process.env.GOOGLE_CLIENT_ID}` +
+//       `&redirect_uri=${process.env.BACKEND_URL}/auth/google/callback` +
+//       `&response_type=code` +
+//       `&scope=openid email profile`;
+
+//     res.cookie("selected_role", roleid || 1, {
+//       maxAge: 10 * 60 * 1000,
+//       httpOnly: true,
+//       secure: true, 
+//       sameSite: "lax",
+//     });
+
+//     res.redirect(redirectUrl);
+//   } catch (err) {
+//     console.error("[ERROR] getGoogleLoginPage:", err);
+//     return res.status(HTTP.INTERNAL_ERROR).json({
+//       message: "Something went wrong. Please try again later.",
+//       error: err.message,
+//     });
+//   }
+// }
+
+
+//   //  GOOGLE OAUTH CALLBACK
+
+// export async function getGoogleLoginCallback(req, res) {
+//   const { code } = req.query;
+//   const selectedRole = req.cookies["selected_role"];
+
+//   if (!code) {
+//     return res.status(HTTP.UNAUTHORIZED).json({ message: "Invalid Google login attempt" });
+//   }
+
+//   try {
+//     const oauth2Client = new google.auth.OAuth2(
+//       process.env.GOOGLE_CLIENT_ID,
+//       process.env.GOOGLE_CLIENT_SECRET,
+//       `${process.env.BACKEND_URL}/auth/google/callback`
+//     );
+
+//     const { tokens } = await oauth2Client.getToken(code);
+//     oauth2Client.setCredentials(tokens);
+
+//     const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
+//     const { data } = await oauth2.userinfo.get();
+
+//     const firstName = data.given_name || (data.name ? data.name.split(" ")[0] : "");
+//     const lastName = data.family_name || (data.name ? data.name.split(" ").slice(1).join(" ") : "");
+
+//     const { p_status, p_message, user } = await getUserByEmail(data.email);
+
+//     if (p_status === SP_STATUS.SUCCESS) {
+//       if (!user || user.code === "NOTREGISTERED") {
+//         const redirectUrl = `${process.env.FRONTEND_URL}/roledefault?email=${encodeURIComponent(
+//           data.email
+//         )}&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(
+//           lastName
+//         )}&roleId=${selectedRole || ""}`;
+
+//         return res.redirect(redirectUrl);
+//       }
+
+//       if (user?.code === "BLOCKED") {
+//         const redirectUrl = `${process.env.FRONTEND_URL}/User?status=${encodeURIComponent}`;
+//         return res.redirect(redirectUrl);
+//       }
+
+//       // 1. Access token
+// const accessToken = jwt.sign(
+//   {
+//     id: user.userid,
+//     role: user.roleid,
+//     email: data.email,
+//     name: user.name || `${firstName} ${lastName}`.trim(),
+//     p_code: user.code,
+//   },
+//   process.env.JWT_SECRET,
+//   { expiresIn: "1h" }
+// );
+
+// // 2. Refresh token
+// const refreshToken = jwt.sign(
+//   {
+//     id: user.userid,
+//     role: user.roleid,
+//   },
+//   process.env.REFRESH_SECRET,
+//   { expiresIn: "7d" }
+// );
+
+// // 3. Set refresh token cookie (VERY IMPORTANT)
+// res.cookie("refresh_token", refreshToken, {
+//   httpOnly: true,
+//   secure: true,       // local dev me false rakh sakte ho
+//   sameSite: "lax",
+//   maxAge: 7 * 24 * 60 * 60 * 1000,
+// });
+
+// // 4. Redirect with access token only
+// return res.redirect(
+//   `${process.env.FRONTEND_URL}/login?token=${encodeURIComponent(accessToken)}`
+// );
+//     }
+
+
+//     if (p_status === SP_STATUS.VALIDATION_FAIL) {
+//       return res.status(HTTP.BAD_REQUEST).json({ status: false, message: p_message });
+//     }
+
+//     if (p_status === SP_STATUS.ERROR) {
+//       console.error("USP Error:", p_message);
+//       return res.status(HTTP.INTERNAL_ERROR).json({ message: "Database error during login" });
+//     }
+//   } catch (err) {
+//     console.error("[ERROR] Google callback:", err);
+//     return res.status(HTTP.INTERNAL_ERROR).json({
+//       message: "Something went wrong. Please try again later.",
+//       error: err.message,
+//     });
+//   }
+// }
+
+// export async function setPasswordAfterGoogleSignup(req, res) {
+//   try {
+//     const { email, firstName, lastName, roleId, password, fullName } = req.body;
+
+//     if (!email || !password || !roleId) {
+//       return res.status(HTTP.BAD_REQUEST).json({ message: "Missing required fields" });
+//     }
+
+//     if ((!firstName || !lastName) && fullName) {
+//       const nameParts = fullName.trim().split(" ");
+//       firstName = firstName || nameParts[0];
+//       lastName = lastName || nameParts.slice(1).join(" ");
+//     }
+
+//     // Check if user already exists
+//     const { p_status, user } = await getUserByEmail(email);
+
+//     if (p_status === SP_STATUS.SUCCESS && user && user.code !== "NOTREGISTERED") {
+//       return res
+//         .status(HTTP.BAD_REQUEST)
+//         .json({ message: "User already exists, please login" });
+//     }
+
+//     // Hash password
+//     const hashedPassword = await bcrypt.hash(password, 10);
+
+//     await createUser({
+//       firstName: firstName || "",
+//       lastName: lastName || "",
+//       email,
+//       passwordhash: hashedPassword,
+//       roleId,
+//     });
+
+//     // Fetch newly created user
+//     const loginRes = await getUserByEmail(email);
+
+
+//     const normalizedUser = {
+//       id: loginRes.user.userid,
+//       role: loginRes.user.roleid,
+//       name: loginRes.user.name || `${firstName} ${lastName}`.trim(),
+//       email: loginRes.user.email,
+//       p_code: loginRes.user.code,
+//     };
+
+//     // Generate JWT
+//     const token = jwt.sign(
+//       {
+//         id: normalizedUser.id,
+//         role: normalizedUser.role,
+//         name: normalizedUser.name,
+//         email: normalizedUser.email,
+//         p_code: normalizedUser.p_code,
+//       },
+//       JWT_SECRET,
+//       { expiresIn: "1h" }
+//     );
+
+  
+
+//     return res.status(201).json({
+//       success: true,
+//       message: "Signup completed successfully",
+//       token: token,
+//       user: normalizedUser,
+//     });
+//   } catch (err) {
+//     console.error("[ERROR] setPasswordAfterGoogleSignup:", err);
+//     return res.status(HTTP.INTERNAL_ERROR).json({
+//       message: "Something went wrong. Please try again later.",
+//       error: err.message,
+//     });
+//   }
+// }
