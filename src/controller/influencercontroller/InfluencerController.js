@@ -176,8 +176,8 @@ export const loginUser = async (req, res) => {
       // Generate tokens
       const accessToken = generateAccessToken(user);
       const refreshToken = generateRefreshToken(user);
-      console.log("Cookies object:", req.cookies);
-console.log("Raw cookie header:", req.headers.cookie);
+//       console.log("Cookies object:", req.cookies);
+// console.log("Raw cookie header:", req.headers.cookie);
 
 
       // Set refresh token in HTTP-only cookie
