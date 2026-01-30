@@ -7,6 +7,7 @@ import jwt from "jsonwebtoken";
 dotenv.config();
 import { HTTP, SP_STATUS } from '../utils/Constants.js';
 const JWT_SECRET = process.env.JWT_SECRET;
+const REFRESH_SECRET = process.env.REFRESH_SECRET;
 
 
   //  COMMON HELPER : GET USER USING USP
@@ -75,6 +76,18 @@ async function handleUserLogin(user) {
     },
     JWT_SECRET,
     { expiresIn: "1h" }
+  );
+
+  const refreshToken = jwt.sign(
+    {
+      id: user.userid,
+      email: user.email,
+      role: user.roleid,
+      name: fullname,
+      p_code: user.code,
+    },
+    REFRESH_SECRET,
+    { expiresIn: "3h" }
   );
 
   return {
@@ -151,7 +164,7 @@ export async function getGoogleLoginPage(req, res) {
       `&response_type=code` +
       `&scope=openid email profile`;
 
-    res.cookie("selected_role", roleid || 1, {
+    res.cookie("selected_role", roleid || 1,{
       maxAge: 10 * 60 * 1000,
       httpOnly: true,
       secure: true, 
@@ -224,6 +237,25 @@ export async function getGoogleLoginCallback(req, res) {
         JWT_SECRET,
         { expiresIn: "1h" }
       );
+
+      const refreshToken = jwt.sign(
+  {
+    id: user.userid,
+    email: data.email,
+    role: user.roleid,
+    p_code: user?.code || user?.p_code,
+  },
+  REFRESH_SECRET,
+  { expiresIn: "3h" }
+);
+
+//  Set refresh token cookie here
+res.cookie("refreshToken", refreshToken, {
+  httpOnly: true,
+  secure: true,
+  sameSite: "lax",
+  maxAge: 3 * 60 * 60 * 1000,
+});
 
       const fullName = user?.name || `${firstName} ${lastName}`.trim();
 const pCode = user?.code || user?.p_code;
@@ -323,6 +355,26 @@ export async function setPasswordAfterGoogleSignup(req, res) {
       JWT_SECRET,
       { expiresIn: "1h" }
     );
+
+    const refreshToken = jwt.sign(
+  {
+    id: normalizedUser.id,
+    role: normalizedUser.role,
+    name: normalizedUser.name,
+    email: normalizedUser.email,
+    p_code: normalizedUser.p_code,
+  },
+  REFRESH_SECRET,
+  { expiresIn: "3h" }
+);
+
+//  Set refresh token in cookie
+res.cookie("refreshToken", refreshToken, {
+  httpOnly: true,
+  secure: true,
+  sameSite: "lax",
+  maxAge: 3 * 60 * 60 * 1000,
+});
 
     return res.status(201).json({
       success: true,

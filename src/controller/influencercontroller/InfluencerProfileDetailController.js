@@ -371,6 +371,12 @@ export const getUserProfile = async (req, res) => {
   const userId = req.params.userId;
   const redisKey = `profile:${userId}`;
 
+  console.log("Fetching profile for userId:", userId, typeof userId);
+
+  if (!userId || isNaN(userId) || userId === "null") {
+    return res.status(HTTP.BAD_REQUEST).json({ message: "userId is required" });
+  }
+
   try {
     // 1. Redis data
     const redisParsed = (await Redis.get(redisKey)) || {};
