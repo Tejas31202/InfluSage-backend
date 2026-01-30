@@ -94,6 +94,7 @@ app.use(
     origin: process.env.FRONTEND_URL, // your Netlify URL
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
+    exposedHeaders: ["x-access-token"],
     credentials: true,
   })
 );
@@ -378,19 +379,18 @@ socket.on("sendMessage", (message) => {
     io.to(conversationId).emit("undoDeleteMessage", messageId);
   });
 
-  socket.on("messageRead", ({ messageId, conversationId, role }) => {
+    socket.on("messageRead", ({ messageId, conversationId, role }) => {
     if (!messageId || !conversationId) {
-      // console.log("❌ INVALID READ EVENT", { messageId, conversationId, role });
+      console.log("❌ INVALID READ EVENT", { messageId, conversationId, role });
       return;
     }
 
     const payload = {
       messageId,
       conversationId,
-      readbyinfluencer: Number(role) === 1,
-      readbyvendor: Number(role) === 2,
+      readerRole: Number(role),
     };
-    // console.log("📡 EMIT updateMessageStatus", payload);
+    console.log("📡 EMIT updateMessageStatus", payload);
 
     io.to(String(conversationId)).emit("updateMessageStatus", payload);
   });

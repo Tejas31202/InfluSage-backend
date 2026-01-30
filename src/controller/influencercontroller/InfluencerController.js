@@ -6,6 +6,7 @@ import Redis from "../../utils/RedisWrapper.js";
 import { sendingMail } from "../../utils/MailUtils.js";
 import { htmlContent } from "../../utils/EmailTemplates.js";
 import { SP_STATUS, HTTP } from "../../utils/Constants.js";
+import { generateAccessToken, generateRefreshToken } from "../../utils/Jwt.js";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -165,36 +166,32 @@ export const loginUser = async (req, res) => {
       }
 
       const isMatch = await bcrypt.compare(password, user.passwordhash);
-
       if (!isMatch) {
         return res.status(HTTP.UNAUTHORIZED).json({
           status: false,
           message: "Incorrect password",
         });
       }
-      
-      // if (user.code === "BLOCKED") {
-      //   return res.status(403).json({
-      //     message: "Your account has been blocked. Please contact support.",
-      //   });
-      // }
 
-      const token = jwt.sign(
-        {
-          id: user.userid,
-          email: email,
-          role: user.roleid,
-          name: user.fullname,
-          p_code: user.code,
-        },
-        JWT_SECRET,
-        { expiresIn: "1h" }
-      );
+      // Generate tokens
+      const accessToken = generateAccessToken(user);
+      const refreshToken = generateRefreshToken(user);
+//       console.log("Cookies object:", req.cookies);
+// console.log("Raw cookie header:", req.headers.cookie);
+
+
+      // Set refresh token in HTTP-only cookie
+      res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "none",
+        maxAge: 3 * 60 * 60 * 1000, // 3 hours
+      });
 
       return res.status(HTTP.OK).json({
         status: true,
         message: "Welcome back " + user.fullname,
-        token,
+        token: accessToken, // frontend uses this
         id: user.userid,
         name: user.fullname,
         email,
@@ -209,24 +206,16 @@ export const loginUser = async (req, res) => {
         message: p_message,
         source: "db",
       });
-    } else if (p_status === SP_STATUS.ERROR) {
-      console.error("Stored Procedure Failure:", p_message);
+    } else {
       return res.status(HTTP.INTERNAL_ERROR).json({
         status: false,
         message: "Unexpected database error",
         source: "db",
       });
-    } else {
-      return res.status(HTTP.INTERNAL_ERROR).json({
-        status: false,
-        message: "Unknown database response",
-        source: "db",
-      });
     }
-
   } catch (error) {
     console.error("Login error:", error);
-    return res.status(HTTP.INTERNAL_ERROR).json({ 
+    return res.status(HTTP.INTERNAL_ERROR).json({
       message: "Something went wrong. Please try again later.",
       error: error.message,
     });
