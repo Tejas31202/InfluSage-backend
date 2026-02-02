@@ -102,53 +102,53 @@ app.use(
 app.use(serviceStatusMiddleware);
 
 //service status on or off
-app.use("/api",ServiceRoutes);
+app.use("/api/service",ServiceRoutes);
 
 /* =========================
    Auth & Common Routes
 ========================= */
-app.use("/auth", authRoutes);
-app.use("/", CommonRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/", CommonRoutes);
 
 /* =========================
    Influencer Routes
 ========================= */
-app.use("/user", InfluencerRoutes);
-app.use("/user", InfluencerProfileDetailRoutes);
-app.use("/user", InfluencerCampaignRoutes);
-app.use("/user", InfluencerMyCampaignRoutes);
-app.use("/user", InfluencerDashboardRoutes);
-app.use("/user", InfluencerContractRoutes);
-app.use("/user", InfluencerAnalyticsDashboardRoutes);
+app.use("/api/user", InfluencerRoutes);
+app.use("/api/user", InfluencerProfileDetailRoutes);
+app.use("/api/user", InfluencerCampaignRoutes);
+app.use("/api/user", InfluencerMyCampaignRoutes);
+app.use("/api/user", InfluencerDashboardRoutes);
+app.use("/api/user", InfluencerContractRoutes);
+app.use("/api/user", InfluencerAnalyticsDashboardRoutes);
 
 /* =========================
    Vendor Routes
 ========================= */
-app.use("/vendor", VendorProfileDetailRoutes);
-app.use("/vendor", VendorCampaignRoutes);
-app.use("/vendor", VendorBrowseInfluencerRoutes);
-app.use("/vendor", VendorOffersRoutes);
-app.use("/vendor", VendorMyCampaignRoutes);
-app.use("/vendor", VendorDashboardRoutes);
-app.use("/vendor", VendorContractRoutes);
-app.use("/vendor", VendorFeedbackRoutes);
-app.use("/vendor", VendorAnalyticsDashboardRoutes);
+app.use("/api/vendor", VendorProfileDetailRoutes);
+app.use("/api/vendor", VendorCampaignRoutes);
+app.use("/api/vendor", VendorBrowseInfluencerRoutes);
+app.use("/api/vendor", VendorOffersRoutes);
+app.use("/api/vendor", VendorMyCampaignRoutes);
+app.use("/api/vendor", VendorDashboardRoutes);
+app.use("/api/vendor", VendorContractRoutes);
+app.use("/api/vendor", VendorFeedbackRoutes);
+app.use("/api/vendor", VendorAnalyticsDashboardRoutes);
 
 /* =========================
    Admin Routes
 ========================= */
 
-app.use("/admin", AdminPanelRoutes);
-app.use("/admin", AdminAnalyticsDashboardRoutes);
+app.use("/api/admin", AdminPanelRoutes);
+app.use("/api/admin", AdminAnalyticsDashboardRoutes);
 
 /* =========================
    Chat & Notifications
 ========================= */
 
-app.use("/chat", ChatRoutes);
-app.use("/chat/support", UserAdminSupportChatRoutes);
-app.use("/new", NotificationRoutes);
-app.use("/setting", SettingRoutes);
+app.use("/api/chat", ChatRoutes);
+app.use("/api/chat/support", UserAdminSupportChatRoutes);
+app.use("/api/new", NotificationRoutes);
+app.use("/api/setting", SettingRoutes);
 
 const PORT = process.env.BACKEND_PORT || 3001;
 
